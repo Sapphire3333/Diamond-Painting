@@ -118,6 +118,12 @@
   .ovfins{margin-top:6px;}
   .ovswatches{display:flex;gap:4px;margin-top:9px;flex-wrap:wrap;align-items:center;}
   .ovthumb{width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid var(--line);}
+  .ovtags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+  .ovtag{background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;}
+  .ovphotos{display:flex;gap:7px;margin-top:10px;}
+  .ovphoto{position:relative;flex:1 1 0;min-width:0;}
+  .ovphoto img{width:100%;height:160px;object-fit:cover;border-radius:11px;border:1px solid var(--line);display:block;background:var(--unk-soft);}
+  .ovphoto-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;letter-spacing:.3px;padding:2px 8px;border-radius:999px;}
   .mini{width:16px;height:16px;border-radius:5px;border:1px solid rgba(0,0,0,.14);
     background-image:linear-gradient(135deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 50%,rgba(0,0,0,.1) 100%);}
   .mini.more{background:var(--unk-soft);color:var(--unk);font-size:9px;font-weight:800;width:auto;padding:0 5px;
@@ -145,6 +151,8 @@
     padding:12px;margin-bottom:10px;align-items:flex-start;}
   .photos{flex:0 1 42%;min-width:96px;}
   .photo-grid{display:flex;flex-wrap:wrap;gap:6px;}
+  .pg-item{position:relative;}
+  .pg-lbl{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.62);color:#fff;font-size:9px;font-weight:800;letter-spacing:.3px;padding:1px 6px;border-radius:999px;pointer-events:none;z-index:1;}
   .photo-grid img{border-radius:9px;object-fit:cover;border:2px solid var(--line);cursor:pointer;display:block;}
   .photo-grid img.psel{border-color:var(--accent);}
   .photo-s0{width:56px;height:56px;}
@@ -232,7 +240,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var state={
     paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',updatedAt:0}],
     active:'p1', onlySel:false, view:'paintings',
-    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added', pGroup:'none',
+    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added', pGroup:'none', pSearchField:'all',
     autoBackup:'off', dark:false
   };
   var query='', findQuery='', findType='any', pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null;
@@ -395,6 +403,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(!s.view)s.view='paintings';
     if(s.view==='overview'&&(!s.paintings||s.paintings.length))s.view='paintings';
     if(!s.pGroup)s.pGroup='none';
+    if(!s.pSearchField)s.pSearchField='all';
     if(!s.autoBackup)s.autoBackup='off';
     if(!('dark' in s))s.dark=false;
     if(!s.specials)s.specials={};
@@ -621,6 +630,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function specSwatchHtml(f,entry){
     var code=(entry.text||'').trim().split(/\s+/)[0];
     var fin=FINMAP[f];
+    if(entry.color) return '<div class="drill" style="background-color:'+esc(entry.color)+'"></div>';
     if(DMCMAP[code]) return '<div class="drill" style="background-color:'+DMCMAP[code][2]+'"></div>';
     return '<div class="drill spec" style="background-color:'+fin.fg+'">✦</div>';
   }
@@ -839,12 +849,18 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   /* ---------- paintings gallery ---------- */
   function paintingCardHtml(p){
     var codes=Object.keys(p.colors);
-    var ordered=DMC.filter(function(r){return p.colors[r[0]];});
-    var sw='';
-    if(p.photos.length)sw+='<img class="ovthumb" src="'+p.photos[0].d+'" alt="">';
-    ordered.slice(0,12).forEach(function(r){sw+='<span class="mini" style="background-color:'+r[2]+'"></span>';});
-    if(ordered.length>12)sw+='<span class="mini more">+'+(ordered.length-12)+'</span>';
     var fins=finTagsHtml(p);
+    var tagKeys=Object.keys(p.tags||{});
+    var tagHtml=tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag">'+esc(t)+'</span>';}).join('')+'</div>'):'';
+    var photoHtml='';
+    if(p.photos&&p.photos.length){
+      var labels=['Sold','Result'];
+      photoHtml='<div class="ovphotos">';
+      p.photos.slice(0,2).forEach(function(ph,i){
+        photoHtml+='<div class="ovphoto"><img src="'+ph.d+'" alt=""><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
+      });
+      photoHtml+='</div>';
+    }
     var sub=codes.length+' color'+(codes.length===1?'':'s');
     if(p.size)sub+=' · '+esc(p.size);
     if(p.seller)sub+=' · '+esc(p.seller);
@@ -856,16 +872,23 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div class="ovtop"><span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
       '<div class="ovsub">'+sub+'</div>'+
       (fins?'<div class="ovfins">'+fins+'</div>':'')+
-      (sw?'<div class="ovswatches">'+sw+'</div>':'')+
+      tagHtml+
+      photoHtml+
       '</div>';
   }
   function filteredPaintings(){
     var q=(pQuery||'').trim().toLowerCase();
+    var f=state.pSearchField||'all';
     var list=state.paintings.slice();
     if(q){
       list=list.filter(function(p){
+        if(f==='name')   return (p.name||'').toLowerCase().indexOf(q)!==-1;
+        if(f==='diamond')return Object.keys(p.colors||{}).some(function(c){return c.toLowerCase().indexOf(q)!==-1;});
+        if(f==='seller') return (p.seller||'').toLowerCase().indexOf(q)!==-1;
+        if(f==='code')   return (p.code||'').toLowerCase().indexOf(q)!==-1;
+        if(f==='tag')    return Object.keys(p.tags||{}).some(function(t){return t.toLowerCase().indexOf(q)!==-1;});
         var st=(p.status&&STATUSMAP[p.status])?STATUSMAP[p.status].label:'';
-        var hay=(p.name||'')+' '+(p.seller||'')+' '+(p.code||'')+' '+(p.size||'')+' '+st+' '+Object.keys(p.tags||{}).join(' ');
+        var hay=(p.name||'')+' '+(p.seller||'')+' '+(p.code||'')+' '+(p.size||'')+' '+st+' '+Object.keys(p.tags||{}).join(' ')+' '+Object.keys(p.colors||{}).join(' ');
         return hay.toLowerCase().indexOf(q)!==-1;
       });
     }
@@ -956,7 +979,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function renderPaintings(){
     var pg=$('page');
-    var html='<div class="toolbar"><label class="search">🔎<input id="pq" type="text" inputmode="search" placeholder="Search name, seller, tag, kit code…" value="'+esc(pQuery)+'"></label></div>';
+    var SF=[['all','All'],['name','Name'],['diamond','Diamond #'],['seller','Seller'],['code','Kit code'],['tag','Tag']];
+    var phMap={all:'Search name, seller, tag, code, diamond #…',name:'Search painting name…',diamond:'Search diamond number, e.g. 321…',seller:'Search seller…',code:'Search kit code…',tag:'Search tag…'};
+    var ph=phMap[state.pSearchField]||'Search…';
+    var html='<div class="toolbar"><label class="search">🔎<input id="pq" type="text" inputmode="search" placeholder="'+esc(ph)+'" value="'+esc(pQuery)+'"></label></div>';
+    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Search in:</span>'+
+      SF.map(function(x){return '<button class="chipbtn'+(state.pSearchField===x[0]?' on':'')+'" data-sf="'+x[0]+'" type="button">'+x[1]+'</button>';}).join('')+'</div>';
     html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Group:</span>'+
       groupChip('none','None')+groupChip('status','Status')+groupChip('type','Diamond type')+groupChip('size','Size')+groupChip('seller','Seller')+groupChip('finish','Special diamonds')+'</div>';
     html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Sort:</span>'+
@@ -969,6 +997,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('sortRating'))$('sortRating').addEventListener('click',function(){state.ovSort='rating';renderPaintings();save();});
     if($('sortEdited'))$('sortEdited').addEventListener('click',function(){state.ovSort='edited';renderPaintings();save();});
     pg.querySelectorAll('[data-g]').forEach(function(b){b.addEventListener('click',function(){state.pGroup=b.getAttribute('data-g');renderPaintings();save();});});
+    pg.querySelectorAll('[data-sf]').forEach(function(b){b.addEventListener('click',function(){state.pSearchField=b.getAttribute('data-sf');renderPaintings();save();});});
     $('pq').addEventListener('input',function(e){pQuery=e.target.value;renderPaintingsList();});
     renderPaintingsList();
   }
@@ -1162,19 +1191,22 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     /* photos block */
     var ph='<div class="photo-grid">';
     p.photos.forEach(function(photo,i){
-      ph+='<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="">';
+      var lbl=(i===0?'<span class="pg-lbl">Sold</span>':(i===1?'<span class="pg-lbl">Result</span>':''));
+      ph+='<div class="pg-item">'+lbl+'<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt=""></div>';
     });
     ph+='</div>';
     ph+='<div class="photo-btns">'+
       '<button class="pbtn" id="phAdd" type="button">＋ Add photo</button>';
     if(selPhoto>=0&&selPhoto<p.photos.length){
-      ph+='<button class="pbtn" id="phLeft" type="button">◀</button>'+
+      ph+='<button class="pbtn" id="phSold" type="button">Make Sold (1st)</button>'+
+          '<button class="pbtn" id="phResult" type="button">Make Result (2nd)</button>'+
+          '<button class="pbtn" id="phLeft" type="button">◀</button>'+
           '<button class="pbtn" id="phRight" type="button">▶</button>'+
           '<button class="pbtn" id="phSmaller" type="button">−</button>'+
           '<button class="pbtn" id="phBigger" type="button">＋</button>'+
           '<button class="pbtn danger" id="phDel" type="button">✕</button>';
     }
-    ph+='</div><div class="photo-hint">'+(p.photos.length?'Tap a photo to select it, then move ◀ ▶, resize − ＋, or remove ✕':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image')+'</div>';
+    ph+='</div><div class="photo-hint">'+(p.photos.length?'The 1st photo shows as “Sold”, the 2nd as “Result” on the Paintings cards. Tap a photo to select it, then Make Sold / Make Result, reorder ◀ ▶, resize − ＋, or remove ✕.':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image. The first two become the “Sold” and “Result” pictures on cards.')+'</div>';
 
     /* size chips */
     var sizeChips='';
@@ -1236,8 +1268,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '</div>'+
         (chips?'<div class="fb-chips">'+chips+'</div>':'')+
         '<div class="fb-addrow"><input type="text" data-addspec="'+f.id+'" maxlength="60" placeholder="e.g. 550 Blue">'+
+        '<input type="color" data-addcolor="'+f.id+'" value="'+f.fg+'" title="Pick this diamond’s colour" style="width:40px;height:38px;flex:0 0 auto;padding:2px;border:1.5px solid var(--line);border-radius:9px;background:var(--panel);cursor:pointer;">'+
         '<button class="pbtn" data-addbtn="'+f.id+'" type="button">Add</button></div>'+
-        '<div class="fb-hint">Type a number + name and Add — it becomes a tap-to-select diamond here, in every other painting’s '+f.label+' list, and in Find.'+
+        '<div class="fb-hint">Type a number + name, pick its colour, and Add — it becomes a tap-to-select diamond here, in every other painting’s '+f.label+' list, and in Find.'+
         (p.finishes[f.id]?' Old note: “'+esc(p.finishes[f.id])+'”':'')+'</div>'+
         '</div>';
     });
@@ -1319,6 +1352,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     $('phAdd').addEventListener('click',function(){$('fileInput').click();});
     if(selPhoto>=0&&selPhoto<p.photos.length){
+      $('phSold').addEventListener('click',function(){
+        var a=p.photos.splice(selPhoto,1)[0];p.photos.unshift(a);selPhoto=0;renderPainting();savePhotos(p.id);
+      });
+      $('phResult').addEventListener('click',function(){
+        var a=p.photos.splice(selPhoto,1)[0];var to=Math.min(1,p.photos.length);p.photos.splice(to,0,a);selPhoto=to;renderPainting();savePhotos(p.id);
+      });
       $('phLeft').addEventListener('click',function(){
         if(selPhoto>0){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto-1,0,a);selPhoto--;renderPainting();savePhotos(p.id);}
       });
@@ -1474,10 +1513,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       b.addEventListener('click',function(){
         var f=b.getAttribute('data-addbtn');
         var inp=pg.querySelector('input[data-addspec="'+f+'"]');
+        var colInp=pg.querySelector('input[data-addcolor="'+f+'"]');
         var v=inp.value.trim();
         if(!v)return;
         if(!state.specials[f])state.specials[f]=[];
-        var entry={id:uid('s'),text:v};
+        var entry={id:uid('s'),text:v,color:(colInp?colInp.value:'')};
         state.specials[f].push(entry);
         p.spec[f][entry.id]=1;
         renderPainting(); saveEdit();
@@ -1489,6 +1529,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           var f=inp.getAttribute('data-addspec');
           pg.querySelector('[data-addbtn="'+f+'"]').click();
         }
+      });
+      /* if the typed code matches a DMC number, preview its real colour */
+      inp.addEventListener('input',function(){
+        var f=inp.getAttribute('data-addspec');
+        var code=(inp.value||'').trim().split(/\s+/)[0];
+        var colInp=pg.querySelector('input[data-addcolor="'+f+'"]');
+        if(colInp&&DMCMAP[code])colInp.value=DMCMAP[code][2];
       });
     });
 
