@@ -162,6 +162,10 @@
   .pbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:9px;padding:5px 9px;
     font-size:13px;font-weight:700;cursor:pointer;}
   .pbtn.danger{color:#A8324B;}
+  .pbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .photo-preview{position:relative;margin-top:8px;max-width:320px;}
+  .photo-preview img{width:100%;height:190px;object-fit:cover;border-radius:11px;border:1.5px solid var(--accent);background:var(--unk-soft);display:block;}
+  .pv-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;pointer-events:none;}
   .photo-hint{font-size:11px;color:var(--muted);margin-top:5px;}
   .pdetails{flex:1;min-width:0;}
   .pd-name{font-size:18px;font-weight:800;line-height:1.2;margin-bottom:8px;overflow-wrap:anywhere;}
@@ -847,6 +851,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
 
   /* ---------- paintings gallery ---------- */
+  function photoStyle(photo){
+    var fit=photo.fit||'cover';
+    var px=(photo.posX==null?50:photo.posX);
+    var py=(photo.posY==null?50:photo.posY);
+    return 'object-fit:'+fit+';object-position:'+px+'% '+py+'%;'+(photo.flip?'transform:scaleX(-1);':'');
+  }
   function paintingCardHtml(p){
     var codes=Object.keys(p.colors);
     var fins=finTagsHtml(p);
@@ -857,7 +867,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var labels=['Sold','Result'];
       photoHtml='<div class="ovphotos">';
       p.photos.slice(0,2).forEach(function(ph,i){
-        photoHtml+='<div class="ovphoto"><img src="'+ph.d+'" alt=""><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
+        photoHtml+='<div class="ovphoto"><img src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'"><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
       });
       photoHtml+='</div>';
     }
@@ -1192,21 +1202,31 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var ph='<div class="photo-grid">';
     p.photos.forEach(function(photo,i){
       var lbl=(i===0?'<span class="pg-lbl">Sold</span>':(i===1?'<span class="pg-lbl">Result</span>':''));
-      ph+='<div class="pg-item">'+lbl+'<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt=""></div>';
+      ph+='<div class="pg-item">'+lbl+'<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" style="'+photoStyle(photo)+'"></div>';
     });
     ph+='</div>';
-    ph+='<div class="photo-btns">'+
-      '<button class="pbtn" id="phAdd" type="button">＋ Add photo</button>';
+    ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button></div>';
     if(selPhoto>=0&&selPhoto<p.photos.length){
-      ph+='<button class="pbtn" id="phSold" type="button">Make Sold (1st)</button>'+
-          '<button class="pbtn" id="phResult" type="button">Make Result (2nd)</button>'+
-          '<button class="pbtn" id="phLeft" type="button">◀</button>'+
-          '<button class="pbtn" id="phRight" type="button">▶</button>'+
-          '<button class="pbtn" id="phSmaller" type="button">−</button>'+
-          '<button class="pbtn" id="phBigger" type="button">＋</button>'+
-          '<button class="pbtn danger" id="phDel" type="button">✕</button>';
+      var selP=p.photos[selPhoto];
+      var isCover=((selP.fit||'cover')!=='contain');
+      ph+='<div class="photo-preview"><span class="pv-lbl">Card preview</span><img src="'+selP.d+'" alt="" style="'+photoStyle(selP)+'"></div>';
+      ph+='<div class="photo-btns">'+
+        '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill (crop)':'▤ Whole image')+'</button>'+
+        '<button class="pbtn'+(selP.flip?' on':'')+'" id="phFlip" type="button">⇄ Flip</button>'+
+        (isCover?('<button class="pbtn" id="phPanL" type="button">←</button>'+
+                  '<button class="pbtn" id="phPanU" type="button">↑</button>'+
+                  '<button class="pbtn" id="phPanD" type="button">↓</button>'+
+                  '<button class="pbtn" id="phPanR" type="button">→</button>'):'')+
+        '</div>';
+      ph+='<div class="photo-btns">'+
+        '<button class="pbtn" id="phSold" type="button">★ Sold (1st)</button>'+
+        '<button class="pbtn" id="phResult" type="button">★ Result (2nd)</button>'+
+        '<button class="pbtn" id="phLeft" type="button">◀ order</button>'+
+        '<button class="pbtn" id="phRight" type="button">order ▶</button>'+
+        '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
+        '</div>';
     }
-    ph+='</div><div class="photo-hint">'+(p.photos.length?'The 1st photo shows as “Sold”, the 2nd as “Result” on the Paintings cards. Tap a photo to select it, then Make Sold / Make Result, reorder ◀ ▶, resize − ＋, or remove ✕.':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image. The first two become the “Sold” and “Result” pictures on cards.')+'</div>';
+    ph+='<div class="photo-hint">'+(p.photos.length?'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Tap a photo to select it, then choose Fill (crop) vs Whole image, ⇄ Flip, nudge the crop with ← ↑ ↓ →, set Sold/Result, reorder, or remove. Portrait/square photos look best on “Whole image”.':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image. The first two become the “Sold” and “Result” pictures on cards.')+'</div>';
 
     /* size chips */
     var sizeChips='';
@@ -1364,14 +1384,24 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       $('phRight').addEventListener('click',function(){
         if(selPhoto<p.photos.length-1){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto+1,0,a);selPhoto++;renderPainting();savePhotos(p.id);}
       });
-      $('phSmaller').addEventListener('click',function(){
-        var ph=p.photos[selPhoto]; ph.s=Math.max(0,(ph.s||1)-1); renderPainting(); savePhotos(p.id);
+      $('phFit').addEventListener('click',function(){
+        var ph2=p.photos[selPhoto]; ph2.fit=((ph2.fit||'cover')==='contain')?'cover':'contain'; renderPainting(); savePhotos(p.id);
       });
-      $('phBigger').addEventListener('click',function(){
-        var ph=p.photos[selPhoto]; ph.s=Math.min(2,(ph.s||1)+1); renderPainting(); savePhotos(p.id);
+      $('phFlip').addEventListener('click',function(){
+        var ph2=p.photos[selPhoto]; ph2.flip=ph2.flip?0:1; renderPainting(); savePhotos(p.id);
       });
+      function panSel(dx,dy){
+        var ph2=p.photos[selPhoto];
+        ph2.posX=Math.max(0,Math.min(100,(ph2.posX==null?50:ph2.posX)+dx));
+        ph2.posY=Math.max(0,Math.min(100,(ph2.posY==null?50:ph2.posY)+dy));
+        renderPainting(); savePhotos(p.id);
+      }
+      if($('phPanL'))$('phPanL').addEventListener('click',function(){panSel(-10,0);});
+      if($('phPanR'))$('phPanR').addEventListener('click',function(){panSel(10,0);});
+      if($('phPanU'))$('phPanU').addEventListener('click',function(){panSel(0,-10);});
+      if($('phPanD'))$('phPanD').addEventListener('click',function(){panSel(0,10);});
       $('phDel').addEventListener('click',function(){
-        if(!twoTap('phdel',$('phDel'),'✕?'))return;
+        if(!twoTap('phdel',$('phDel'),'✕ remove?'))return;
         p.photos.splice(selPhoto,1); selPhoto=-1; renderPainting(); savePhotos(p.id);
         toast('Photo removed',900);
       });
