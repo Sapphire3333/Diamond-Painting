@@ -18,6 +18,16 @@
     --unk:#8A8494; --unk-soft:#EEEDF1;
     --star:#B98A2F; --star-soft:#F8EFDC;
   }
+  .dp-app.dark{
+    --bg:#16141B; --panel:#221F2A; --ink:#ECE9F2; --muted:#9E98AC;
+    --line:#332F3D; --accent:#B49BF2; --accent-soft:#2E2646;
+    --sq:#6FA8E6; --sq-soft:#1E2A3A;
+    --rd:#5FC98C; --rd-soft:#16301F;
+    --od:#E084C4; --od-soft:#33172B;
+    --unk:#A79FB4; --unk-soft:#2A2733;
+    --star:#E0B65F; --star-soft:#332A16;
+  }
+  .dp-app.dark img.ovthumb,.dp-app.dark .photo-grid img{filter:brightness(.94);}
   .dp-app{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     color:var(--ink); background:var(--bg); min-height:100vh; padding:14px 12px 60px;}
   .dp-app *{box-sizing:border-box;}
@@ -33,7 +43,7 @@
   .tab.active{border-color:var(--accent);background:var(--accent);color:#fff;}
   .tab.active .cnt{color:#E4DBFA;}
   .tab.add{border-style:dashed;color:var(--accent);background:transparent;font-weight:700;}
-  .tab.home,.tab.find{font-weight:700;}
+  .tab.home,.tab.find,.tab.paints{font-weight:700;}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
   .search{flex:1 1 200px;display:flex;align-items:center;background:var(--panel);border:1.5px solid var(--line);
     border-radius:12px;padding:9px 12px;gap:8px;}
@@ -210,15 +220,22 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     {id:'crystal', label:'Crystal',    bg:'#E2F5F4', fg:'#1F8A83'}
   ];
   var FINMAP={}; FINISHES.forEach(function(f){FINMAP[f.id]=f;});
+  var STATUSES=[
+    {id:'wishlist', label:'Wishlist',    bg:'#EDE7FB', fg:'#5B3FA8'},
+    {id:'progress', label:'In progress', bg:'#FBF0DC', fg:'#B98A2F'},
+    {id:'done',     label:'Finished',    bg:'#E6F6EE', fg:'#2F9E63'}
+  ];
+  var STATUSMAP={}; STATUSES.forEach(function(s){STATUSMAP[s.id]=s;});
   var DEFAULT_TAGS=['good','bad diamonds','boring','wrong shade','unclear','missing diamonds','beautiful colors'];
   var DEFAULT_SIZES=['20×20','30×30','30×40','40×50','50×70'];
 
   var state={
-    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null}],
-    active:'p1', onlySel:false, view:'overview',
-    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added'
+    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',updatedAt:0}],
+    active:'p1', onlySel:false, view:'paintings',
+    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added', pGroup:'none',
+    autoBackup:'off', dark:false
   };
-  var query='', findQuery='', findType='any', expandedColor=null, expandedSpec=null, expandedSize=null;
+  var query='', findQuery='', findType='any', pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, armed={};
   var syncPhase='';   /* '' normal, 'choose' after enabling when cloud already has data */
   var DMCMAP={}; DMC.forEach(function(r){DMCMAP[r[0]]=r;});
@@ -241,6 +258,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function ratingBadge(p){
     if(p.rating===null||p.rating===undefined||p.rating==='')return '';
     return '<span class="badge star">★ '+Number(p.rating).toFixed(1)+'</span>';
+  }
+  function statusBadge(p){
+    var s=p.status&&STATUSMAP[p.status];
+    if(!s)return '';
+    return '<span class="badge" style="background:'+s.bg+';color:'+s.fg+'">'+s.label+'</span>';
   }
   function finTagsHtml(p){
     var on={}; Object.keys(p.spec||{}).forEach(function(f){on[f]=1;});
@@ -340,6 +362,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var photoT={};
   function savePhotos(pid){
     if(!STORE)return;
+    var _pp=null; for(var _j=0;_j<state.paintings.length;_j++)if(state.paintings[_j].id===pid)_pp=state.paintings[_j];
+    if(_pp){_pp.updatedAt=nowTs();save();}
     clearTimeout(photoT[pid]);
     photoT[pid]=setTimeout(function(){
       var p=null;
@@ -353,12 +377,26 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function deletePhotosKey(pid){
     if(STORE)try{STORE.del(photoKey(pid));}catch(e){}
   }
+  function nowTs(){try{return Date.now();}catch(e){return 0;}}
+  function todayStr(){try{var d=new Date();function p2(n){return (n<10?'0':'')+n;}return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}catch(e){return '';}}
+  function saveEdit(){var a=active();if(a)a.updatedAt=nowTs();save();}
+  function fmtDate(ts){
+    if(!ts)return 'unknown date';
+    try{
+      var d=new Date(ts);function p2(n){return (n<10?'0':'')+n;}
+      return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+    }catch(e){return 'unknown date';}
+  }
   function warnOnce(){
     if(storageWarned)return; storageWarned=true;
     toast('Saving isn’t working right now — use Backup on the Overview page so nothing is lost',3200);
   }
   function normalize(s){
-    if(!s.view)s.view='overview';
+    if(!s.view)s.view='paintings';
+    if(s.view==='overview'&&(!s.paintings||s.paintings.length))s.view='paintings';
+    if(!s.pGroup)s.pGroup='none';
+    if(!s.autoBackup)s.autoBackup='off';
+    if(!('dark' in s))s.dark=false;
     if(!s.specials)s.specials={};
     if(!s.sellers)s.sellers=[];
     if(!s.tags||!s.tags.length)s.tags=DEFAULT_TAGS.slice();
@@ -375,6 +413,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!p.tags)p.tags={};
       if(!('code' in p))p.code='';
       if(!('size' in p))p.size=null;
+      if(!('updatedAt' in p))p.updatedAt=0;
+      if(!('status' in p))p.status=null;
+      if(!('started' in p))p.started='';
+      if(!('finished' in p))p.finished='';
       Object.keys(p.finishes).forEach(function(f){
         if(!p.spec[f])p.spec[f]={};
         if(!p.finishes[f])delete p.finishes[f];
@@ -389,42 +431,91 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      (last-write-wins per key). If the cloud is unreachable the app keeps working
      exactly as before. */
   var pulling=false, syncTimer=null;
+  var AUTH={token:'',refresh:'',email:'',expires:0};
+  function loadAuth(){try{var a=JSON.parse(localStorage.getItem('dpAuth')||'null');if(a&&a.token)AUTH=a;}catch(e){}}
+  function saveAuth(){try{localStorage.setItem('dpAuth',JSON.stringify(AUTH));}catch(e){}}
+  function clearAuth(){AUTH={token:'',refresh:'',email:'',expires:0};try{localStorage.removeItem('dpAuth');}catch(e){}}
+  function loggedIn(){return !!(AUTH&&AUTH.token);}
   function cloudConfigured(){return !!(CLOUD.url&&CLOUD.anon);}
-  function syncCode(){try{return localStorage.getItem('dpSyncCode')||'';}catch(e){return '';}}
-  function setSyncCode(c){try{if(c)localStorage.setItem('dpSyncCode',c);else localStorage.removeItem('dpSyncCode');}catch(e){}}
-  function cloudOn(){return cloudConfigured()&&!!syncCode();}
+  function cloudOn(){return cloudConfigured()&&loggedIn();}
   function getMeta(){try{return JSON.parse(localStorage.getItem('dpSyncMeta')||'{}');}catch(e){return {};}}
   function setMeta(m){try{localStorage.setItem('dpSyncMeta',JSON.stringify(m));}catch(e){}}
   function clearMeta(){try{localStorage.removeItem('dpSyncMeta');}catch(e){}}
   function apiBase(){return CLOUD.url.replace(/\/+$/,'').replace(/\/rest\/v1$/,'');}
-  function rpc(fn,body){
-    var h={'apikey':CLOUD.anon,'Content-Type':'application/json'};
-    /* legacy anon keys are JWTs (eyJ...) and want a Bearer token too; the newer
-       sb_publishable_ keys are resolved from the apikey header alone. */
-    if(/^eyJ/.test(CLOUD.anon))h['Authorization']='Bearer '+CLOUD.anon;
-    return fetch(apiBase()+'/rest/v1/rpc/'+fn,{
+
+  /* ---- auth: email + password via Supabase Auth ---- */
+  function authFetch(path,body){
+    return fetch(apiBase()+'/auth/v1/'+path,{
       method:'POST',
-      headers:h,
+      headers:{'apikey':CLOUD.anon,'Content-Type':'application/json'},
       body:JSON.stringify(body)
-    }).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.json();});
+    }).then(function(r){return r.json().then(function(j){return {ok:r.ok,status:r.status,data:j};},function(){return {ok:r.ok,status:r.status,data:{}};});});
+  }
+  function setSession(d){
+    AUTH.token=d.access_token||'';
+    AUTH.refresh=d.refresh_token||AUTH.refresh;
+    AUTH.email=(d.user&&d.user.email)||AUTH.email||'';
+    AUTH.expires=nowTs()+((d.expires_in||3600)*1000);
+    saveAuth();
+  }
+  function authErr(d,fallback){return (d&&(d.error_description||d.msg||d.message||d.error))||fallback;}
+  function logIn(email,pw,cb){
+    authFetch('token?grant_type=password',{email:email,password:pw}).then(function(r){
+      if(r.ok&&r.data.access_token){setSession(r.data);cb(true,'');}
+      else cb(false,authErr(r.data,'Login failed — check your email and password.'));
+    },function(){cb(false,'Could not reach the server.');});
+  }
+  function signUp(email,pw,cb){
+    authFetch('signup',{email:email,password:pw}).then(function(r){
+      if(r.ok&&r.data.access_token){setSession(r.data);cb(true,'');}
+      else if(r.ok){cb(false,'Account created. If email confirmation is on, check your inbox, then log in.');}
+      else cb(false,authErr(r.data,'Sign up failed.'));
+    },function(){cb(false,'Could not reach the server.');});
+  }
+  function refreshToken(cb){
+    if(!AUTH.refresh){cb(false);return;}
+    authFetch('token?grant_type=refresh_token',{refresh_token:AUTH.refresh}).then(function(r){
+      if(r.ok&&r.data.access_token){setSession(r.data);cb(true);}
+      else {clearAuth();cb(false);}
+    },function(){cb(false);});
+  }
+  function logOut(){
+    clearAuth();
+    if(syncTimer){clearInterval(syncTimer);syncTimer=null;}
+  }
+
+  /* ---- data REST, row-level-security scoped to the logged-in user ---- */
+  function restFetch(method,path,body,extra){
+    var h={'apikey':CLOUD.anon,'Authorization':'Bearer '+AUTH.token,'Content-Type':'application/json'};
+    if(extra)for(var k in extra)h[k]=extra[k];
+    return fetch(apiBase()+'/rest/v1/'+path,{method:method,headers:h,body:body!=null?JSON.stringify(body):undefined});
+  }
+  function apiCall(method,path,body,extra){
+    return restFetch(method,path,body,extra).then(function(r){
+      if(r.status!==401)return r;
+      return new Promise(function(res){refreshToken(function(ok){res(ok);});}).then(function(ok){
+        if(!ok)throw new Error('unauthorized');
+        return restFetch(method,path,body,extra);
+      });
+    });
   }
   function cloudPush(k,v){
     if(!cloudOn())return;
-    rpc('kv_push',{p_code:syncCode(),p_key:k,p_val:v}).then(function(ts){
-      var m=getMeta();m[k]=Number(ts)||m[k];setMeta(m);
-    }).catch(function(){});
+    apiCall('POST','kv',[{k:k,v:v}],{'Prefer':'resolution=merge-duplicates,return=representation'})
+      .then(function(r){if(!r.ok)return null;return r.json();}).then(function(rows){
+        if(rows&&rows.length){var m=getMeta();m[k]=Number(rows[0].ts)||m[k];setMeta(m);}
+      }).catch(function(){});
   }
   function cloudDelete(k){
     if(!cloudOn())return;
-    rpc('kv_delete',{p_code:syncCode(),p_key:k}).then(function(){
-      var m=getMeta();delete m[k];setMeta(m);
-    }).catch(function(){});
+    apiCall('DELETE','kv?k=eq.'+encodeURIComponent(k),null,{'Prefer':'return=minimal'})
+      .then(function(r){if(r.ok){var m=getMeta();delete m[k];setMeta(m);}}).catch(function(){});
   }
   /* pull cloud -> local; cb(changed) */
   function cloudPull(cb){
     if(!cloudOn()||pulling){cb&&cb(false);return;}
     pulling=true;
-    rpc('kv_pull',{p_code:syncCode()}).then(function(rows){
+    apiCall('GET','kv?select=k,v,ts',null).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.json();}).then(function(rows){
       rows=rows||[];var m=getMeta();var apply=[];
       rows.forEach(function(row){if((Number(row.ts)||0)>(m[row.k]||0))apply.push(row);});
       if(!apply.length){pulling=false;cb&&cb(false);return;}
@@ -435,19 +526,21 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       });
     }).catch(function(){pulling=false;cb&&cb(false);});
   }
-  /* push every local key up (first link / manual upload) */
+  /* push every local key up (first sync / manual upload) */
   function cloudPushAll(cb){
     if(!cloudOn()){cb&&cb();return;}
     var keys=[KEY];state.paintings.forEach(function(p){keys.push(photoKey(p.id));});
     var pend=keys.length,m=getMeta();
+    function fin(){if(--pend===0){setMeta(m);cb&&cb();}}
     keys.forEach(function(k){
       LOCAL.get(k).then(function(r){
         var v=(r&&r.value!=null)?r.value:(k===KEY?JSON.stringify(strippedState()):null);
-        if(v==null){if(--pend===0){setMeta(m);cb&&cb();}return;}
-        rpc('kv_push',{p_code:syncCode(),p_key:k,p_val:v}).then(function(ts){
-          m[k]=Number(ts)||m[k];if(--pend===0){setMeta(m);cb&&cb();}
-        }).catch(function(){if(--pend===0){setMeta(m);cb&&cb();}});
-      }).catch(function(){if(--pend===0){setMeta(m);cb&&cb();}});
+        if(v==null){fin();return;}
+        apiCall('POST','kv',[{k:k,v:v}],{'Prefer':'resolution=merge-duplicates,return=representation'})
+          .then(function(rr){if(!rr.ok)return null;return rr.json();}).then(function(rows){
+            if(rows&&rows.length)m[k]=Number(rows[0].ts)||m[k];fin();
+          }).catch(function(){fin();});
+      }).catch(function(){fin();});
     });
   }
   function syncNow(opts){
@@ -508,11 +601,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     }).catch(function(){cb();});
   }
   function load(cb){
+    loadAuth();
     openStore(function(){
       hydrate(function(){
         cb();
         cloudPull(function(ch){if(ch)hydrate(function(){render();});});
         startSyncLoop();
+        maybeAutoBackup();
       });
     });
   }
@@ -545,16 +640,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       b.addEventListener('click',fn); t.appendChild(b);
     }
     mk('home','⌂ Overview',function(){state.view='overview';resetTransient();render();save();},state.view==='overview');
+    mk('paints','🖼 Paintings<span class="cnt">'+state.paintings.length+'</span>',function(){state.view='paintings';resetTransient();render();save();},state.view==='paintings'||state.view==='paint');
     mk('find','🔎 Find',function(){state.view='find';resetTransient();render();save();},state.view==='find');
-    state.paintings.forEach(function(p){
-      var n=Object.keys(p.colors).length;
-      var sym=(p.type&&TYPES[p.type])?TYPES[p.type].sym+' ':'';
-      mk('',sym+esc(p.name)+'<span class="cnt">'+n+'</span>',function(){
-        state.view='paint'; state.active=p.id; resetTransient(); render(); save();
-      },state.view==='paint'&&p.id===state.active);
-    });
     mk('add','+ New painting',function(){
-      var p={id:uid(),name:'Painting '+(state.paintings.length+1),colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null};
+      var p={id:uid(),name:'Painting '+(state.paintings.length+1),colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',updatedAt:nowTs()};
       state.paintings.push(p); state.active=p.id; state.view='paint';
       renaming=true; render(); save();
     },false);
@@ -564,39 +653,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   /* ---------- overview ---------- */
   function renderOverview(){
     var pg=$('page');
-    var list=state.paintings.slice();
-    if(state.ovSort==='rating'){
-      list.sort(function(a,b){
-        var ra=(a.rating===null||a.rating===undefined||a.rating==='')?-1:Number(a.rating);
-        var rb=(b.rating===null||b.rating===undefined||b.rating==='')?-1:Number(b.rating);
-        return rb-ra;
-      });
-    }
-    var html='<div class="ovsort"><span class="pd-lbl" style="margin:0">Sort:</span>'+
-      '<button class="chipbtn'+(state.ovSort==='added'?' on':'')+'" id="sortAdded" type="button">Order added</button>'+
-      '<button class="chipbtn'+(state.ovSort==='rating'?' on':'')+'" id="sortRating" type="button">★ Rating</button></div>';
-    html+='<div class="ovlist">';
-    if(!list.length)html+='<div class="empty">No paintings yet. Tap “+ New painting” to start your first list.</div>';
-    list.forEach(function(p){
-      var codes=Object.keys(p.colors);
-      var ordered=DMC.filter(function(r){return p.colors[r[0]];});
-      var sw='';
-      if(p.photos.length)sw+='<img class="ovthumb" src="'+p.photos[0].d+'" alt="">';
-      ordered.slice(0,12).forEach(function(r){sw+='<span class="mini" style="background-color:'+r[2]+'"></span>';});
-      if(ordered.length>12)sw+='<span class="mini more">+'+(ordered.length-12)+'</span>';
-      var fins=finTagsHtml(p);
-      var sub=codes.length+' color'+(codes.length===1?'':'s');
-      if(p.size)sub+=' · '+esc(p.size);
-      if(p.seller)sub+=' · '+esc(p.seller);
-      if(p.code)sub+=' · '+esc(p.code);
-      html+='<div class="ovcard" data-id="'+p.id+'">'+
-        '<div class="ovtop"><span class="ovname">'+esc(p.name)+'</span>'+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
-        '<div class="ovsub">'+sub+'</div>'+
-        (fins?'<div class="ovfins">'+fins+'</div>':'')+
-        (sw?'<div class="ovswatches">'+sw+'</div>':'')+
-        '</div>';
-    });
-    html+='</div>';
+    var html='<div class="ovsub" style="margin:2px 2px 12px;">Your paintings live in the <b>🖼 Paintings</b> tab. This page holds your summary, display, sync, storage and backups.</div>';
+    html+='<div class="section-lbl">Summary</div>'+statsHtml();
+    html+='<div class="section-lbl">Display</div>'+
+      '<div class="backup"><div class="bk-btns">'+
+        '<button class="chipbtn'+(state.dark?' on':'')+'" id="darkToggle" type="button">🌙 Dark mode: '+(state.dark?'On':'Off')+'</button>'+
+      '</div></div>';
     html+=syncSectionHtml();
     html+='<div class="section-lbl">Storage</div><div class="backup" id="storMeter"></div>';
     html+='<div class="section-lbl">Backup &amp; restore</div>'+
@@ -611,15 +673,23 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<textarea id="bkText" rows="4" placeholder="Tap “Show backup code” to get a code with all your lists — save it anywhere (notes app, email to yourself). To restore, paste a code here and tap “Restore from code”."></textarea>'+
         '<div class="bk-note" id="bkNote"></div>'+
       '</div>';
+    html+='<div class="section-lbl">Saved backups (this device)</div>'+
+      '<div class="backup">'+
+        '<div class="bk-btns">'+
+          '<button class="chipbtn" id="bkSave" type="button" style="color:#fff;background:var(--accent);border-color:var(--accent);">Save a backup now</button>'+
+          '<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;font-weight:600;">'+
+          '<input type="checkbox" id="bkSavePhotos" checked> include photos</label>'+
+        '</div>'+
+        '<div class="bk-btns" style="margin-top:6px;">'+
+          '<span class="pd-lbl" style="margin:0;align-self:center;">Auto-backup:</span>'+
+          '<button class="chipbtn'+(state.autoBackup==='off'?' on':'')+'" data-auto="off" type="button">Off</button>'+
+          '<button class="chipbtn'+(state.autoBackup==='daily'?' on':'')+'" data-auto="daily" type="button">Daily</button>'+
+          '<button class="chipbtn'+(state.autoBackup==='weekly'?' on':'')+'" data-auto="weekly" type="button">Weekly</button>'+
+        '</div>'+
+        '<div id="bkList"></div>'+
+        '<div class="bk-note">Snapshots are kept on this device (up to 20). Perfect before a big change — save one, and you can roll back anytime. They are not uploaded to the cloud.</div>'+
+      '</div>';
     pg.innerHTML=html;
-    $('sortAdded').addEventListener('click',function(){state.ovSort='added';renderOverview();save();});
-    $('sortRating').addEventListener('click',function(){state.ovSort='rating';renderOverview();save();});
-    pg.querySelectorAll('.ovcard').forEach(function(c){
-      c.addEventListener('click',function(){
-        state.active=c.getAttribute('data-id'); state.view='paint';
-        resetTransient(); render(); save();
-      });
-    });
     function backupJson(){
       var withPhotos=$('bkPhotos').checked;
       return JSON.stringify(withPhotos?state:strippedState());
@@ -652,17 +722,260 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         $('bkNote').textContent='That doesn’t look like a valid backup code — make sure the whole code was pasted, from { to }.';
       }
     });
+    $('bkSave').addEventListener('click',function(){
+      saveBackup($('bkSavePhotos').checked,function(){renderBackupList();});
+    });
+    if($('darkToggle'))$('darkToggle').addEventListener('click',function(){state.dark=!state.dark;applyTheme();renderOverview();save();});
+    pg.querySelectorAll('[data-auto]').forEach(function(b){b.addEventListener('click',function(){
+      state.autoBackup=b.getAttribute('data-auto');save();maybeAutoBackup(function(){renderOverview();});
+    });});
     renderStorageMeter();
+    renderBackupList();
     wireSync();
   }
 
-  /* ---------- cloud sync UI ---------- */
-  function genCode(){
-    var a='abcdefghjkmnpqrstuvwxyz23456789';
-    function g(){var s='';for(var i=0;i<4;i++)s+=a.charAt(Math.floor(Math.random()*a.length));return s;}
-    return 'dp-'+g()+'-'+g()+'-'+g();
+  /* ---------- local backups (device-only snapshots) ---------- */
+  var BKINDEX='dpBackupsV1';
+  function bkStore(){return LOCAL||STORE;}
+  function listBackups(cb){
+    var st=bkStore(); if(!st){cb([]);return;}
+    st.get(BKINDEX).then(function(r){
+      var arr=[]; try{if(r&&r.value)arr=JSON.parse(r.value)||[];}catch(e){}
+      cb(arr);
+    },function(){cb([]);});
   }
-  function maskCode(c){if(!c)return '';return c.length<=3?c:c.slice(0,3)+'••••••';}
+  function saveBackup(withPhotos,cb,auto){
+    var st=bkStore(); if(!st){if(!auto)toast('Backups are not available here',1800);cb&&cb();return;}
+    var data=JSON.stringify(withPhotos?state:strippedState());
+    var id=uid('bk'), ts=nowTs();
+    var entry={id:id,ts:ts,photos:!!withPhotos,size:data.length,count:state.paintings.length,auto:!!auto};
+    listBackups(function(arr){
+      arr.unshift(entry);
+      var removed=arr.slice(20); arr=arr.slice(0,20);
+      st.set('dpBk_'+id,data).then(function(){
+        st.set(BKINDEX,JSON.stringify(arr)).then(function(){
+          removed.forEach(function(e){try{st.del('dpBk_'+e.id);}catch(_){}});
+          if(!auto)toast('Backup saved ✓',1200); cb&&cb();
+        },function(){if(!auto)toast('Could not save backup',1800);cb&&cb();});
+      },function(){if(!auto)toast('Could not save backup — storage may be full',2200);cb&&cb();});
+    });
+  }
+  function maybeAutoBackup(cb){
+    if(!state.autoBackup||state.autoBackup==='off'){cb&&cb();return;}
+    var interval=state.autoBackup==='weekly'?7*86400000:86400000;
+    var last=0; try{last=parseInt(localStorage.getItem('dpAutoBkTs')||'0',10)||0;}catch(e){}
+    var now=nowTs();
+    if(now-last<interval){cb&&cb();return;}
+    try{localStorage.setItem('dpAutoBkTs',String(now));}catch(e){}
+    saveBackup(false,function(){cb&&cb();},true);
+  }
+  function deleteBackup(id,cb){
+    var st=bkStore(); if(!st){cb&&cb();return;}
+    listBackups(function(arr){
+      arr=arr.filter(function(e){return e.id!==id;});
+      st.set(BKINDEX,JSON.stringify(arr)).then(function(){try{st.del('dpBk_'+id);}catch(_){}cb&&cb();},function(){cb&&cb();});
+    });
+  }
+  function restoreBackup(id,cb){
+    var st=bkStore(); if(!st){cb&&cb();return;}
+    st.get('dpBk_'+id).then(function(r){
+      try{
+        var s=JSON.parse(r.value);
+        if(!s||!s.paintings||!s.paintings.length)throw new Error('bad');
+        state=normalize(s); state.view='paintings'; render(); save();
+        state.paintings.forEach(function(p){if(p.photos&&p.photos.length)savePhotos(p.id);});
+        toast('Restored ✓ — '+state.paintings.length+' painting'+(state.paintings.length===1?'':'s'),1600);
+      }catch(e){toast('That backup could not be read',2000);}
+      cb&&cb();
+    },function(){toast('That backup could not be read',2000);cb&&cb();});
+  }
+  function statsHtml(){
+    var ps=state.paintings, n=ps.length;
+    var byStatus={wishlist:0,progress:0,done:0};
+    var byType={square:0,round:0,odd:0};
+    var rsum=0,rn=0,colors=0;
+    ps.forEach(function(p){
+      if(p.status&&byStatus.hasOwnProperty(p.status))byStatus[p.status]++;
+      if(p.type&&byType.hasOwnProperty(p.type))byType[p.type]++;
+      if(p.rating!==null&&p.rating!==undefined&&p.rating!==''){rsum+=Number(p.rating);rn++;}
+      colors+=Object.keys(p.colors||{}).length;
+    });
+    var avg=rn?(rsum/rn).toFixed(1):'—';
+    function stat(num,label){return '<div style="text-align:center;min-width:60px;flex:1 1 60px;"><div style="font-size:22px;font-weight:800;color:var(--accent);">'+num+'</div><div style="font-size:11px;color:var(--muted);">'+label+'</div></div>';}
+    return '<div class="backup">'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
+        stat(n,'paintings')+stat(byStatus.done,'finished')+stat(byStatus.progress,'in progress')+stat(byStatus.wishlist,'wishlist')+
+      '</div>'+
+      '<div class="bk-note" style="margin-top:8px;">Avg rating '+avg+' · types: ■ '+byType.square+'  ● '+byType.round+'  ✦ '+byType.odd+' · '+colors+' colors selected in total</div>'+
+      '</div>';
+  }
+  function renderBackupList(){
+    var el=$('bkList'); if(!el)return;
+    listBackups(function(arr){
+      if(!arr.length){el.innerHTML='<div class="bk-note" style="margin-top:6px;">No saved backups yet.</div>';return;}
+      var html='';
+      arr.forEach(function(e){
+        html+='<div class="bk-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px;">'+
+          '<div style="margin-right:auto;min-width:0;">'+
+            '<div style="font-weight:700;font-size:13px;">'+fmtDate(e.ts)+(e.auto?' <span style="color:var(--muted);font-weight:600;font-size:11px;">(auto)</span>':'')+'</div>'+
+            '<div style="font-size:11.5px;color:var(--muted);">'+(e.count||0)+' painting'+((e.count===1)?'':'s')+' · '+fmtBytes(e.size||0)+(e.photos?' · 📷 photos':' · no photos')+'</div>'+
+          '</div>'+
+          '<button class="chipbtn" data-restore="'+e.id+'" type="button" style="color:var(--accent);border-color:var(--accent);">Restore</button>'+
+          '<button class="chipbtn danger" data-delbk="'+e.id+'" type="button">Delete</button>'+
+        '</div>';
+      });
+      el.innerHTML=html;
+      el.querySelectorAll('[data-restore]').forEach(function(b){b.addEventListener('click',function(){
+        if(!twoTap('rb'+b.getAttribute('data-restore'),b,'Tap again to replace current data'))return;
+        restoreBackup(b.getAttribute('data-restore'));
+      });});
+      el.querySelectorAll('[data-delbk]').forEach(function(b){b.addEventListener('click',function(){
+        if(!twoTap('db'+b.getAttribute('data-delbk'),b,'Tap again to delete'))return;
+        deleteBackup(b.getAttribute('data-delbk'),function(){renderBackupList();});
+      });});
+    });
+  }
+
+  /* ---------- paintings gallery ---------- */
+  function paintingCardHtml(p){
+    var codes=Object.keys(p.colors);
+    var ordered=DMC.filter(function(r){return p.colors[r[0]];});
+    var sw='';
+    if(p.photos.length)sw+='<img class="ovthumb" src="'+p.photos[0].d+'" alt="">';
+    ordered.slice(0,12).forEach(function(r){sw+='<span class="mini" style="background-color:'+r[2]+'"></span>';});
+    if(ordered.length>12)sw+='<span class="mini more">+'+(ordered.length-12)+'</span>';
+    var fins=finTagsHtml(p);
+    var sub=codes.length+' color'+(codes.length===1?'':'s');
+    if(p.size)sub+=' · '+esc(p.size);
+    if(p.seller)sub+=' · '+esc(p.seller);
+    if(p.code)sub+=' · '+esc(p.code);
+    if(p.started)sub+=' · ▶ '+esc(p.started);
+    if(p.finished)sub+=' · ✓ '+esc(p.finished);
+    if(state.ovSort==='edited'&&p.updatedAt)sub+=' · 🕒 '+fmtDate(p.updatedAt);
+    return '<div class="ovcard" data-id="'+p.id+'">'+
+      '<div class="ovtop"><span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
+      '<div class="ovsub">'+sub+'</div>'+
+      (fins?'<div class="ovfins">'+fins+'</div>':'')+
+      (sw?'<div class="ovswatches">'+sw+'</div>':'')+
+      '</div>';
+  }
+  function filteredPaintings(){
+    var q=(pQuery||'').trim().toLowerCase();
+    var list=state.paintings.slice();
+    if(q){
+      list=list.filter(function(p){
+        var st=(p.status&&STATUSMAP[p.status])?STATUSMAP[p.status].label:'';
+        var hay=(p.name||'')+' '+(p.seller||'')+' '+(p.code||'')+' '+(p.size||'')+' '+st+' '+Object.keys(p.tags||{}).join(' ');
+        return hay.toLowerCase().indexOf(q)!==-1;
+      });
+    }
+    if(state.ovSort==='rating'){
+      list.sort(function(a,b){
+        var ra=(a.rating===null||a.rating===undefined||a.rating==='')?-1:Number(a.rating);
+        var rb=(b.rating===null||b.rating===undefined||b.rating==='')?-1:Number(b.rating);
+        return rb-ra;
+      });
+    } else if(state.ovSort==='edited'){
+      list.sort(function(a,b){return (b.updatedAt||0)-(a.updatedAt||0);});
+    }
+    return list;
+  }
+  function groupChip(id,label){return '<button class="chipbtn'+(state.pGroup===id?' on':'')+'" data-g="'+id+'" type="button">'+label+'</button>';}
+  function groupedHtml(list){
+    var groups=[];
+    if(state.pGroup==='type'){
+      [['square','■ Square'],['round','● Round'],['odd','✦ Odd'],[null,'Type not set']].forEach(function(t){
+        var items=list.filter(function(p){return (p.type||null)===t[0];});
+        if(items.length)groups.push({label:t[1],items:items});
+      });
+    } else if(state.pGroup==='size'){
+      var seen={};
+      state.sizes.forEach(function(sz){
+        var items=list.filter(function(p){return p.size===sz;});
+        if(items.length){groups.push({label:esc(sz),items:items});seen[sz]=1;}
+      });
+      var extras={};
+      list.forEach(function(p){if(p.size&&!seen[p.size])extras[p.size]=1;});
+      Object.keys(extras).forEach(function(sz){
+        groups.push({label:esc(sz),items:list.filter(function(p){return p.size===sz;})});
+      });
+      var noSize=list.filter(function(p){return !p.size;});
+      if(noSize.length)groups.push({label:'No size set',items:noSize});
+    } else if(state.pGroup==='seller'){
+      var seenS={};
+      state.sellers.forEach(function(s){
+        var items=list.filter(function(p){return p.seller===s;});
+        if(items.length){groups.push({label:esc(s),items:items});seenS[s]=1;}
+      });
+      var extraS={};
+      list.forEach(function(p){if(p.seller&&!seenS[p.seller])extraS[p.seller]=1;});
+      Object.keys(extraS).forEach(function(s){groups.push({label:esc(s),items:list.filter(function(p){return p.seller===s;})});});
+      var noSel=list.filter(function(p){return !p.seller;});
+      if(noSel.length)groups.push({label:'No seller',items:noSel});
+    } else if(state.pGroup==='status'){
+      STATUSES.forEach(function(s){
+        var items=list.filter(function(p){return p.status===s.id;});
+        if(items.length)groups.push({label:s.label,items:items});
+      });
+      var noSt=list.filter(function(p){return !p.status;});
+      if(noSt.length)groups.push({label:'No status',items:noSt});
+    } else if(state.pGroup==='finish'){
+      FINISHES.forEach(function(f){
+        var items=list.filter(function(p){return p.finishes&&p.finishes[f.id];});
+        if(items.length)groups.push({label:esc(f.label),items:items});
+      });
+      var noFin=list.filter(function(p){return !p.finishes||!Object.keys(p.finishes).length;});
+      if(noFin.length)groups.push({label:'No special diamonds',items:noFin});
+    }
+    var out='';
+    groups.forEach(function(g){
+      out+='<div class="section-lbl">'+g.label+' <span style="color:var(--muted);font-weight:700;">'+g.items.length+'</span></div>';
+      out+='<div class="ovlist">'+g.items.map(paintingCardHtml).join('')+'</div>';
+    });
+    return out;
+  }
+  function paintingsListHtml(){
+    if(!state.paintings.length)return '<div class="empty">No paintings yet. Tap “+ New painting” to start your first list.</div>';
+    var list=filteredPaintings();
+    if(!list.length)return '<div class="empty">No paintings match “'+esc(pQuery)+'”.</div>';
+    if(state.pGroup==='none')return '<div class="ovlist">'+list.map(paintingCardHtml).join('')+'</div>';
+    return groupedHtml(list);
+  }
+  function wirePaintingCards(){
+    $('page').querySelectorAll('.ovcard').forEach(function(c){
+      c.addEventListener('click',function(){
+        state.active=c.getAttribute('data-id'); state.view='paint';
+        resetTransient(); render(); save();
+      });
+    });
+  }
+  function renderPaintingsList(){
+    var el=$('pList'); if(!el)return;
+    el.innerHTML=paintingsListHtml();
+    wirePaintingCards();
+  }
+  function renderPaintings(){
+    var pg=$('page');
+    var html='<div class="toolbar"><label class="search">🔎<input id="pq" type="text" inputmode="search" placeholder="Search name, seller, tag, kit code…" value="'+esc(pQuery)+'"></label></div>';
+    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Group:</span>'+
+      groupChip('none','None')+groupChip('status','Status')+groupChip('type','Diamond type')+groupChip('size','Size')+groupChip('seller','Seller')+groupChip('finish','Special diamonds')+'</div>';
+    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Sort:</span>'+
+      '<button class="chipbtn'+(state.ovSort==='added'?' on':'')+'" id="sortAdded" type="button">Order added</button>'+
+      '<button class="chipbtn'+(state.ovSort==='rating'?' on':'')+'" id="sortRating" type="button">★ Rating</button>'+
+      '<button class="chipbtn'+(state.ovSort==='edited'?' on':'')+'" id="sortEdited" type="button">🕒 Recently edited</button></div>';
+    html+='<div id="pList"></div>';
+    pg.innerHTML=html;
+    if($('sortAdded'))$('sortAdded').addEventListener('click',function(){state.ovSort='added';renderPaintings();save();});
+    if($('sortRating'))$('sortRating').addEventListener('click',function(){state.ovSort='rating';renderPaintings();save();});
+    if($('sortEdited'))$('sortEdited').addEventListener('click',function(){state.ovSort='edited';renderPaintings();save();});
+    pg.querySelectorAll('[data-g]').forEach(function(b){b.addEventListener('click',function(){state.pGroup=b.getAttribute('data-g');renderPaintings();save();});});
+    $('pq').addEventListener('input',function(e){pQuery=e.target.value;renderPaintingsList();});
+    renderPaintingsList();
+  }
+
+  /* ---------- cloud sync UI (email + password) ---------- */
+  function markSynced(){try{localStorage.setItem('dpSyncedAccount',AUTH.email||'');}catch(e){}}
+  function syncedAccount(){try{return localStorage.getItem('dpSyncedAccount')||'';}catch(e){return '';}}
   function syncSectionHtml(){
     var h='<div class="section-lbl">Cloud sync (phone ⇄ PC)</div>';
     if(!cloudConfigured()){
@@ -671,80 +984,76 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     }
     if(syncPhase==='choose'){
       h+='<div class="backup">'+
-        '<div class="bk-note">This code already has data saved in the cloud. Which copy should win?</div>'+
+        '<div class="bk-note">This account already has data saved in the cloud. Which copy should win?</div>'+
         '<div class="bk-btns" style="margin-top:8px;">'+
           '<button class="chipbtn" id="syUseCloud" type="button" style="color:var(--accent);border-color:var(--accent);">Use cloud data (replace this device)</button>'+
           '<button class="chipbtn" id="syUploadThis" type="button">Upload this device (this device wins)</button>'+
-          '<button class="chipbtn" id="syCancel" type="button">Cancel</button>'+
         '</div>'+
-        '<div class="bk-note" style="margin-top:6px;">Unsure? Tap “Show backup code” below first so you keep a copy either way.</div>'+
+        '<div class="bk-note" style="margin-top:6px;">Unsure? Save a backup below first so you keep a copy either way.</div>'+
       '</div>';
       return h;
     }
-    if(!syncCode()){
+    if(!loggedIn()){
       h+='<div class="backup">'+
-        '<div class="bk-note">Type the <b>same code</b> on every device to keep them in sync. Generate one here, copy it, then enter it on your other device.</div>'+
-        '<div class="bk-btns" style="margin-top:8px;">'+
-          '<input id="syCode" type="text" autocomplete="off" spellcheck="false" placeholder="your-sync-code" style="flex:1 1 160px;min-width:0;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;font-family:monospace;">'+
-          '<button class="chipbtn" id="syGen" type="button">Generate</button>'+
-          '<button class="chipbtn" id="syEnable" type="button" style="color:#fff;background:var(--accent);border-color:var(--accent);">Enable sync</button>'+
+        '<div class="bk-note">Log in with your email and password to sync this device. Use the <b>same account</b> on your phone and PC. First time here? Tap <b>Create account</b>.</div>'+
+        '<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">'+
+          '<input id="syEmail" type="email" autocomplete="username" spellcheck="false" placeholder="you@example.com" style="border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;background:var(--panel);color:var(--ink);">'+
+          '<input id="syPass" type="password" autocomplete="current-password" placeholder="password (at least 6 characters)" style="border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;background:var(--panel);color:var(--ink);">'+
+          '<div class="bk-btns">'+
+            '<button class="chipbtn" id="syLogin" type="button" style="color:#fff;background:var(--accent);border-color:var(--accent);">Log in</button>'+
+            '<button class="chipbtn" id="sySignup" type="button">Create account</button>'+
+          '</div>'+
         '</div>'+
         '<div class="bk-note" id="syNote" style="margin-top:6px;"></div>'+
       '</div>';
       return h;
     }
-    var code=syncCode();
     h+='<div class="backup">'+
-      '<div class="sm-lbl" style="font-weight:700;">✓ Sync is on for this device</div>'+
+      '<div class="sm-lbl" style="font-weight:700;">✓ Signed in as '+esc(AUTH.email||'your account')+'</div>'+
       '<div class="bk-btns" style="margin-top:8px;align-items:center;">'+
-        '<code id="syCodeShow" data-shown="0" style="flex:1 1 140px;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:13px;background:var(--accent-soft);color:var(--accent);padding:7px 10px;border-radius:8px;">'+esc(maskCode(code))+'</code>'+
-        '<button class="chipbtn" id="syReveal" type="button">Show</button>'+
-        '<button class="chipbtn" id="syCopy" type="button">Copy</button>'+
         '<button class="chipbtn" id="syPull" type="button" style="color:var(--accent);border-color:var(--accent);">Sync now</button>'+
-        '<button class="chipbtn danger" id="syOff" type="button">Turn off here</button>'+
+        '<button class="chipbtn danger" id="syOff" type="button">Log out</button>'+
       '</div>'+
-      '<div class="bk-note" style="margin-top:6px;">Enter this exact code on your other device to link them. Changes sync automatically while the app is open.</div>'+
+      '<div class="bk-note" style="margin-top:6px;">Log in with this same account on your other device. Changes sync automatically while the app is open.</div>'+
     '</div>';
     return h;
   }
-  function enableSync(code){
-    code=(code||'').trim();
+  function afterAuth(){
+    if(syncedAccount()===AUTH.email){
+      /* this device already synced with this account — resume normal sync */
+      renderOverview(); startSyncLoop();
+      cloudPull(function(ch){if(ch)hydrate(function(){render();});toast('Signed in ✓',1400);});
+      return;
+    }
+    /* fresh link on this device — decide which copy wins */
+    clearMeta();
+    apiCall('GET','kv?select=k',null).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.json();}).then(function(rows){
+      if(rows&&rows.length){ syncPhase='choose'; renderOverview(); }
+      else { markSynced(); cloudPushAll(function(){renderOverview();toast('Signed in — this device is now synced ✓',1800);startSyncLoop();}); }
+    }).catch(function(){ markSynced(); renderOverview(); toast('Signed in ✓',1400); startSyncLoop(); });
+  }
+  function doAuth(which){
+    var email=($('syEmail').value||'').trim();
+    var pw=$('syPass').value||'';
     var n=$('syNote');
-    if(code.length<4){if(n)n.textContent='Enter or generate a code (at least a few characters).';return;}
-    if(!cloudConfigured()){toast('Add your Supabase details to the file first',2200);return;}
-    setSyncCode(code);clearMeta();
-    if(n)n.textContent='Connecting…';
-    rpc('kv_pull',{p_code:code}).then(function(rows){
-      rows=rows||[];
-      if(!rows.length){
-        cloudPushAll(function(){renderOverview();toast('Sync on — this device is now backed up to the cloud ✓',1900);startSyncLoop();});
-      }else{
-        syncPhase='choose';renderOverview();
-      }
-    }).catch(function(){
-      setSyncCode('');clearMeta();
-      var n2=$('syNote');if(n2)n2.textContent='Could not reach the cloud. Check the Supabase URL and key in the file, and your internet connection.';
+    if(!email||!pw){if(n)n.textContent='Enter your email and password.';return;}
+    if(n)n.textContent=(which==='signup'?'Creating account…':'Logging in…');
+    (which==='signup'?signUp:logIn)(email,pw,function(ok,msg){
+      if(ok){afterAuth();}
+      else {var n2=$('syNote');if(n2)n2.textContent=msg;}
     });
   }
   function wireSync(){
-    if($('syGen'))$('syGen').addEventListener('click',function(){var c=genCode();$('syCode').value=c;$('syCode').focus();$('syCode').select();});
-    if($('syEnable'))$('syEnable').addEventListener('click',function(){enableSync($('syCode').value);});
+    if($('syLogin'))$('syLogin').addEventListener('click',function(){doAuth('login');});
+    if($('sySignup'))$('sySignup').addEventListener('click',function(){doAuth('signup');});
+    if($('syPass'))$('syPass').addEventListener('keydown',function(e){if(e.key==='Enter')doAuth('login');});
     if($('syUseCloud'))$('syUseCloud').addEventListener('click',function(){
+      markSynced();
       cloudPull(function(){hydrate(function(){syncPhase='';render();toast('Synced from cloud ✓',1400);startSyncLoop();});});
     });
     if($('syUploadThis'))$('syUploadThis').addEventListener('click',function(){
+      markSynced();
       cloudPushAll(function(){syncPhase='';renderOverview();toast('Uploaded to cloud ✓',1400);startSyncLoop();});
-    });
-    if($('syCancel'))$('syCancel').addEventListener('click',function(){syncPhase='';setSyncCode('');clearMeta();renderOverview();});
-    if($('syReveal'))$('syReveal').addEventListener('click',function(){
-      var el=$('syCodeShow');var full=syncCode();
-      if(el.getAttribute('data-shown')==='1'){el.textContent=maskCode(full);el.setAttribute('data-shown','0');this.textContent='Show';}
-      else{el.textContent=full;el.setAttribute('data-shown','1');this.textContent='Hide';}
-    });
-    if($('syCopy'))$('syCopy').addEventListener('click',function(){
-      var c=syncCode();
-      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(c).then(function(){toast('Code copied ✓',1200);},function(){toast('Copy blocked — tap Show, then copy by hand',2200);});
-      else toast('Tap Show, then copy the code by hand',2200);
     });
     if($('syPull'))$('syPull').addEventListener('click',function(){
       if(!cloudOn())return;
@@ -752,7 +1061,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       cloudPull(function(ch){if(ch)hydrate(function(){render();toast('Synced from cloud ✓',1400);});else toast('Already up to date ✓',1200);});
     });
     if($('syOff'))$('syOff').addEventListener('click',function(){
-      setSyncCode('');clearMeta();if(syncTimer){clearInterval(syncTimer);syncTimer=null;}renderOverview();toast('Sync turned off on this device',1600);
+      logOut();renderOverview();toast('Logged out on this device',1600);
     });
   }
 
@@ -891,6 +1200,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     tagChips+='<span class="addinline"><input id="newTag" type="text" maxlength="40" placeholder="＋ new tag"><button class="pbtn" id="addTag" type="button">Add</button></span>';
 
+    /* status chips */
+    var statusChips='';
+    STATUSES.forEach(function(s){
+      var on=(p.status===s.id);
+      statusChips+='<button class="selchip'+(on?' on':'')+'" data-status="'+s.id+'" type="button" style="'+(on?('background:'+s.fg+';border-color:'+s.fg+';color:#fff;'):('color:'+s.fg+';'))+'">'+s.label+'</button>';
+    });
+    var _dfs='border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:var(--panel);color:var(--ink);';
+    var dateInputs='<label style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:5px;">Started <input id="startedDate" type="date" value="'+esc(p.started||'')+'" style="'+_dfs+'"></label>'+
+      '<label style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:5px;">Finished <input id="finishedDate" type="date" value="'+esc(p.finished||'')+'" style="'+_dfs+'"></label>';
+
     /* finish chips */
     var finChips='';
     FINISHES.forEach(function(f){
@@ -924,15 +1243,18 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
 
     pg.innerHTML=
+      '<button class="chipbtn" id="backPaints" type="button" style="margin-bottom:10px;font-weight:700;">← All paintings</button>'+
       '<div class="phead">'+
         '<div class="photos">'+ph+'</div>'+
         '<div class="pdetails">'+
           '<div class="pd-name">'+esc(p.name)+'</div>'+
+          '<div class="pd-row"><div class="pd-lbl">Status</div><div class="selchips">'+statusChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Kit code</div>'+
             '<input class="codeinput" id="kitCode" type="text" maxlength="60" placeholder="e.g. DP-4471, seller\u2019s article nr\u2026" value="'+esc(p.code||'')+'"></div>'+
           '<div class="pd-row"><div class="pd-lbl">Size (cm)</div><div class="selchips">'+sizeChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Rating (0–10, e.g. 5.6)</div>'+
             '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="'+(p.rating===null?'':p.rating)+'">'+ratingBadge(p)+'</div></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Dates</div><div class="selchips" style="gap:10px;">'+dateInputs+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Seller</div><div class="selchips">'+sellerChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Tags</div><div class="selchips">'+tagChips+'</div></div>'+
         '</div>'+
@@ -941,6 +1263,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<label class="search">🔎<input id="q" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(query)+'"></label>'+
         '<button class="chipbtn'+(state.onlySel?' on':'')+'" id="onlySel" type="button">Selected only</button>'+
         '<button class="chipbtn" id="rename" type="button">Rename</button>'+
+        '<button class="chipbtn" id="dupe" type="button">Duplicate</button>'+
         '<button class="chipbtn danger" id="del" type="button">Delete</button>'+
       '</div>'+
       '<div class="renamer'+(renaming?' show':'')+'" id="renamer">'+
@@ -958,6 +1281,33 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div class="meta"><span id="count"></span><span id="hint"></span></div>'+
       '<div class="grid" id="grid"></div>'+
       '<div class="empty" id="emptyMsg" style="display:none"></div>';
+
+    $('backPaints').addEventListener('click',function(){state.view='paintings';resetTransient();render();save();});
+
+    /* status */
+    pg.querySelectorAll('[data-status]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var id=b.getAttribute('data-status');
+        p.status=(p.status===id)?null:id;
+        if(p.status==='progress'&&!p.started)p.started=todayStr();
+        if(p.status==='done'&&!p.finished)p.finished=todayStr();
+        renderPainting(); saveEdit();
+      });
+    });
+    /* started / finished dates */
+    $('startedDate').addEventListener('change',function(e){p.started=e.target.value;saveEdit();});
+    $('finishedDate').addEventListener('change',function(e){p.finished=e.target.value;saveEdit();});
+    /* duplicate painting */
+    $('dupe').addEventListener('click',function(){
+      var src=active();
+      var copy=JSON.parse(JSON.stringify(src));
+      copy.id=uid(); copy.name=(src.name||'Painting')+' (copy)'; copy.updatedAt=nowTs();
+      var idx=state.paintings.indexOf(src);
+      state.paintings.splice(idx+1,0,copy);
+      state.active=copy.id;
+      render(); save(); if(copy.photos&&copy.photos.length)savePhotos(copy.id);
+      toast('Duplicated ✓',1200);
+    });
 
     /* photos events */
     pg.querySelectorAll('.photo-grid img').forEach(function(im){
@@ -998,26 +1348,26 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         if(n<0)n=0; if(n>10)n=10;
         p.rating=Math.round(n*10)/10;
       }
-      save(); renderTabsOnly();
+      saveEdit(); renderTabsOnly();
     });
     $('rating').addEventListener('blur',function(){renderPainting();});
 
     /* kit code */
-    $('kitCode').addEventListener('input',function(e){p.code=e.target.value;save();});
+    $('kitCode').addEventListener('input',function(e){p.code=e.target.value;saveEdit();});
 
     /* sizes */
     pg.querySelectorAll('[data-size]').forEach(function(b){
       b.addEventListener('click',function(){
         var sz=b.getAttribute('data-size');
         p.size=(p.size===sz)?null:sz;
-        renderPainting(); save();
+        renderPainting(); saveEdit();
       });
     });
     $('addSize').addEventListener('click',function(){
       var v=$('newSize').value.trim();
       if(!v)return;
       if(state.sizes.indexOf(v)===-1)state.sizes.push(v);
-      p.size=v; renderPainting(); save();
+      p.size=v; renderPainting(); saveEdit();
     });
     $('newSize').addEventListener('keydown',function(e){if(e.key==='Enter')$('addSize').click();});
 
@@ -1026,14 +1376,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       b.addEventListener('click',function(){
         var s=b.getAttribute('data-seller');
         p.seller=(p.seller===s)?null:s;
-        renderPainting(); save();
+        renderPainting(); saveEdit();
       });
     });
     $('addSeller').addEventListener('click',function(){
       var v=$('newSeller').value.trim();
       if(!v)return;
       if(state.sellers.indexOf(v)===-1)state.sellers.push(v);
-      p.seller=v; renderPainting(); save();
+      p.seller=v; renderPainting(); saveEdit();
     });
     $('newSeller').addEventListener('keydown',function(e){if(e.key==='Enter')$('addSeller').click();});
 
@@ -1042,14 +1392,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       b.addEventListener('click',function(){
         var tg=b.getAttribute('data-tag');
         if(p.tags[tg])delete p.tags[tg]; else p.tags[tg]=1;
-        renderPainting(); save();
+        renderPainting(); saveEdit();
       });
     });
     $('addTag').addEventListener('click',function(){
       var v=$('newTag').value.trim().toLowerCase();
       if(!v)return;
       if(state.tags.indexOf(v)===-1)state.tags.push(v);
-      p.tags[v]=1; renderPainting(); save();
+      p.tags[v]=1; renderPainting(); saveEdit();
     });
     $('newTag').addEventListener('keydown',function(e){if(e.key==='Enter')$('addTag').click();});
 
@@ -1060,7 +1410,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     $('renameSave').addEventListener('click',function(){
       var v=$('renameInput').value.trim();
       if(v)active().name=v;
-      renaming=false; render(); save();
+      renaming=false; render(); saveEdit();
     });
     $('renameCancel').addEventListener('click',function(){renaming=false;renderPainting();});
     $('renameInput').value=p.name;
@@ -1073,7 +1423,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       b.addEventListener('click',function(){
         var t=b.getAttribute('data-t');
         p.type=(p.type===t)?null:t;
-        render(); save();
+        render(); saveEdit();
       });
     });
 
@@ -1088,7 +1438,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         } else {
           p.spec[f]={};
         }
-        renderPainting(); save();
+        renderPainting(); saveEdit();
       });
     });
 
@@ -1098,7 +1448,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         if(e.target&&e.target.getAttribute&&e.target.getAttribute('data-del'))return;
         var f=c.getAttribute('data-spec'), eid=c.getAttribute('data-eid');
         if(p.spec[f][eid])delete p.spec[f][eid]; else p.spec[f][eid]=1;
-        renderPainting(); save();
+        renderPainting(); saveEdit();
       });
     });
     pg.querySelectorAll('[data-del]').forEach(function(x){
@@ -1109,7 +1459,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         if(!twoTap('del'+eid,null)){toast('Tap ✕ again to remove it from every painting',1600);return;}
         state.specials[f]=(state.specials[f]||[]).filter(function(en){return en.id!==eid;});
         state.paintings.forEach(function(pp){if(pp.spec&&pp.spec[f])delete pp.spec[f][eid];});
-        renderPainting(); save();
+        renderPainting(); saveEdit();
         toast('Removed from library',1100);
       });
     });
@@ -1130,7 +1480,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var entry={id:uid('s'),text:v};
         state.specials[f].push(entry);
         p.spec[f][entry.id]=1;
-        renderPainting(); save();
+        renderPainting(); saveEdit();
       });
     });
     pg.querySelectorAll('input[data-addspec]').forEach(function(inp){
@@ -1148,8 +1498,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var doomed=active();
       deletePhotosKey(doomed.id);
       state.paintings=state.paintings.filter(function(x){return x.id!==doomed.id;});
-      if(!state.paintings.length)state.paintings=[{id:uid(),name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null}];
-      state.active=state.paintings[0].id; state.view='overview';
+      if(!state.paintings.length)state.paintings=[{id:uid(),name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',updatedAt:nowTs()}];
+      state.active=state.paintings[0].id; state.view='paintings';
       resetTransient(); render(); save();
       toast('Deleted "'+doomed.name+'"',1200);
     });
@@ -1176,7 +1526,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       c.addEventListener('click',function(){
         if(p.colors[code]){delete p.colors[code]; c.classList.remove('sel');}
         else {p.colors[code]=1; c.classList.add('sel');}
-        updateMeta(); renderTabs(); save();
+        updateMeta(); renderTabs(); saveEdit();
       });
       frag.appendChild(c);
     });
@@ -1362,9 +1712,19 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
 
   /* ---------- root ---------- */
+  function applyTheme(){
+    var app=$('app'); if(app)app.classList.toggle('dark',!!state.dark);
+    try{
+      document.documentElement.style.background=state.dark?'#16141B':'#F3F2F5';
+      if(document.body)document.body.style.background=state.dark?'#16141B':'#F3F2F5';
+      var mt=document.querySelector('meta[name="theme-color"]'); if(mt)mt.setAttribute('content',state.dark?'#16141B':'#F3F2F5');
+    }catch(e){}
+  }
   function render(){
+    applyTheme();
     renderTabs();
     if(state.view==='overview')renderOverview();
+    else if(state.view==='paintings')renderPaintings();
     else if(state.view==='find')renderFind();
     else renderPainting();
   }
