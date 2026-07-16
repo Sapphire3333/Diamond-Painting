@@ -122,7 +122,10 @@
   .ovtag{background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;}
   .ovphotos{display:flex;gap:7px;margin-top:10px;}
   .ovphoto{position:relative;flex:1 1 0;min-width:0;}
-  .ovphoto img{width:100%;height:160px;object-fit:cover;border-radius:11px;border:1px solid var(--line);display:block;background:var(--unk-soft);}
+  .ovphoto img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;border:1px solid var(--line);display:block;background:var(--unk-soft);}
+  .ovphotos.frame-portrait .ovphoto img{aspect-ratio:3/4;}
+  .ovphotos.frame-square .ovphoto img{aspect-ratio:1;}
+  .ovphotos.frame-round .ovphoto img{aspect-ratio:1;border-radius:50%;}
   .ovphoto-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;letter-spacing:.3px;padding:2px 8px;border-radius:999px;}
   .mini{width:16px;height:16px;border-radius:5px;border:1px solid rgba(0,0,0,.14);
     background-image:linear-gradient(135deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 50%,rgba(0,0,0,.1) 100%);}
@@ -163,8 +166,11 @@
     font-size:13px;font-weight:700;cursor:pointer;}
   .pbtn.danger{color:#A8324B;}
   .pbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
-  .photo-preview{position:relative;margin-top:8px;max-width:320px;}
-  .photo-preview img{width:100%;height:190px;object-fit:cover;border-radius:11px;border:1.5px solid var(--accent);background:var(--unk-soft);display:block;}
+  .photo-preview{position:relative;margin-top:8px;max-width:260px;}
+  .photo-preview img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;border:1.5px solid var(--accent);background:var(--unk-soft);display:block;}
+  .photo-preview.frame-portrait img{aspect-ratio:3/4;}
+  .photo-preview.frame-square img{aspect-ratio:1;}
+  .photo-preview.frame-round img{aspect-ratio:1;border-radius:50%;}
   .pv-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;pointer-events:none;}
   .photo-hint{font-size:11px;color:var(--muted);margin-top:5px;}
   .pdetails{flex:1;min-width:0;}
@@ -242,7 +248,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var DEFAULT_SIZES=['20×20','30×30','30×40','40×50','50×70'];
 
   var state={
-    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',updatedAt:0}],
+    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',updatedAt:0}],
     active:'p1', onlySel:false, view:'paintings',
     specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added', pGroup:'none', pSearchField:'all',
     autoBackup:'off', dark:false
@@ -430,6 +436,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!('status' in p))p.status=null;
       if(!('started' in p))p.started='';
       if(!('finished' in p))p.finished='';
+      if(!p.frame)p.frame='landscape';
       Object.keys(p.finishes).forEach(function(f){
         if(!p.spec[f])p.spec[f]={};
         if(!p.finishes[f])delete p.finishes[f];
@@ -657,7 +664,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     mk('paints','🖼 Paintings<span class="cnt">'+state.paintings.length+'</span>',function(){state.view='paintings';resetTransient();render();save();},state.view==='paintings'||state.view==='paint');
     mk('find','🔎 Find',function(){state.view='find';resetTransient();render();save();},state.view==='find');
     mk('add','+ New painting',function(){
-      var p={id:uid(),name:'Painting '+(state.paintings.length+1),colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',updatedAt:nowTs()};
+      var p={id:uid(),name:'Painting '+(state.paintings.length+1),colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',updatedAt:nowTs()};
       state.paintings.push(p); state.active=p.id; state.view='paint';
       renaming=true; render(); save();
     },false);
@@ -865,7 +872,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var photoHtml='';
     if(p.photos&&p.photos.length){
       var labels=['Sold','Result'];
-      photoHtml='<div class="ovphotos">';
+      photoHtml='<div class="ovphotos frame-'+(p.frame||'landscape')+'">';
       p.photos.slice(0,2).forEach(function(ph,i){
         photoHtml+='<div class="ovphoto"><img src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'"><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
       });
@@ -1209,7 +1216,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(selPhoto>=0&&selPhoto<p.photos.length){
       var selP=p.photos[selPhoto];
       var isCover=((selP.fit||'cover')!=='contain');
-      ph+='<div class="photo-preview"><span class="pv-lbl">Card preview</span><img src="'+selP.d+'" alt="" style="'+photoStyle(selP)+'"></div>';
+      ph+='<div class="photo-preview frame-'+(p.frame||'landscape')+'"><span class="pv-lbl">Card preview</span><img src="'+selP.d+'" alt="" style="'+photoStyle(selP)+'"></div>';
       ph+='<div class="photo-btns">'+
         '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill (crop)':'▤ Whole image')+'</button>'+
         '<button class="pbtn'+(selP.flip?' on':'')+'" id="phFlip" type="button">⇄ Flip</button>'+
@@ -1227,6 +1234,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '</div>';
     }
     ph+='<div class="photo-hint">'+(p.photos.length?'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Tap a photo to select it, then choose Fill (crop) vs Whole image, ⇄ Flip, nudge the crop with ← ↑ ↓ →, set Sold/Result, reorder, or remove. Portrait/square photos look best on “Whole image”.':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image. The first two become the “Sold” and “Result” pictures on cards.')+'</div>';
+    if(p.photos.length){
+      ph+='<div class="ovsort" style="margin-top:6px;"><span class="pd-lbl" style="margin:0">Card frame:</span>'+
+        '<button class="chipbtn'+(p.frame==='landscape'?' on':'')+'" data-frame="landscape" type="button">▭ Landscape</button>'+
+        '<button class="chipbtn'+(p.frame==='portrait'?' on':'')+'" data-frame="portrait" type="button">▯ Portrait</button>'+
+        '<button class="chipbtn'+(p.frame==='square'?' on':'')+'" data-frame="square" type="button">◻ Square</button>'+
+        '<button class="chipbtn'+(p.frame==='round'?' on':'')+'" data-frame="round" type="button">◯ Round</button>'+
+      '</div>';
+    }
 
     /* size chips */
     var sizeChips='';
@@ -1336,6 +1351,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div class="empty" id="emptyMsg" style="display:none"></div>';
 
     $('backPaints').addEventListener('click',function(){state.view='paintings';resetTransient();render();save();});
+
+    /* card frame shape */
+    pg.querySelectorAll('[data-frame]').forEach(function(b){
+      b.addEventListener('click',function(){p.frame=b.getAttribute('data-frame');renderPainting();saveEdit();});
+    });
 
     /* status */
     pg.querySelectorAll('[data-status]').forEach(function(b){
@@ -1575,7 +1595,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var doomed=active();
       deletePhotosKey(doomed.id);
       state.paintings=state.paintings.filter(function(x){return x.id!==doomed.id;});
-      if(!state.paintings.length)state.paintings=[{id:uid(),name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',updatedAt:nowTs()}];
+      if(!state.paintings.length)state.paintings=[{id:uid(),name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',updatedAt:nowTs()}];
       state.active=state.paintings[0].id; state.view='paintings';
       resetTransient(); render(); save();
       toast('Deleted "'+doomed.name+'"',1200);
