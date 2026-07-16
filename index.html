@@ -120,12 +120,12 @@
   .ovthumb{width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid var(--line);}
   .ovtags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
   .ovtag{background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;}
-  .ovphotos{display:flex;gap:7px;margin-top:10px;}
-  .ovphoto{position:relative;flex:1 1 0;min-width:0;}
-  .ovphoto img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;border:1px solid var(--line);display:block;background:var(--unk-soft);}
-  .ovphotos.frame-portrait .ovphoto img{aspect-ratio:3/4;}
-  .ovphotos.frame-square .ovphoto img{aspect-ratio:1;}
-  .ovphotos.frame-round .ovphoto img{aspect-ratio:1;border-radius:50%;}
+  .ovphotos{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;}
+  .ovphoto{position:relative;flex:0 0 auto;}
+  .ovphoto img{display:block;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--unk-soft);width:128px;height:96px;}
+  .ovphotos.frame-portrait .ovphoto img{width:96px;height:124px;}
+  .ovphotos.frame-square .ovphoto img{width:108px;height:108px;}
+  .ovphotos.frame-round .ovphoto img{width:108px;height:108px;border-radius:50%;}
   .ovphoto-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;letter-spacing:.3px;padding:2px 8px;border-radius:999px;}
   .mini{width:16px;height:16px;border-radius:5px;border:1px solid rgba(0,0,0,.14);
     background-image:linear-gradient(135deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 50%,rgba(0,0,0,.1) 100%);}
