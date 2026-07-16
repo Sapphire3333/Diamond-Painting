@@ -120,7 +120,9 @@
   .ovthumb{width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid var(--line);}
   .ovtags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
   .ovtag{background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;}
-  .ovphotos{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;}
+  .ovbody{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:4px;}
+  .ovinfo{flex:1 1 150px;min-width:0;}
+  .ovphotos{display:flex;gap:7px;flex-wrap:wrap;flex:0 0 auto;}
   .ovphoto{position:relative;flex:0 0 auto;}
   .ovphoto img{display:block;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--unk-soft);width:128px;height:96px;}
   .ovphotos.frame-portrait .ovphoto img{width:96px;height:124px;}
@@ -887,10 +889,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(state.ovSort==='edited'&&p.updatedAt)sub+=' · 🕒 '+fmtDate(p.updatedAt);
     return '<div class="ovcard" data-id="'+p.id+'">'+
       '<div class="ovtop"><span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
-      '<div class="ovsub">'+sub+'</div>'+
-      (fins?'<div class="ovfins">'+fins+'</div>':'')+
-      tagHtml+
-      photoHtml+
+      '<div class="ovbody">'+
+        '<div class="ovinfo">'+
+          '<div class="ovsub">'+sub+'</div>'+
+          (fins?'<div class="ovfins">'+fins+'</div>':'')+
+          tagHtml+
+        '</div>'+
+        photoHtml+
+      '</div>'+
       '</div>';
   }
   function filteredPaintings(){
