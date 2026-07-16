@@ -187,6 +187,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
 (function(){
   var KEY='dpTrackerV1';
+  /* =======================================================================
+     CLOUD SYNC (optional) — paste your Supabase details between the quotes.
+     Both values are safe to have in a public file (the anon key is meant to
+     be public; your data is protected by your private sync code). Leave them
+     empty to keep the app 100% local with no sync.
+     ======================================================================= */
+  var CLOUD={
+    url:'https://shgnjmskkjnpuhojmmjs.supabase.co',
+    anon:'sb_publishable_rbXu8ODnWogSifVsLD1oGQ_2iwimxOX'
+  };
   var TYPES={
     square:{sym:'■',label:'Square',cls:'sq'},
     round:{sym:'●',label:'Round',cls:'rd'},
@@ -210,6 +220,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   };
   var query='', findQuery='', findType='any', expandedColor=null, expandedSpec=null, expandedSize=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, armed={};
+  var syncPhase='';   /* '' normal, 'choose' after enabling when cloud already has data */
   var DMCMAP={}; DMC.forEach(function(r){DMCMAP[r[0]]=r;});
 
   function $(id){return document.getElementById(id);}
@@ -307,7 +318,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       try{return lsStore();}catch(e){return Promise.resolve(null);}
     });
   }
-  var STORE=null;
+  var STORE=null;   /* cloud-mirroring store used by the app */
+  var LOCAL=null;   /* raw local store (no cloud mirror) */
   function photoKey(pid){return 'dpPhotos_'+pid;}
   function strippedState(){
     var s=JSON.parse(JSON.stringify(state));
@@ -370,33 +382,138 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     return s;
   }
-  function load(cb){
+  /* ---------- cloud sync (optional, additive) ----------
+     Local storage stays the source of truth for the running app; the cloud is
+     a mirror. Every local write is pushed up; on load / focus / a slow timer we
+     pull down and apply any key the other device changed more recently
+     (last-write-wins per key). If the cloud is unreachable the app keeps working
+     exactly as before. */
+  var pulling=false, syncTimer=null;
+  function cloudConfigured(){return !!(CLOUD.url&&CLOUD.anon);}
+  function syncCode(){try{return localStorage.getItem('dpSyncCode')||'';}catch(e){return '';}}
+  function setSyncCode(c){try{if(c)localStorage.setItem('dpSyncCode',c);else localStorage.removeItem('dpSyncCode');}catch(e){}}
+  function cloudOn(){return cloudConfigured()&&!!syncCode();}
+  function getMeta(){try{return JSON.parse(localStorage.getItem('dpSyncMeta')||'{}');}catch(e){return {};}}
+  function setMeta(m){try{localStorage.setItem('dpSyncMeta',JSON.stringify(m));}catch(e){}}
+  function clearMeta(){try{localStorage.removeItem('dpSyncMeta');}catch(e){}}
+  function apiBase(){return CLOUD.url.replace(/\/+$/,'').replace(/\/rest\/v1$/,'');}
+  function rpc(fn,body){
+    var h={'apikey':CLOUD.anon,'Content-Type':'application/json'};
+    /* legacy anon keys are JWTs (eyJ...) and want a Bearer token too; the newer
+       sb_publishable_ keys are resolved from the apikey header alone. */
+    if(/^eyJ/.test(CLOUD.anon))h['Authorization']='Bearer '+CLOUD.anon;
+    return fetch(apiBase()+'/rest/v1/rpc/'+fn,{
+      method:'POST',
+      headers:h,
+      body:JSON.stringify(body)
+    }).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.json();});
+  }
+  function cloudPush(k,v){
+    if(!cloudOn())return;
+    rpc('kv_push',{p_code:syncCode(),p_key:k,p_val:v}).then(function(ts){
+      var m=getMeta();m[k]=Number(ts)||m[k];setMeta(m);
+    }).catch(function(){});
+  }
+  function cloudDelete(k){
+    if(!cloudOn())return;
+    rpc('kv_delete',{p_code:syncCode(),p_key:k}).then(function(){
+      var m=getMeta();delete m[k];setMeta(m);
+    }).catch(function(){});
+  }
+  /* pull cloud -> local; cb(changed) */
+  function cloudPull(cb){
+    if(!cloudOn()||pulling){cb&&cb(false);return;}
+    pulling=true;
+    rpc('kv_pull',{p_code:syncCode()}).then(function(rows){
+      rows=rows||[];var m=getMeta();var apply=[];
+      rows.forEach(function(row){if((Number(row.ts)||0)>(m[row.k]||0))apply.push(row);});
+      if(!apply.length){pulling=false;cb&&cb(false);return;}
+      var pend=apply.length;
+      apply.forEach(function(row){
+        var done=function(){m[row.k]=Number(row.ts)||m[row.k];if(--pend===0){setMeta(m);pulling=false;cb&&cb(true);}};
+        try{(row.v==null?LOCAL.del(row.k):LOCAL.set(row.k,row.v)).then(done,done);}catch(e){done();}
+      });
+    }).catch(function(){pulling=false;cb&&cb(false);});
+  }
+  /* push every local key up (first link / manual upload) */
+  function cloudPushAll(cb){
+    if(!cloudOn()){cb&&cb();return;}
+    var keys=[KEY];state.paintings.forEach(function(p){keys.push(photoKey(p.id));});
+    var pend=keys.length,m=getMeta();
+    keys.forEach(function(k){
+      LOCAL.get(k).then(function(r){
+        var v=(r&&r.value!=null)?r.value:(k===KEY?JSON.stringify(strippedState()):null);
+        if(v==null){if(--pend===0){setMeta(m);cb&&cb();}return;}
+        rpc('kv_push',{p_code:syncCode(),p_key:k,p_val:v}).then(function(ts){
+          m[k]=Number(ts)||m[k];if(--pend===0){setMeta(m);cb&&cb();}
+        }).catch(function(){if(--pend===0){setMeta(m);cb&&cb();}});
+      }).catch(function(){if(--pend===0){setMeta(m);cb&&cb();}});
+    });
+  }
+  function syncNow(opts){
+    if(!cloudOn())return;
+    if(!(opts&&opts.force)){
+      if(renaming)return;
+      var ae=document.activeElement;
+      if(ae&&/^(INPUT|TEXTAREA)$/.test(ae.tagName))return;
+    }
+    cloudPull(function(ch){if(ch)hydrate(function(){render();toast('Synced from cloud ✓',1200);});});
+  }
+  function startSyncLoop(){
+    if(syncTimer){clearInterval(syncTimer);syncTimer=null;}
+    if(!cloudOn())return;
+    syncTimer=setInterval(function(){if(!document.hidden)syncNow();},25000);
+  }
+
+  function wrapStore(local){
+    return {
+      kind:local.kind,
+      get:function(k){return local.get(k);},
+      set:function(k,v){var p=local.set(k,v);p.then(function(){cloudPush(k,v);},function(){});return p;},
+      del:function(k){var p=local.del(k);p.then(function(){cloudDelete(k);},function(){});return p;}
+    };
+  }
+  function openStore(cb){
     makeStore().then(function(st){
-      STORE=st;
-      if(!STORE){cb();return;}
-      STORE.get(KEY).then(function(r){
-        var migrated=false;
-        try{
-          if(r&&r.value){var s=JSON.parse(r.value);
-            if(s&&s.paintings&&s.paintings.length){state=normalize(s);}}
-        }catch(e){}
-        /* load per-painting photos; migrate any photos still stored inline (old format) */
-        var pend=state.paintings.length;
-        if(!pend){cb();return;}
-        state.paintings.forEach(function(p){
-          var inline=(p.photos&&p.photos.length)?p.photos:null;
-          STORE.get(photoKey(p.id)).then(function(pr){
-            try{
-              if(pr&&pr.value){var arr=JSON.parse(pr.value);if(arr&&arr.length)p.photos=arr;}
-              else if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
-            }catch(e){if(inline)p.photos=inline;}
-            if(--pend===0){if(migrated)save();cb();}
-          }).catch(function(){
-            if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
-            if(--pend===0){if(migrated)save();cb();}
-          });
+      LOCAL=st;
+      STORE=st?wrapStore(st):null;
+      cb();
+    });
+  }
+  /* read main state + per-painting photos from local into `state` */
+  function hydrate(cb){
+    if(!STORE){cb();return;}
+    STORE.get(KEY).then(function(r){
+      var migrated=false;
+      try{
+        if(r&&r.value){var s=JSON.parse(r.value);
+          if(s&&s.paintings&&s.paintings.length){state=normalize(s);}}
+      }catch(e){}
+      /* load per-painting photos; migrate any photos still stored inline (old format) */
+      var pend=state.paintings.length;
+      if(!pend){cb();return;}
+      state.paintings.forEach(function(p){
+        var inline=(p.photos&&p.photos.length)?p.photos:null;
+        STORE.get(photoKey(p.id)).then(function(pr){
+          try{
+            if(pr&&pr.value){var arr=JSON.parse(pr.value);if(arr&&arr.length)p.photos=arr;}
+            else if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
+          }catch(e){if(inline)p.photos=inline;}
+          if(--pend===0){if(migrated)save();cb();}
+        }).catch(function(){
+          if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
+          if(--pend===0){if(migrated)save();cb();}
         });
-      }).catch(function(){cb();});
+      });
+    }).catch(function(){cb();});
+  }
+  function load(cb){
+    openStore(function(){
+      hydrate(function(){
+        cb();
+        cloudPull(function(ch){if(ch)hydrate(function(){render();});});
+        startSyncLoop();
+      });
     });
   }
 
@@ -480,6 +597,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '</div>';
     });
     html+='</div>';
+    html+=syncSectionHtml();
     html+='<div class="section-lbl">Storage</div><div class="backup" id="storMeter"></div>';
     html+='<div class="section-lbl">Backup &amp; restore</div>'+
       '<div class="backup">'+
@@ -535,6 +653,107 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       }
     });
     renderStorageMeter();
+    wireSync();
+  }
+
+  /* ---------- cloud sync UI ---------- */
+  function genCode(){
+    var a='abcdefghjkmnpqrstuvwxyz23456789';
+    function g(){var s='';for(var i=0;i<4;i++)s+=a.charAt(Math.floor(Math.random()*a.length));return s;}
+    return 'dp-'+g()+'-'+g()+'-'+g();
+  }
+  function maskCode(c){if(!c)return '';return c.length<=3?c:c.slice(0,3)+'••••••';}
+  function syncSectionHtml(){
+    var h='<div class="section-lbl">Cloud sync (phone ⇄ PC)</div>';
+    if(!cloudConfigured()){
+      h+='<div class="backup"><div class="bk-note">Not set up in this file yet. To sync between devices, add your Supabase URL and key near the top of index.html (see the setup notes) and reload. Until then, the app saves locally on each device.</div></div>';
+      return h;
+    }
+    if(syncPhase==='choose'){
+      h+='<div class="backup">'+
+        '<div class="bk-note">This code already has data saved in the cloud. Which copy should win?</div>'+
+        '<div class="bk-btns" style="margin-top:8px;">'+
+          '<button class="chipbtn" id="syUseCloud" type="button" style="color:var(--accent);border-color:var(--accent);">Use cloud data (replace this device)</button>'+
+          '<button class="chipbtn" id="syUploadThis" type="button">Upload this device (this device wins)</button>'+
+          '<button class="chipbtn" id="syCancel" type="button">Cancel</button>'+
+        '</div>'+
+        '<div class="bk-note" style="margin-top:6px;">Unsure? Tap “Show backup code” below first so you keep a copy either way.</div>'+
+      '</div>';
+      return h;
+    }
+    if(!syncCode()){
+      h+='<div class="backup">'+
+        '<div class="bk-note">Type the <b>same code</b> on every device to keep them in sync. Generate one here, copy it, then enter it on your other device.</div>'+
+        '<div class="bk-btns" style="margin-top:8px;">'+
+          '<input id="syCode" type="text" autocomplete="off" spellcheck="false" placeholder="your-sync-code" style="flex:1 1 160px;min-width:0;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;font-family:monospace;">'+
+          '<button class="chipbtn" id="syGen" type="button">Generate</button>'+
+          '<button class="chipbtn" id="syEnable" type="button" style="color:#fff;background:var(--accent);border-color:var(--accent);">Enable sync</button>'+
+        '</div>'+
+        '<div class="bk-note" id="syNote" style="margin-top:6px;"></div>'+
+      '</div>';
+      return h;
+    }
+    var code=syncCode();
+    h+='<div class="backup">'+
+      '<div class="sm-lbl" style="font-weight:700;">✓ Sync is on for this device</div>'+
+      '<div class="bk-btns" style="margin-top:8px;align-items:center;">'+
+        '<code id="syCodeShow" data-shown="0" style="flex:1 1 140px;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:13px;background:var(--accent-soft);color:var(--accent);padding:7px 10px;border-radius:8px;">'+esc(maskCode(code))+'</code>'+
+        '<button class="chipbtn" id="syReveal" type="button">Show</button>'+
+        '<button class="chipbtn" id="syCopy" type="button">Copy</button>'+
+        '<button class="chipbtn" id="syPull" type="button" style="color:var(--accent);border-color:var(--accent);">Sync now</button>'+
+        '<button class="chipbtn danger" id="syOff" type="button">Turn off here</button>'+
+      '</div>'+
+      '<div class="bk-note" style="margin-top:6px;">Enter this exact code on your other device to link them. Changes sync automatically while the app is open.</div>'+
+    '</div>';
+    return h;
+  }
+  function enableSync(code){
+    code=(code||'').trim();
+    var n=$('syNote');
+    if(code.length<4){if(n)n.textContent='Enter or generate a code (at least a few characters).';return;}
+    if(!cloudConfigured()){toast('Add your Supabase details to the file first',2200);return;}
+    setSyncCode(code);clearMeta();
+    if(n)n.textContent='Connecting…';
+    rpc('kv_pull',{p_code:code}).then(function(rows){
+      rows=rows||[];
+      if(!rows.length){
+        cloudPushAll(function(){renderOverview();toast('Sync on — this device is now backed up to the cloud ✓',1900);startSyncLoop();});
+      }else{
+        syncPhase='choose';renderOverview();
+      }
+    }).catch(function(){
+      setSyncCode('');clearMeta();
+      var n2=$('syNote');if(n2)n2.textContent='Could not reach the cloud. Check the Supabase URL and key in the file, and your internet connection.';
+    });
+  }
+  function wireSync(){
+    if($('syGen'))$('syGen').addEventListener('click',function(){var c=genCode();$('syCode').value=c;$('syCode').focus();$('syCode').select();});
+    if($('syEnable'))$('syEnable').addEventListener('click',function(){enableSync($('syCode').value);});
+    if($('syUseCloud'))$('syUseCloud').addEventListener('click',function(){
+      cloudPull(function(){hydrate(function(){syncPhase='';render();toast('Synced from cloud ✓',1400);startSyncLoop();});});
+    });
+    if($('syUploadThis'))$('syUploadThis').addEventListener('click',function(){
+      cloudPushAll(function(){syncPhase='';renderOverview();toast('Uploaded to cloud ✓',1400);startSyncLoop();});
+    });
+    if($('syCancel'))$('syCancel').addEventListener('click',function(){syncPhase='';setSyncCode('');clearMeta();renderOverview();});
+    if($('syReveal'))$('syReveal').addEventListener('click',function(){
+      var el=$('syCodeShow');var full=syncCode();
+      if(el.getAttribute('data-shown')==='1'){el.textContent=maskCode(full);el.setAttribute('data-shown','0');this.textContent='Show';}
+      else{el.textContent=full;el.setAttribute('data-shown','1');this.textContent='Hide';}
+    });
+    if($('syCopy'))$('syCopy').addEventListener('click',function(){
+      var c=syncCode();
+      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(c).then(function(){toast('Code copied ✓',1200);},function(){toast('Copy blocked — tap Show, then copy by hand',2200);});
+      else toast('Tap Show, then copy the code by hand',2200);
+    });
+    if($('syPull'))$('syPull').addEventListener('click',function(){
+      if(!cloudOn())return;
+      toast('Checking cloud…',900);
+      cloudPull(function(ch){if(ch)hydrate(function(){render();toast('Synced from cloud ✓',1400);});else toast('Already up to date ✓',1200);});
+    });
+    if($('syOff'))$('syOff').addEventListener('click',function(){
+      setSyncCode('');clearMeta();if(syncTimer){clearInterval(syncTimer);syncTimer=null;}renderOverview();toast('Sync turned off on this device',1600);
+    });
   }
 
   function fmtBytes(n){
@@ -1155,6 +1374,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     for(var i=0;i<files.length;i++)addImageFile(files[i]);
     e.target.value='';
   });
+
+  /* pull newer cloud changes when the tab regains focus */
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)syncNow();});
+  window.addEventListener('focus',function(){syncNow();});
 
   load(function(){render();});
 })();
