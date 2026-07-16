@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F3F2F5">
+<title>Diamond Painting Colors</title>
+<style>html,body{margin:0;background:#F3F2F5;}</style>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#F3F2F5; --panel:#FFFFFF; --ink:#26222E; --muted:#7A7486;
+    --line:#E4E1EA; --accent:#5B3FA8; --accent-soft:#EFEAFB;
+    --sq:#2E6FBF; --sq-soft:#E7F0FB;
+    --rd:#2F9E63; --rd-soft:#E6F6EE;
+    --od:#B0398F; --od-soft:#F9E9F4;
+    --unk:#8A8494; --unk-soft:#EEEDF1;
+    --star:#B98A2F; --star-soft:#F8EFDC;
+  }
+  .dp-app{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); min-height:100vh; padding:14px 12px 60px;}
+  .dp-app *{box-sizing:border-box;}
+  .wrap{max-width:900px;margin:0 auto;}
+  .dp-title{font-size:20px;font-weight:800;letter-spacing:.2px;margin:2px 2px 10px;display:flex;align-items:center;gap:8px;}
+  .dp-title .gem{width:16px;height:16px;background:linear-gradient(135deg,#8f6fe0 0%,#5B3FA8 55%,#3c2a75 100%);
+    transform:rotate(45deg);border-radius:4px;
+    box-shadow:inset -2px -2px 0 rgba(0,0,0,.18), inset 2px 2px 0 rgba(255,255,255,.35);}
+  .tabs{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;-webkit-overflow-scrolling:touch;}
+  .tab{flex:0 0 auto;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);
+    padding:8px 14px;border-radius:999px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .tab .cnt{color:var(--muted);font-weight:600;margin-left:6px;font-size:12px;}
+  .tab.active{border-color:var(--accent);background:var(--accent);color:#fff;}
+  .tab.active .cnt{color:#E4DBFA;}
+  .tab.add{border-style:dashed;color:var(--accent);background:transparent;font-weight:700;}
+  .tab.home,.tab.find{font-weight:700;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+  .search{flex:1 1 200px;display:flex;align-items:center;background:var(--panel);border:1.5px solid var(--line);
+    border-radius:12px;padding:9px 12px;gap:8px;}
+  .search input{border:none;outline:none;font-size:15px;flex:1;background:transparent;color:var(--ink);}
+  .chipbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:12px;padding:9px 12px;
+    font-size:14px;font-weight:600;cursor:pointer;color:var(--ink);}
+  .chipbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .chipbtn.danger{color:#A8324B;}
+  .chipbtn.confirm{background:#A8324B !important;border-color:#A8324B !important;color:#fff !important;}
+  .renamer{display:none;gap:8px;align-items:center;margin-bottom:10px;}
+  .renamer.show{display:flex;}
+  .renamer input{flex:1;border:1.5px solid var(--accent);border-radius:12px;padding:9px 12px;font-size:15px;outline:none;min-width:0;}
+  .typerow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+  .typerow .lbl{font-size:13px;color:var(--muted);font-weight:600;}
+  .tbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 13px;
+    font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .tbtn.sq.on{background:var(--sq);border-color:var(--sq);color:#fff;}
+  .tbtn.rd.on{background:var(--rd);border-color:var(--rd);color:#fff;}
+  .tbtn.od.on{background:var(--od);border-color:var(--od);color:#fff;}
+  .tbtn.any.on{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .fbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 12px;
+    font-size:13px;font-weight:700;cursor:pointer;}
+  .badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:800;}
+  .badge.sq{background:var(--sq-soft);color:var(--sq);}
+  .badge.rd{background:var(--rd-soft);color:var(--rd);}
+  .badge.od{background:var(--od-soft);color:var(--od);}
+  .badge.unk{background:var(--unk-soft);color:var(--unk);}
+  .badge.star{background:var(--star-soft);color:var(--star);}
+  .fin-tag{display:inline-block;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:800;margin-right:4px;}
+  .meta{color:var(--muted);font-size:13px;padding:0 2px;margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:6px;}
+  .card{display:flex;align-items:center;gap:9px;background:var(--panel);border:1.5px solid var(--line);
+    border-radius:12px;padding:8px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;position:relative;}
+  .card:active{transform:scale(.985);}
+  .card.sel{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset;background:#FBFAFE;}
+  .card.open{border-color:var(--ink);}
+  .drill{width:34px;height:34px;border-radius:8px;flex:0 0 auto;border:1px solid rgba(0,0,0,.14);
+    background-image:linear-gradient(135deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 45%,rgba(0,0,0,.12) 100%);pointer-events:none;}
+  .drill.spec{display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;
+    text-shadow:0 1px 2px rgba(0,0,0,.35);}
+  .ctext{min-width:0;pointer-events:none;}
+  .code{font-weight:800;font-size:14px;line-height:1.1;}
+  .cname{font-size:11.5px;color:var(--muted);line-height:1.2;overflow:hidden;text-overflow:ellipsis;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .tick{position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:var(--accent);
+    color:#fff;font-size:12px;line-height:18px;text-align:center;display:none;pointer-events:none;}
+  .card.sel .tick{display:block;}
+  .pcount{position:absolute;top:6px;right:6px;min-width:18px;height:18px;border-radius:999px;background:var(--accent);
+    color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center;padding:0 5px;pointer-events:none;}
+  .pcount.zero{background:var(--unk-soft);color:var(--unk);}
+  .delx{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:#A8324B;color:#fff;
+    border:2px solid var(--panel);font-size:12px;font-weight:800;line-height:18px;text-align:center;cursor:pointer;}
+  .expander{grid-column:1/-1;background:var(--panel);border:1.5px solid var(--ink);border-radius:12px;padding:10px;}
+  .exp-head{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px;}
+  .exp-list{display:flex;flex-direction:column;gap:6px;}
+  .exp-item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;}
+  .exp-item:active{transform:scale(.99);}
+  .exp-name{font-weight:800;font-size:14px;margin-right:auto;}
+  .empty{margin:30px auto;text-align:center;color:var(--muted);font-size:15px;max-width:420px;}
+  .toast{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:6px 14px;border-radius:999px;font-size:12px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90%;z-index:50;}
+  .toast.show{opacity:.92;}
+  .ovlist{display:flex;flex-direction:column;gap:8px;}
+  .ovcard{background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:12px;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  .ovcard:active{transform:scale(.99);}
+  .ovtop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .ovname{font-weight:800;font-size:16px;margin-right:auto;}
+  .ovsub{color:var(--muted);font-size:13px;margin-top:3px;}
+  .ovfins{margin-top:6px;}
+  .ovswatches{display:flex;gap:4px;margin-top:9px;flex-wrap:wrap;align-items:center;}
+  .ovthumb{width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid var(--line);}
+  .mini{width:16px;height:16px;border-radius:5px;border:1px solid rgba(0,0,0,.14);
+    background-image:linear-gradient(135deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 50%,rgba(0,0,0,.1) 100%);}
+  .mini.more{background:var(--unk-soft);color:var(--unk);font-size:9px;font-weight:800;width:auto;padding:0 5px;
+    line-height:16px;text-align:center;border-radius:5px;}
+  .finrow{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
+  .finrow .lbl{font-size:13px;color:var(--muted);font-weight:600;}
+  .finbox{border:1.5px solid var(--line);border-radius:12px;background:var(--panel);padding:10px;margin-bottom:8px;}
+  .fb-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .fb-lbl{font-size:13px;font-weight:800;margin-right:auto;}
+  .fb-edit{border:none;background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;}
+  .fb-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;margin-bottom:8px;}
+  .fb-addrow{display:flex;gap:7px;}
+  .fb-addrow input{flex:1;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:14px;outline:none;min-width:0;}
+  .fb-addrow input:focus{border-color:var(--accent);}
+  .fb-hint{font-size:11px;color:var(--muted);margin-top:5px;}
+  .section-lbl{font-size:13px;font-weight:700;color:var(--muted);margin:12px 2px 7px;}
+  .backup{background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-top:6px;}
+  .bk-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .backup textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:12px;
+    font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--ink);outline:none;resize:vertical;}
+  .backup textarea:focus{border-color:var(--accent);}
+  .bk-note{font-size:12px;color:var(--muted);margin-top:6px;}
+  /* painting header: photos left, details right */
+  .phead{display:flex;gap:12px;background:var(--panel);border:1.5px solid var(--line);border-radius:14px;
+    padding:12px;margin-bottom:10px;align-items:flex-start;}
+  .photos{flex:0 1 42%;min-width:96px;}
+  .photo-grid{display:flex;flex-wrap:wrap;gap:6px;}
+  .photo-grid img{border-radius:9px;object-fit:cover;border:2px solid var(--line);cursor:pointer;display:block;}
+  .photo-grid img.psel{border-color:var(--accent);}
+  .photo-s0{width:56px;height:56px;}
+  .photo-s1{width:96px;height:96px;}
+  .photo-s2{width:160px;height:160px;}
+  .photo-btns{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;}
+  .pbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:9px;padding:5px 9px;
+    font-size:13px;font-weight:700;cursor:pointer;}
+  .pbtn.danger{color:#A8324B;}
+  .photo-hint{font-size:11px;color:var(--muted);margin-top:5px;}
+  .pdetails{flex:1;min-width:0;}
+  .pd-name{font-size:18px;font-weight:800;line-height:1.2;margin-bottom:8px;overflow-wrap:anywhere;}
+  .pd-row{margin-bottom:9px;}
+  .pd-lbl{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;}
+  .selchips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .selchip{border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 11px;
+    font-size:13px;font-weight:700;cursor:pointer;position:relative;}
+  .selchip.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .addinline{display:flex;gap:6px;align-items:center;}
+  .addinline input{border:1.5px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;outline:none;width:120px;}
+  .addinline input:focus{border-color:var(--accent);}
+  .codeinput{border:1.5px solid var(--line);border-radius:9px;padding:6px 10px;font-size:14px;font-weight:600;
+    outline:none;width:100%;max-width:260px;}
+  .codeinput:focus{border-color:var(--accent);}
+  .rating-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .rating-row input{border:1.5px solid var(--line);border-radius:9px;padding:6px 9px;font-size:15px;font-weight:800;
+    width:74px;outline:none;text-align:center;}
+  .rating-row input:focus{border-color:var(--accent);}
+  .ovsort{display:flex;gap:8px;align-items:center;margin-bottom:9px;}
+  .sm-row{margin-bottom:9px;}
+  .sm-lbl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-bottom:4px;}
+  .sm-lbl span:last-child{color:var(--muted);font-weight:600;white-space:nowrap;}
+  .sm-bar{height:8px;border-radius:999px;background:var(--unk-soft);overflow:hidden;}
+  .sm-fill{height:100%;border-radius:999px;min-width:2px;}
+
+</style>
+
+<div class="dp-app" id="app">
+  <div class="wrap">
+    <div class="dp-title"><span class="gem"></span>Diamond Painting Colors</div>
+    <div class="tabs" id="tabs"></div>
+    <div id="page"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+</div>
+
+<script>
+const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","#F0CED4"],["152","Shell Pink Med Light","#E2A099"],["153","Violet Very Light","#E6CCD9"],["154","Grape Very Dark","#572433"],["155","Blue Violet Med Dark","#9891B6"],["156","Blue Violet Med Lt","#A3AED1"],["157","Cornflower Blue Vy Lt","#BBC3D9"],["158","Cornflower Blu M V D","#4C526E"],["159","Blue Gray Light","#C7CAD7"],["160","Blue Gray Medium","#999FB7"],["161","Blue Gray","#7880A4"],["162","Blue Ultra Very Light","#DBECF5"],["163","Celadon Green Md","#4D8361"],["164","Forest Green Lt","#C8D8B8"],["165","Moss Green Vy Lt","#EFF4A4"],["166","Moss Green Md Lt","#C0C840"],["167","Yellow Beige V Dk","#A77C49"],["168","Pewter Very Light","#D1D1D1"],["169","Pewter Light","#848484"],["208","Lavender Very Dark","#835B8B"],["209","Lavender Dark","#A37BA7"],["210","Lavender Medium","#C39FC3"],["211","Lavender Light","#E3CBE3"],["221","Shell Pink Vy Dk","#883E43"],["223","Shell Pink Light","#CC847C"],["224","Shell Pink Very Light","#EBB7AF"],["225","Shell Pink Ult Vy Lt","#FFDFD5"],["300","Mahogany Vy Dk","#6F2F00"],["301","Mahogany Med","#B35F2B"],["304","Red Medium","#B71F33"],["307","Lemon","#FDED54"],["309","Rose Dark","#D62B5B"],["310","Black","#000000"],["311","Wedgewood Ult VyDk","#1C5066"],["312","Baby Blue Very Dark","#35668B"],["315","Antique Mauve Md Dk","#814952"],["316","Antique Mauve Med","#B7737F"],["317","Pewter Gray","#6C6C6C"],["318","Steel Gray Lt","#ABABAB"],["319","Pistachio Grn Vy Dk","#205F2E"],["320","Pistachio Green Med","#69885A"],["321","Red","#C72B3B"],["322","Baby Blue Dark","#5A8FB8"],["326","Rose Very Dark","#B33B4B"],["327","Violet Dark","#633666"],["333","Blue Violet Very Dark","#5C5478"],["334","Baby Blue Medium","#739FC1"],["335","Rose","#EE546E"],["336","Navy Blue","#253B73"],["340","Blue Violet Medium","#ADA7C7"],["341","Blue Violet Light","#B7BFDD"],["347","Salmon Very Dark","#BF2D2D"],["349","Coral Dark","#D21035"],["350","Coral Medium","#E04848"],["351","Coral","#E96A67"],["352","Coral Light","#FD9C97"],["353","Peach","#FED7CC"],["355","Terra Cotta Dark","#984436"],["356","Terra Cotta Med","#C56A5B"],["367","Pistachio Green Dk","#617A52"],["368","Pistachio Green Lt","#A6C298"],["369","Pistachio Green Vy Lt","#D7EDCC"],["370","Mustard Medium","#B89D64"],["371","Mustard","#BFA671"],["372","Mustard Lt","#CCB784"],["400","Mahogany Dark","#8F430F"],["402","Mahogany Vy Lt","#F7A777"],["407","Desert Sand Med","#BB8161"],["413","Pewter Gray Dark","#565656"],["414","Steel Gray Dk","#8C8C8C"],["415","Pearl Gray","#D3D3D6"],["420","Hazelnut Brown Dk","#A07042"],["422","Hazelnut Brown Lt","#C69F7B"],["433","Brown Med","#7A451F"],["434","Brown Light","#985E33"],["435","Brown Very Light","#B87748"],["436","Tan","#CB9051"],["437","Tan Light","#E4BB8E"],["444","Lemon Dark","#FFD600"],["445","Lemon Light","#FFFB8B"],["451","Shell Gray Dark","#917B73"],["452","Shell Gray Med","#C0B3AE"],["453","Shell Gray Light","#D7CECB"],["469","Avocado Green","#72843C"],["470","Avocado Grn Lt","#94AB4F"],["471","Avocado Grn V Lt","#AEBF79"],["472","Avocado Grn U Lt","#D8E498"],["498","Red Dark","#A7132B"],["500","Blue Green Vy Dk","#044D33"],["501","Blue Green Dark","#396F52"],["502","Blue Green","#5B9071"],["503","Blue Green Med","#7BAC94"],["504","Blue Green Vy Lt","#C4DECC"],["505","Jade Green","#338362"],["517","Wedgewood Dark","#3B768F"],["518","Wedgewood Light","#4F93A7"],["519","Sky Blue","#7EB1C8"],["520","Fern Green Dark","#666D4F"],["522","Fern Green","#969E7E"],["523","Fern Green Lt","#ABB197"],["524","Fern Green Vy Lt","#C4CDAC"],["535","Ash Gray Vy Lt","#636458"],["543","Beige Brown Ult Vy Lt","#F2E3CE"],["550","Violet Very Dark","#5C184E"],["552","Violet  Medium","#803A6B"],["553","Violet","#A3638B"],["554","Violet Light","#DBB3CB"],["561","Celadon Green VD","#2C6A45"],["562","Jade Medium","#53976A"],["563","Jade Light","#8FC098"],["564","Jade Very Light","#A7CDAF"],["580","Moss Green Dk","#888D33"],["581","Moss Green","#A7AE38"],["597","Turquoise","#5BA3B3"],["598","Turquoise Light","#90C3CC"],["600","Cranberry Very Dark","#CD2F63"],["601","Cranberry Dark","#D1286A"],["602","Cranberry Medium","#E24874"],["603","Cranberry","#FFA4BE"],["604","Cranberry Light","#FFB0BE"],["605","Cranberry Very Light","#FFC0CD"],["606","Orange?Red Bright","#FA3203"],["608","Burnt Orange Bright","#FD5D35"],["610","Drab Brown Dk","#796047"],["611","Drab Brown","#967656"],["612","Drab Brown Lt","#BC9A78"],["613","Drab Brown V Lt","#DCC4AA"],["632","Desert Sand Ult Vy Dk","#875539"],["640","Beige Gray Vy Dk","#857B61"],["642","Beige Gray Dark","#A49878"],["644","Beige Gray Med","#DDD8CB"],["645","Beaver Gray Vy Dk","#6E655C"],["646","Beaver Gray Dk","#877D73"],["647","Beaver Gray Med","#B0A69C"],["648","Beaver Gray Lt","#BCB4AC"],["666","Bright Red","#E31D42"],["676","Old Gold Lt","#E5CE97"],["677","Old Gold Vy Lt","#F5ECCB"],["680","Old Gold Dark","#BC8D0E"],["699","Green","#056517"],["700","Green Bright","#07731B"],["701","Green Light","#3F8F29"],["702","Kelly Green","#47A72F"],["703","Chartreuse","#7BB547"],["704","Chartreuse Bright","#9ECF34"],["712","Cream","#FFFBEF"],["718","Plum","#9C2462"],["720","Orange Spice Dark","#E55C1F"],["721","Orange Spice Med","#F27842"],["722","Orange Spice Light","#F7976F"],["725","Topaz Med Lt","#FFC840"],["726","Topaz Light","#FDD755"],["727","Topaz Vy Lt","#FFF1AF"],["728","Topaz","#E4B468"],["729","Old Gold Medium","#D0A53E"],["730","Olive Green V Dk","#827B30"],["731","Olive Green Dk","#938B37"],["732","Olive Green","#948C36"],["733","Olive Green Md","#BCB34C"],["734","Olive Green Lt","#C7C077"],["738","Tan Very Light","#ECCC9E"],["739","Tan Ult Vy Lt","#F8E4C8"],["740","Tangerine","#FF8B00"],["741","Tangerine Med","#FFA32B"],["742","Tangerine Light","#FFBF57"],["743","Yellow Med","#FED376"],["744","Yellow Pale","#FFE793"],["745","Yellow Pale Light","#FFE9AD"],["746","Off White","#FCFCEE"],["747","Peacock Blue Vy Lt","#E5FCFD"],["754","Peach Light","#F7CBBF"],["758","Terra Cotta Vy Lt","#EEAA9B"],["760","Salmon","#F5ADAD"],["761","Salmon Light","#FFC9C9"],["762","Pearl Gray Vy Lt","#ECECEC"],["772","Yellow Green Vy Lt","#E4ECD4"],["775","Baby Blue Very Light","#D9EBF1"],["776","Pink Medium","#FCB0B9"],["777","Raspberry Very Dark","#913546"],["778","Antique Mauve Vy Lt","#DFB3BB"],["779","Cocoa Dark","#624B45"],["780","Topaz Ultra Vy Dk","#94631A"],["781","Topaz Very Dark","#A26D20"],["782","Topaz Dark","#AE7720"],["783","Topaz Medium","#CE9124"],["791","Cornflower Blue V D","#464563"],["792","Cornflower Blue Dark","#555B7B"],["793","Cornflower Blue Med","#707DA2"],["794","Cornflower Blue Light","#8F9CC1"],["796","Royal Blue Dark","#11416D"],["797","Royal Blue","#13477D"],["798","Delft Blue Dark","#466A8E"],["799","Delft Blue Medium","#748EB6"],["800","Delft Blue Pale","#C0CCDE"],["801","Coffee Brown Dk","#653919"],["803","Baby Blue Ult Vy Dk","#2C597C"],["806","Peacock Blue Dark","#3D95A5"],["807","Peacock Blue","#64ABBA"],["809","Delft Blue","#94A8C6"],["813","Blue Light","#A1C2D7"],["814","Garnet Dark","#7B001B"],["815","Garnet Medium","#87071F"],["816","Garnet","#970B23"],["817","Coral Red Very Dark","#BB051F"],["818","Baby Pink","#FFDFD9"],["819","Baby Pink Light","#FFEEEB"],["820","Royal Blue Very Dark","#0E365C"],["822","Beige Gray Light","#E7E2D3"],["823","Navy Blue Dark","#213063"],["824","Blue Very Dark","#396987"],["825","Blue Dark","#4781A5"],["826","Blue Medium","#6B9EBF"],["827","Blue Very Light","#BDDDED"],["828","Sky Blue Vy Lt","#C5E8ED"],["829","Golden Olive Vy Dk","#7E6B42"],["830","Golden Olive Dk","#8D784B"],["831","Golden Olive Md","#AA8F56"],["832","Golden Olive","#BD9B51"],["833","Golden Olive Lt","#C8AB6C"],["834","Golden Olive Vy Lt","#DBBE7F"],["838","Beige Brown Vy Dk","#594937"],["839","Beige Brown Dk","#675541"],["840","Beige Brown Med","#9A7C5C"],["841","Beige Brown Lt","#B69B7E"],["842","Beige Brown Vy Lt","#D1BAA1"],["844","Beaver Gray Ult Dk","#484848"],["869","Hazelnut Brown V Dk","#835E39"],["890","Pistachio Grn Ult V D","#174923"],["891","Carnation Dark","#FF5773"],["892","Carnation Medium","#FF798C"],["893","Carnation Light","#FC90A2"],["894","Carnation Very Light","#FFB2BB"],["895","Hunter Green Vy Dk","#1B5300"],["898","Coffee Brown Vy Dk","#492A13"],["899","Rose Medium","#F27688"],["900","Burnt Orange Dark","#D15807"],["902","Garnet Very Dark","#822637"],["904","Parrot Green V Dk","#557822"],["905","Parrot Green Dk","#628A28"],["906","Parrot Green Md","#7FB335"],["907","Parrot Green Lt","#C7E666"],["909","Emerald Green Vy Dk","#156F49"],["910","Emerald Green Dark","#187E56"],["911","Emerald Green Med","#189065"],["912","Emerald Green Lt","#1B9D6B"],["913","Nile Green Med","#6DAB77"],["915","Plum Dark","#820043"],["917","Plum Medium","#9B1359"],["918","Red Copper Dark","#82340A"],["919","Red Copper","#A64510"],["920","Copper Med","#AC5414"],["921","Copper","#C66218"],["922","Copper Light","#E27323"],["924","Gray Green Vy Dark","#566A6A"],["926","Gray Green Med","#98AEAE"],["927","Gray Green Light","#BDCBCB"],["928","Gray Green Vy Lt","#DDE3E3"],["930","Antique Blue Dark","#455C71"],["931","Antique Blue Medium","#6A859E"],["932","Antique Blue Light","#A2B5C6"],["934","Avocado Grn Black","#313919"],["935","Avocado Green Dk","#424D21"],["936","Avocado Grn V Dk","#4C5826"],["937","Avocado Green Md","#627133"],["938","Coffee Brown Ult Dk","#361F0E"],["939","Navy Blue Very Dark","#1B2853"],["943","Green Bright Md","#3D9384"],["945","Tawny","#FBD5BB"],["946","Burnt Orange Med","#EB6307"],["947","Burnt Orange","#FF7B4D"],["948","Peach Very Light","#FEE7DA"],["950","Desert Sand Light","#EED3C4"],["951","Tawny Light","#FFE2CF"],["954","Nile Green","#88BA91"],["955","Nile Green Light","#A2D6AD"],["956","Geranium","#FF9191"],["957","Geranium Pale","#FDB5B5"],["958","Sea Green Dark","#3EB6A1"],["959","Sea Green Med","#59C7B4"],["961","Dusty Rose Dark","#CF7373"],["962","Dusty Rose Medium","#E68A8A"],["963","Dusty Rose Ult Vy Lt","#FFD7D7"],["964","Sea Green Light","#A9E2D8"],["966","Jade Ultra Vy Lt","#B9D7C0"],["967","Apricot Very Light","#FFDED5"],["970","Pumpkin Light","#F78B13"],["971","Pumpkin","#F67F00"],["972","Canary Deep","#FFB515"],["973","Canary Bright","#FFE300"],["975","Golden Brown Dk","#914F12"],["976","Golden Brown Med","#C28142"],["977","Golden Brown Light","#DC9C56"],["986","Forest Green Vy Dk","#405230"],["987","Forest Green Dk","#587141"],["988","Forest Green Med","#738B5B"],["989","Forest Green ","#8DA675"],["991","Aquamarine Dk","#477B6E"],["992","Aquamarine Lt","#6FAE9F"],["993","Aquamarine Vy Lt","#90C0B4"],["995","Electric Blue Dark","#2696B6"],["996","Electric Blue Medium","#30C2EC"],["3011","Khaki Green Dk","#898A58"],["3012","Khaki Green Md","#A6A75D"],["3013","Khaki Green Lt","#B9B982"],["3021","Brown Gray Vy Dk","#4F4B41"],["3022","Brown Gray Med","#8E9078"],["3023","Brown Gray Light","#B1AA97"],["3024","Brown Gray Vy Lt","#EBEAE7"],["3031","Mocha Brown Vy Dk","#4B3C2A"],["3032","Mocha Brown Med","#B39F8B"],["3033","Mocha Brown Vy Lt","#E3D8CC"],["3041","Antique Violet Medium","#956F7C"],["3042","Antique Violet Light","#B79DA7"],["3045","Yellow Beige Dk","#BC966A"],["3046","Yellow Beige Md","#D8BC9A"],["3047","Yellow Beige Lt","#E7D6C1"],["3051","Green Gray Dk","#5F6648"],["3052","Green Gray Md","#889268"],["3053","Green Gray","#9CA482"],["3064","Desert Sand","#C48E70"],["3072","Beaver Gray Vy Lt","#E6E8E8"],["3078","Golden Yellow Vy Lt","#FDF9CD"],["3325","Baby Blue Light","#B8D2E6"],["3326","Rose Light","#FBADB4"],["3328","Salmon Dark","#E36D6D"],["3340","Apricot Med","#FF836F"],["3341","Apricot","#FCAB98"],["3345","Hunter Green Dk","#1B5915"],["3346","Hunter Green","#406A3A"],["3347","Yellow Green Med","#71935C"],["3348","Yellow Green Lt","#CCD9B1"],["3350","Dusty Rose Ultra Dark","#BC4365"],["3354","Dusty Rose Light","#E4A6AC"],["3362","Pine Green Dk","#5E6B47"],["3363","Pine Green Md","#728256"],["3364","Pine Green","#83975F"],["3371","Black Brown","#1E1108"],["3607","Plum Light","#C54989"],["3608","Plum Very Light","#EA9CC4"],["3609","Plum Ultra Light","#F4AED5"],["3685","Mauve Very Dark","#881531"],["3687","Mauve","#C96B70"],["3688","Mauve Medium","#E7A9AC"],["3689","Mauve Light","#FBBFC2"],["3705","Melon Dark","#FF7992"],["3706","Melon Medium","#FFADBC"],["3708","Melon Light","#FFCBD5"],["3712","Salmon Medium","#F18787"],["3713","Salmon Very Light","#FFE2E2"],["3716","Dusty Rose Med Vy Lt","#FFBDBD"],["3721","Shell Pink Dark","#A14B51"],["3722","Shell Pink Med","#BC6C64"],["3726","Antique Mauve Dark","#9B5B66"],["3727","Antique Mauve Light","#DBA9B2"],["3731","Dusty Rose Very Dark","#DA6783"],["3733","Dusty Rose","#E8879B"],["3740","Antique Violet Dark","#785762"],["3743","Antique Violet Vy Lt","#D7CBD3"],["3746","Blue Violet Dark","#776B98"],["3747","Blue Violet Vy Lt","#D3D7ED"],["3750","Antique Blue Very Dk","#384C5E"],["3752","Antique Blue Very Lt","#C7D1DB"],["3753","Antique Blue Ult Vy Lt","#DBE2E9"],["3755","Baby Blue","#93B4CE"],["3756","Baby Blue Ult Vy Lt","#EEFCFC"],["3760","Wedgewood Med","#3E85A2"],["3761","Sky Blue Light","#ACD8E2"],["3765","Peacock Blue Vy Dk","#347F8C"],["3766","Peacock Blue Light","#99CFD9"],["3768","Gray Green Dark","#657F7F"],["3770","Tawny Vy Light","#FFEEE3"],["3771","Terra Cotta Ult Vy Lt","#F4BBA9"],["3772","Desert Sand Vy Dk","#A06C50"],["3773","Desert Sand Dark","#B67552"],["3774","Desert Sand Vy Lt","#F3E1D7"],["3776","Mahogany Light","#CF7939"],["3777","Terra Cotta Vy Dk","#863022"],["3778","Terra Cotta Light","#D98978"],["3779","Rosewood Ult Vy Lt","#F8CAC8"],["3781","Mocha Brown Dk","#6B5743"],["3782","Mocha Brown Lt","#D2BCA6"],["3787","Brown Gray Dark","#625D50"],["3790","Beige Gray Ult Dk","#7F6A55"],["3799","Pewter Gray Vy Dk","#424242"],["3801","Melon Very Dark","#E74967"],["3802","Antique Mauve Vy Dk","#714149"],["3803","Mauve Dark","#AB3357"],["3804","Cyclamen Pink Dark","#E02876"],["3805","Cyclamen Pink","#F3478B"],["3806","Cyclamen Pink Light","#FF8CAE"],["3807","Cornflower Blue","#60678C"],["3808","Turquoise Ult Vy Dk","#366970"],["3809","Turquoise Vy Dark","#3F7C85"],["3810","Turquoise Dark","#488E9A"],["3811","Turquoise Very Light","#BCE3E6"],["3812","Sea Green Vy Dk","#2F8C84"],["3813","Blue Green Lt","#B2D4BD"],["3814","Aquamarine","#508B7D"],["3815","Celadon Green Dk","#477759"],["3816","Celadon Green","#65A57D"],["3817","Celadon Green Lt","#99C3AA"],["3818","Emerald Grn Ult V Dk","#115A3B"],["3819","Moss Green Lt","#E0E868"],["3820","Straw Dark","#DFB65F"],["3821","Straw","#F3CE75"],["3822","Straw Light","#F6DC98"],["3823","Yellow Ultra Pale","#FFFDE3"],["3824","Apricot Light","#FECDC2"],["3825","Pumpkin Pale","#FDBD96"],["3826","Golden Brown","#AD7239"],["3827","Golden Brown Pale","#F7BB77"],["3828","Hazelnut Brown","#B78B61"],["3829","Old Gold Vy Dark","#A98204"],["3830","Terra Cotta","#B95544"],["3831","Raspberry Dark","#B32F48"],["3832","Raspberry Medium","#DB556E"],["3833","Raspberry Light","#EA8699"],["3834","Grape Dark","#72375D"],["3835","Grape Medium","#946083"],["3836","Grape Light","#BA91AA"],["3837","Lavender Ultra Dark","#6C3A6E"],["3838","Lavender Blue Dark","#5C7294"],["3839","Lavender Blue Med","#7B8EAB"],["3840","Lavender Blue Light","#B0C0DA"],["3841","Baby Blue Pale","#CDDFED"],["3842","Wedgewood Vry Dk","#32667C"],["3843","Electric Blue","#14AAD0"],["3844","Turquoise Bright Dark","#12AEBA"],["3845","Turquoise Bright Med","#04C4CA"],["3846","Turquoise Bright Light","#06E3E6"],["3847","Teal Green Dark","#347D75"],["3848","Teal Green Med","#559392"],["3849","Teal Green Light","#52B3A4"],["3850","Green Bright Dk","#378477"],["3851","Green Bright Lt","#49B3A1"],["3852","Straw Very Dark","#CD9D37"],["3853","Autumn Gold Dk","#F29746"],["3854","Autumn Gold Med","#F2AF68"],["3855","Autumn Gold Lt","#FAD396"],["3856","Mahogany Ult Vy Lt","#FFD3B5"],["3857","Rosewood Dark","#68251A"],["3858","Rosewood Med","#964A3F"],["3859","Rosewood Light","#BA8B7C"],["3860","Cocoa","#7D5D57"],["3861","Cocoa Light","#A68881"],["3862","Mocha Beige Dark","#8A6E4E"],["3863","Mocha Beige Med","#A4835C"],["3864","Mocha Beige Light","#CBB69C"],["3865","Winter White","#F9F7F1"],["3866","Mocha Brn Ult Vy Lt","#FAF6F0"],["Ecru","Ecru","#F0EADA"],["White","White","#FCFBF8"],["B5200","Snow White","#FFFFFF"]];
+
+(function(){
+  var KEY='dpTrackerV1';
+  var TYPES={
+    square:{sym:'■',label:'Square',cls:'sq'},
+    round:{sym:'●',label:'Round',cls:'rd'},
+    odd:{sym:'✦',label:'Odd',cls:'od'}
+  };
+  var FINISHES=[
+    {id:'acrylic', label:'Acrylic',    bg:'#E4EEF6', fg:'#31658F'},
+    {id:'unknown', label:'Unknown',    bg:'#EEEDF1', fg:'#6E6879'},
+    {id:'fairy',   label:'Fairy Dust', bg:'#FBE9F1', fg:'#B0398F'},
+    {id:'ab',      label:'AB',         bg:'#ECE7FA', fg:'#5B3FA8'},
+    {id:'crystal', label:'Crystal',    bg:'#E2F5F4', fg:'#1F8A83'}
+  ];
+  var FINMAP={}; FINISHES.forEach(function(f){FINMAP[f.id]=f;});
+  var DEFAULT_TAGS=['good','bad diamonds','boring','wrong shade','unclear','missing diamonds','beautiful colors'];
+  var DEFAULT_SIZES=['20×20','30×30','30×40','40×50','50×70'];
+
+  var state={
+    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null}],
+    active:'p1', onlySel:false, view:'overview',
+    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added'
+  };
+  var query='', findQuery='', findType='any', expandedColor=null, expandedSpec=null, expandedSize=null;
+  var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, armed={};
+  var DMCMAP={}; DMC.forEach(function(r){DMCMAP[r[0]]=r;});
+
+  function $(id){return document.getElementById(id);}
+  function uid(pfx){return (pfx||'p')+Math.random().toString(36).slice(2,9);}
+  function active(){
+    for(var i=0;i<state.paintings.length;i++) if(state.paintings[i].id===state.active) return state.paintings[i];
+    return state.paintings[0];
+  }
+  function toast(msg,ms){
+    var t=$('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');}, ms||1000);
+  }
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function badgeHtml(type){
+    if(type&&TYPES[type]){var t=TYPES[type];return '<span class="badge '+t.cls+'">'+t.sym+' '+t.label+'</span>';}
+    return '<span class="badge unk">? type not set</span>';
+  }
+  function ratingBadge(p){
+    if(p.rating===null||p.rating===undefined||p.rating==='')return '';
+    return '<span class="badge star">★ '+Number(p.rating).toFixed(1)+'</span>';
+  }
+  function finTagsHtml(p){
+    var on={}; Object.keys(p.spec||{}).forEach(function(f){on[f]=1;});
+    Object.keys(p.finishes||{}).forEach(function(f){if(p.finishes[f])on[f]=1;});
+    var keys=Object.keys(on);
+    if(!keys.length)return '';
+    var h='';
+    FINISHES.forEach(function(f){
+      if(keys.indexOf(f.id)!==-1)
+        h+='<span class="fin-tag" style="background:'+f.bg+';color:'+f.fg+'">'+f.label+'</span>';
+    });
+    return h;
+  }
+  /* two-tap confirm helper: returns true when confirmed */
+  function twoTap(id,el,confirmText){
+    if(armed[id]){delete armed[id];return true;}
+    Object.keys(armed).forEach(function(k){delete armed[k];});
+    armed[id]=true;
+    if(el){var old=el.textContent;el.classList.add('confirm');el.textContent=confirmText||'Tap again';
+      setTimeout(function(){delete armed[id];el.classList.remove('confirm');el.textContent=old;},3000);}
+    else setTimeout(function(){delete armed[id];},3000);
+    return false;
+  }
+
+  /* ---------- storage ----------
+     Main data and photos are stored separately:
+     - main state (small, text only) under KEY
+     - each painting's photos under 'dpPhotos_<paintingId>' (own 5MB slot in Claude)
+     On PC the app uses IndexedDB (hundreds of MB) with localStorage as a last resort. */
+  function claudeStore(){
+    return Promise.resolve({
+      kind:'claude',
+      get:function(k){return window.storage.get(k).catch(function(){return null;});},
+      set:function(k,v){return window.storage.set(k,v);},
+      del:function(k){return window.storage.delete?window.storage.delete(k).catch(function(){}):Promise.resolve();}
+    });
+  }
+  function idbStore(){
+    return new Promise(function(res,rej){
+      if(!window.indexedDB){rej(new Error('no idb'));return;}
+      var req=window.indexedDB.open('dpTracker',1);
+      req.onupgradeneeded=function(){req.result.createObjectStore('kv');};
+      req.onerror=function(){rej(req.error);};
+      req.onsuccess=function(){
+        var db=req.result;
+        function tx(mode,fn){
+          return new Promise(function(res2,rej2){
+            var t=db.transaction('kv',mode), st=t.objectStore('kv');
+            var r=fn(st);
+            r.onsuccess=function(){res2(r.result);};
+            r.onerror=function(){rej2(r.error);};
+          });
+        }
+        res({
+          kind:'idb',
+          get:function(k){return tx('readonly',function(st){return st.get(k);}).then(function(v){return v==null?null:{value:v};});},
+          set:function(k,v){return tx('readwrite',function(st){return st.put(v,k);});},
+          del:function(k){return tx('readwrite',function(st){return st.delete(k);});}
+        });
+      };
+    });
+  }
+  function lsStore(){
+    var t='__dp_test'; window.localStorage.setItem(t,'1'); window.localStorage.removeItem(t);
+    return Promise.resolve({
+      kind:'ls',
+      get:function(k){var v=window.localStorage.getItem(k);return Promise.resolve(v==null?null:{value:v});},
+      set:function(k,v){window.localStorage.setItem(k,v);return Promise.resolve(true);},
+      del:function(k){window.localStorage.removeItem(k);return Promise.resolve(true);}
+    });
+  }
+  function makeStore(){
+    if(window.storage&&window.storage.get&&window.storage.set)return claudeStore();
+    return idbStore().catch(function(){
+      try{return lsStore();}catch(e){return Promise.resolve(null);}
+    });
+  }
+  var STORE=null;
+  function photoKey(pid){return 'dpPhotos_'+pid;}
+  function strippedState(){
+    var s=JSON.parse(JSON.stringify(state));
+    s.paintings.forEach(function(p){delete p.photos;});
+    return s;
+  }
+  var saveT=null;
+  function save(){
+    clearTimeout(saveT);
+    saveT=setTimeout(function(){
+      if(!STORE){warnOnce();return;}
+      try{
+        STORE.set(KEY, JSON.stringify(strippedState()))
+          .then(function(){toast('Saved ✓',650);}).catch(function(){warnOnce();});
+      }catch(e){warnOnce();}
+    },450);
+  }
+  var photoT={};
+  function savePhotos(pid){
+    if(!STORE)return;
+    clearTimeout(photoT[pid]);
+    photoT[pid]=setTimeout(function(){
+      var p=null;
+      for(var i=0;i<state.paintings.length;i++)if(state.paintings[i].id===pid)p=state.paintings[i];
+      if(!p)return;
+      var json=JSON.stringify(p.photos||[]);
+      if(json.length>4600000)toast('This painting’s photos are nearly at their 5MB limit — remove one or two',2600);
+      try{STORE.set(photoKey(pid), json).catch(function(){warnOnce();});}catch(e){warnOnce();}
+    },450);
+  }
+  function deletePhotosKey(pid){
+    if(STORE)try{STORE.del(photoKey(pid));}catch(e){}
+  }
+  function warnOnce(){
+    if(storageWarned)return; storageWarned=true;
+    toast('Saving isn’t working right now — use Backup on the Overview page so nothing is lost',3200);
+  }
+  function normalize(s){
+    if(!s.view)s.view='overview';
+    if(!s.specials)s.specials={};
+    if(!s.sellers)s.sellers=[];
+    if(!s.tags||!s.tags.length)s.tags=DEFAULT_TAGS.slice();
+    if(!s.sizes||!s.sizes.length)s.sizes=DEFAULT_SIZES.slice();
+    if(!s.ovSort)s.ovSort='added';
+    s.paintings.forEach(function(p){
+      if(!('type' in p))p.type=null;
+      if(!p.finishes)p.finishes={};
+      if(!p.colors)p.colors={};
+      if(!p.spec)p.spec={};
+      if(!p.photos)p.photos=[];
+      if(!('seller' in p))p.seller=null;
+      if(!('rating' in p))p.rating=null;
+      if(!p.tags)p.tags={};
+      if(!('code' in p))p.code='';
+      if(!('size' in p))p.size=null;
+      Object.keys(p.finishes).forEach(function(f){
+        if(!p.spec[f])p.spec[f]={};
+        if(!p.finishes[f])delete p.finishes[f];
+      });
+    });
+    return s;
+  }
+  function load(cb){
+    makeStore().then(function(st){
+      STORE=st;
+      if(!STORE){cb();return;}
+      STORE.get(KEY).then(function(r){
+        var migrated=false;
+        try{
+          if(r&&r.value){var s=JSON.parse(r.value);
+            if(s&&s.paintings&&s.paintings.length){state=normalize(s);}}
+        }catch(e){}
+        /* load per-painting photos; migrate any photos still stored inline (old format) */
+        var pend=state.paintings.length;
+        if(!pend){cb();return;}
+        state.paintings.forEach(function(p){
+          var inline=(p.photos&&p.photos.length)?p.photos:null;
+          STORE.get(photoKey(p.id)).then(function(pr){
+            try{
+              if(pr&&pr.value){var arr=JSON.parse(pr.value);if(arr&&arr.length)p.photos=arr;}
+              else if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
+            }catch(e){if(inline)p.photos=inline;}
+            if(--pend===0){if(migrated)save();cb();}
+          }).catch(function(){
+            if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
+            if(--pend===0){if(migrated)save();cb();}
+          });
+        });
+      }).catch(function(){cb();});
+    });
+  }
+
+  /* ---------- specials library ---------- */
+  function specEntry(f,id){
+    var list=state.specials[f]||[];
+    for(var i=0;i<list.length;i++)if(list[i].id===id)return list[i];
+    return null;
+  }
+  function specSwatchHtml(f,entry){
+    var code=(entry.text||'').trim().split(/\s+/)[0];
+    var fin=FINMAP[f];
+    if(DMCMAP[code]) return '<div class="drill" style="background-color:'+DMCMAP[code][2]+'"></div>';
+    return '<div class="drill spec" style="background-color:'+fin.fg+'">✦</div>';
+  }
+  function specCardHtml(f,entry,extra){
+    var t=(entry.text||'').trim();
+    var parts=t.split(/\s+/); var code=parts[0]; var rest=parts.slice(1).join(' ');
+    return specSwatchHtml(f,entry)+
+      '<div class="ctext"><div class="code">'+esc(code)+'</div><div class="cname">'+esc(rest||FINMAP[f].label)+'</div></div>'+(extra||'');
+  }
+
+  /* ---------- tabs ---------- */
+  function renderTabs(){
+    var t=$('tabs'); t.innerHTML='';
+    function mk(cls,html,fn,isActive){
+      var b=document.createElement('button'); b.type='button';
+      b.className='tab '+cls+(isActive?' active':''); b.innerHTML=html;
+      b.addEventListener('click',fn); t.appendChild(b);
+    }
+    mk('home','⌂ Overview',function(){state.view='overview';resetTransient();render();save();},state.view==='overview');
+    mk('find','🔎 Find',function(){state.view='find';resetTransient();render();save();},state.view==='find');
+    state.paintings.forEach(function(p){
+      var n=Object.keys(p.colors).length;
+      var sym=(p.type&&TYPES[p.type])?TYPES[p.type].sym+' ':'';
+      mk('',sym+esc(p.name)+'<span class="cnt">'+n+'</span>',function(){
+        state.view='paint'; state.active=p.id; resetTransient(); render(); save();
+      },state.view==='paint'&&p.id===state.active);
+    });
+    mk('add','+ New painting',function(){
+      var p={id:uid(),name:'Painting '+(state.paintings.length+1),colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null};
+      state.paintings.push(p); state.active=p.id; state.view='paint';
+      renaming=true; render(); save();
+    },false);
+  }
+  function resetTransient(){renaming=false;expandedColor=null;expandedSpec=null;expandedSize=null;selPhoto=-1;editFin={};armed={};}
+
+  /* ---------- overview ---------- */
+  function renderOverview(){
+    var pg=$('page');
+    var list=state.paintings.slice();
+    if(state.ovSort==='rating'){
+      list.sort(function(a,b){
+        var ra=(a.rating===null||a.rating===undefined||a.rating==='')?-1:Number(a.rating);
+        var rb=(b.rating===null||b.rating===undefined||b.rating==='')?-1:Number(b.rating);
+        return rb-ra;
+      });
+    }
+    var html='<div class="ovsort"><span class="pd-lbl" style="margin:0">Sort:</span>'+
+      '<button class="chipbtn'+(state.ovSort==='added'?' on':'')+'" id="sortAdded" type="button">Order added</button>'+
+      '<button class="chipbtn'+(state.ovSort==='rating'?' on':'')+'" id="sortRating" type="button">★ Rating</button></div>';
+    html+='<div class="ovlist">';
+    if(!list.length)html+='<div class="empty">No paintings yet. Tap “+ New painting” to start your first list.</div>';
+    list.forEach(function(p){
+      var codes=Object.keys(p.colors);
+      var ordered=DMC.filter(function(r){return p.colors[r[0]];});
+      var sw='';
+      if(p.photos.length)sw+='<img class="ovthumb" src="'+p.photos[0].d+'" alt="">';
+      ordered.slice(0,12).forEach(function(r){sw+='<span class="mini" style="background-color:'+r[2]+'"></span>';});
+      if(ordered.length>12)sw+='<span class="mini more">+'+(ordered.length-12)+'</span>';
+      var fins=finTagsHtml(p);
+      var sub=codes.length+' color'+(codes.length===1?'':'s');
+      if(p.size)sub+=' · '+esc(p.size);
+      if(p.seller)sub+=' · '+esc(p.seller);
+      if(p.code)sub+=' · '+esc(p.code);
+      html+='<div class="ovcard" data-id="'+p.id+'">'+
+        '<div class="ovtop"><span class="ovname">'+esc(p.name)+'</span>'+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
+        '<div class="ovsub">'+sub+'</div>'+
+        (fins?'<div class="ovfins">'+fins+'</div>':'')+
+        (sw?'<div class="ovswatches">'+sw+'</div>':'')+
+        '</div>';
+    });
+    html+='</div>';
+    html+='<div class="section-lbl">Storage</div><div class="backup" id="storMeter"></div>';
+    html+='<div class="section-lbl">Backup &amp; restore</div>'+
+      '<div class="backup">'+
+        '<div class="bk-btns">'+
+          '<button class="chipbtn" id="bkShow" type="button">Show backup code</button>'+
+          '<button class="chipbtn" id="bkCopy" type="button">Copy</button>'+
+          '<button class="chipbtn" id="bkRestore" type="button" style="color:var(--accent);border-color:var(--accent);">Restore from code</button>'+
+          '<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;font-weight:600;">'+
+          '<input type="checkbox" id="bkPhotos" checked> include photos</label>'+
+        '</div>'+
+        '<textarea id="bkText" rows="4" placeholder="Tap “Show backup code” to get a code with all your lists — save it anywhere (notes app, email to yourself). To restore, paste a code here and tap “Restore from code”."></textarea>'+
+        '<div class="bk-note" id="bkNote"></div>'+
+      '</div>';
+    pg.innerHTML=html;
+    $('sortAdded').addEventListener('click',function(){state.ovSort='added';renderOverview();save();});
+    $('sortRating').addEventListener('click',function(){state.ovSort='rating';renderOverview();save();});
+    pg.querySelectorAll('.ovcard').forEach(function(c){
+      c.addEventListener('click',function(){
+        state.active=c.getAttribute('data-id'); state.view='paint';
+        resetTransient(); render(); save();
+      });
+    });
+    function backupJson(){
+      var withPhotos=$('bkPhotos').checked;
+      return JSON.stringify(withPhotos?state:strippedState());
+    }
+    $('bkShow').addEventListener('click',function(){
+      var ta=$('bkText'); ta.value=backupJson(); ta.focus(); ta.select();
+      $('bkNote').textContent=$('bkPhotos').checked
+        ?'This code holds everything, photos included (it can be long). Save it somewhere safe.'
+        :'This code holds everything except photos — much shorter, ideal for quick copies between phone and PC.';
+    });
+    $('bkCopy').addEventListener('click',function(){
+      var ta=$('bkText'); if(!ta.value)ta.value=backupJson();
+      ta.focus(); ta.select();
+      var ok=false; try{ok=document.execCommand('copy');}catch(e){}
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(ta.value).then(function(){toast('Backup copied ✓',1200);})
+          .catch(function(){toast(ok?'Backup copied ✓':'Copy blocked — long-press the code and copy it by hand',2200);});
+      } else toast(ok?'Backup copied ✓':'Copy blocked — long-press the code and copy it by hand',2200);
+    });
+    $('bkRestore').addEventListener('click',function(){
+      var v=$('bkText').value.trim();
+      if(!v){$('bkNote').textContent='Paste a backup code into the box first.';return;}
+      try{
+        var s=JSON.parse(v);
+        if(!s||!s.paintings||!s.paintings.length)throw new Error('bad');
+        state=normalize(s); render(); save();
+        state.paintings.forEach(function(p){if(p.photos&&p.photos.length)savePhotos(p.id);});
+        toast('Restored ✓ — '+state.paintings.length+' painting'+(state.paintings.length===1?'':'s'),1600);
+      }catch(e){
+        $('bkNote').textContent='That doesn’t look like a valid backup code — make sure the whole code was pasted, from { to }.';
+      }
+    });
+    renderStorageMeter();
+  }
+
+  function fmtBytes(n){
+    if(n<1024)return n+' B';
+    if(n<1024*1024)return (n/1024).toFixed(n<10240?1:0)+' KB';
+    return (n/1048576).toFixed(2)+' MB';
+  }
+  function meterRow(label,used,cap){
+    var pct=cap?Math.min(100,Math.round(used/cap*100)):0;
+    var col=pct>=90?'#A8324B':(pct>=70?'#B98A2F':'var(--accent)');
+    return '<div class="sm-row"><div class="sm-lbl"><span>'+label+'</span><span>'+fmtBytes(used)+
+      (cap?' of '+fmtBytes(cap):'')+'</span></div>'+
+      (cap?'<div class="sm-bar"><div class="sm-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')+
+      '</div>';
+  }
+  function renderStorageMeter(){
+    var el=$('storMeter'); if(!el)return;
+    var SLOT=5*1024*1024;
+    var mainSize=JSON.stringify(strippedState()).length;
+    var kind=STORE?STORE.kind:'none';
+    var html='';
+    if(kind==='claude'){
+      html+=meterRow('Lists &amp; settings (own slot)',mainSize,SLOT);
+      state.paintings.forEach(function(p){
+        if(!p.photos||!p.photos.length)return;
+        var sz=JSON.stringify(p.photos).length;
+        html+=meterRow(esc(p.name)+' — '+p.photos.length+' photo'+(p.photos.length===1?'':'s'),sz,SLOT);
+      });
+      html+='<div class="bk-note">Each row has its own 5 MB slot — one painting filling up never affects the others.</div>';
+    } else if(kind==='idb'){
+      var totalPhotos=0, rows='';
+      state.paintings.forEach(function(p){
+        if(!p.photos||!p.photos.length)return;
+        var sz=JSON.stringify(p.photos).length; totalPhotos+=sz;
+        rows+=meterRow(esc(p.name)+' — '+p.photos.length+' photo'+(p.photos.length===1?'':'s'),sz,0);
+      });
+      html+=meterRow('Lists &amp; settings',mainSize,0)+rows;
+      html+='<div class="bk-note" id="quotaNote">Stored in this browser’s database — usually hundreds of MB available.</div>';
+    } else if(kind==='ls'){
+      var total=mainSize;
+      state.paintings.forEach(function(p){if(p.photos&&p.photos.length)total+=JSON.stringify(p.photos).length;});
+      html+=meterRow('Everything (shared browser storage)',total,SLOT);
+      html+='<div class="bk-note">This browser only offers simple storage (~5 MB shared). Chrome, Edge or Firefox will give far more room.</div>';
+    } else {
+      html+='<div class="bk-note">Saving is unavailable here — use Backup below so nothing is lost.</div>';
+    }
+    el.innerHTML=html;
+    if(kind==='idb'&&navigator.storage&&navigator.storage.estimate){
+      navigator.storage.estimate().then(function(est){
+        var qn=$('quotaNote');
+        if(qn&&est&&est.quota){
+          qn.textContent='This browser gives the app about '+fmtBytes(est.quota)+' — '+
+            fmtBytes(est.usage||0)+' in use. Plenty of room.';
+        }
+      }).catch(function(){});
+    }
+  }
+
+  /* ---------- photos ---------- */
+  function addImageFile(file){
+    if(!file||!/^image\//.test(file.type))return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        var max=520, w=img.width, h=img.height;
+        if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
+        var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        var d=cv.toDataURL('image/jpeg',0.72);
+        var p=active();
+        p.photos.push({d:d,s:1});
+        selPhoto=p.photos.length-1;
+        renderPainting(); savePhotos(p.id);
+        toast('Photo added ✓',900);
+      };
+      img.src=rd.result;
+    };
+    rd.readAsDataURL(file);
+  }
+  document.addEventListener('paste',function(e){
+    if(state.view!=='paint')return;
+    var items=(e.clipboardData||{}).items||[];
+    for(var i=0;i<items.length;i++){
+      if(items[i].type&&items[i].type.indexOf('image')===0){
+        addImageFile(items[i].getAsFile());
+        e.preventDefault();
+      }
+    }
+  });
+
+  /* ---------- painting page ---------- */
+  function renderPainting(){
+    var p=active();
+    var pg=$('page');
+
+    /* photos block */
+    var ph='<div class="photo-grid">';
+    p.photos.forEach(function(photo,i){
+      ph+='<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="">';
+    });
+    ph+='</div>';
+    ph+='<div class="photo-btns">'+
+      '<button class="pbtn" id="phAdd" type="button">＋ Add photo</button>';
+    if(selPhoto>=0&&selPhoto<p.photos.length){
+      ph+='<button class="pbtn" id="phLeft" type="button">◀</button>'+
+          '<button class="pbtn" id="phRight" type="button">▶</button>'+
+          '<button class="pbtn" id="phSmaller" type="button">−</button>'+
+          '<button class="pbtn" id="phBigger" type="button">＋</button>'+
+          '<button class="pbtn danger" id="phDel" type="button">✕</button>';
+    }
+    ph+='</div><div class="photo-hint">'+(p.photos.length?'Tap a photo to select it, then move ◀ ▶, resize − ＋, or remove ✕':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image')+'</div>';
+
+    /* size chips */
+    var sizeChips='';
+    state.sizes.forEach(function(sz){
+      var on=(p.size===sz);
+      sizeChips+='<button class="selchip'+(on?' on':'')+'" data-size="'+esc(sz)+'" type="button">'+esc(sz)+'</button>';
+    });
+    sizeChips+='<span class="addinline"><input id="newSize" type="text" maxlength="20" placeholder="＋ e.g. 60×80"><button class="pbtn" id="addSize" type="button">Add</button></span>';
+
+    /* seller chips */
+    var sellerChips='';
+    state.sellers.forEach(function(s,i){
+      var on=(p.seller===s);
+      sellerChips+='<button class="selchip'+(on?' on':'')+'" data-seller="'+esc(s)+'" type="button">'+esc(s)+'</button>';
+    });
+    sellerChips+='<span class="addinline"><input id="newSeller" type="text" maxlength="40" placeholder="＋ new seller"><button class="pbtn" id="addSeller" type="button">Add</button></span>';
+
+    /* tag chips */
+    var tagChips='';
+    state.tags.forEach(function(tg){
+      var on=!!p.tags[tg];
+      tagChips+='<button class="selchip'+(on?' on':'')+'" data-tag="'+esc(tg)+'" type="button">'+esc(tg)+'</button>';
+    });
+    tagChips+='<span class="addinline"><input id="newTag" type="text" maxlength="40" placeholder="＋ new tag"><button class="pbtn" id="addTag" type="button">Add</button></span>';
+
+    /* finish chips */
+    var finChips='';
+    FINISHES.forEach(function(f){
+      var on=(f.id in p.spec);
+      finChips+='<button class="fbtn" data-f="'+f.id+'" type="button" style="'+
+        (on?('background:'+f.fg+';border-color:'+f.fg+';color:#fff;'):('color:'+f.fg+';'))+'">'+f.label+'</button>';
+    });
+
+    /* finish boxes: shared library chips + add input */
+    var finBoxes='';
+    FINISHES.forEach(function(f){
+      if(!(f.id in p.spec))return;
+      var lib=state.specials[f.id]||[];
+      var chips='';
+      lib.forEach(function(entry){
+        var on=!!p.spec[f.id][entry.id];
+        chips+='<div class="card'+(on?' sel':'')+'" data-spec="'+f.id+'" data-eid="'+entry.id+'" style="padding:6px;">'+
+          specCardHtml(f.id,entry,'<div class="tick">✓</div>'+(editFin[f.id]?'<div class="delx" data-del="'+f.id+':'+entry.id+'">✕</div>':''))+
+          '</div>';
+      });
+      finBoxes+='<div class="finbox">'+
+        '<div class="fb-top"><span class="fb-lbl" style="color:'+f.fg+'">'+f.label+' diamonds</span>'+
+        (lib.length?'<button class="fb-edit" data-edit="'+f.id+'" type="button">'+(editFin[f.id]?'done':'edit list')+'</button>':'')+
+        '</div>'+
+        (chips?'<div class="fb-chips">'+chips+'</div>':'')+
+        '<div class="fb-addrow"><input type="text" data-addspec="'+f.id+'" maxlength="60" placeholder="e.g. 550 Blue">'+
+        '<button class="pbtn" data-addbtn="'+f.id+'" type="button">Add</button></div>'+
+        '<div class="fb-hint">Type a number + name and Add — it becomes a tap-to-select diamond here, in every other painting’s '+f.label+' list, and in Find.'+
+        (p.finishes[f.id]?' Old note: “'+esc(p.finishes[f.id])+'”':'')+'</div>'+
+        '</div>';
+    });
+
+    pg.innerHTML=
+      '<div class="phead">'+
+        '<div class="photos">'+ph+'</div>'+
+        '<div class="pdetails">'+
+          '<div class="pd-name">'+esc(p.name)+'</div>'+
+          '<div class="pd-row"><div class="pd-lbl">Kit code</div>'+
+            '<input class="codeinput" id="kitCode" type="text" maxlength="60" placeholder="e.g. DP-4471, seller\u2019s article nr\u2026" value="'+esc(p.code||'')+'"></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Size (cm)</div><div class="selchips">'+sizeChips+'</div></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Rating (0–10, e.g. 5.6)</div>'+
+            '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="'+(p.rating===null?'':p.rating)+'">'+ratingBadge(p)+'</div></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Seller</div><div class="selchips">'+sellerChips+'</div></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Tags</div><div class="selchips">'+tagChips+'</div></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="toolbar">'+
+        '<label class="search">🔎<input id="q" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(query)+'"></label>'+
+        '<button class="chipbtn'+(state.onlySel?' on':'')+'" id="onlySel" type="button">Selected only</button>'+
+        '<button class="chipbtn" id="rename" type="button">Rename</button>'+
+        '<button class="chipbtn danger" id="del" type="button">Delete</button>'+
+      '</div>'+
+      '<div class="renamer'+(renaming?' show':'')+'" id="renamer">'+
+        '<input id="renameInput" type="text" maxlength="60" placeholder="Painting name">'+
+        '<button class="chipbtn" id="renameSave" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">Save name</button>'+
+        '<button class="chipbtn" id="renameCancel" type="button">Cancel</button>'+
+      '</div>'+
+      '<div class="typerow"><span class="lbl">Diamond type:</span>'+
+        '<button class="tbtn sq'+(p.type==='square'?' on':'')+'" data-t="square" type="button">■ Square</button>'+
+        '<button class="tbtn rd'+(p.type==='round'?' on':'')+'" data-t="round" type="button">● Round</button>'+
+        '<button class="tbtn od'+(p.type==='odd'?' on':'')+'" data-t="odd" type="button">✦ Odd</button>'+
+      '</div>'+
+      '<div class="finrow"><span class="lbl">Special diamonds:</span>'+finChips+'</div>'+
+      finBoxes+
+      '<div class="meta"><span id="count"></span><span id="hint"></span></div>'+
+      '<div class="grid" id="grid"></div>'+
+      '<div class="empty" id="emptyMsg" style="display:none"></div>';
+
+    /* photos events */
+    pg.querySelectorAll('.photo-grid img').forEach(function(im){
+      im.addEventListener('click',function(){
+        var i=parseInt(im.getAttribute('data-i'),10);
+        selPhoto=(selPhoto===i)?-1:i;
+        renderPainting();
+      });
+    });
+    $('phAdd').addEventListener('click',function(){$('fileInput').click();});
+    if(selPhoto>=0&&selPhoto<p.photos.length){
+      $('phLeft').addEventListener('click',function(){
+        if(selPhoto>0){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto-1,0,a);selPhoto--;renderPainting();savePhotos(p.id);}
+      });
+      $('phRight').addEventListener('click',function(){
+        if(selPhoto<p.photos.length-1){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto+1,0,a);selPhoto++;renderPainting();savePhotos(p.id);}
+      });
+      $('phSmaller').addEventListener('click',function(){
+        var ph=p.photos[selPhoto]; ph.s=Math.max(0,(ph.s||1)-1); renderPainting(); savePhotos(p.id);
+      });
+      $('phBigger').addEventListener('click',function(){
+        var ph=p.photos[selPhoto]; ph.s=Math.min(2,(ph.s||1)+1); renderPainting(); savePhotos(p.id);
+      });
+      $('phDel').addEventListener('click',function(){
+        if(!twoTap('phdel',$('phDel'),'✕?'))return;
+        p.photos.splice(selPhoto,1); selPhoto=-1; renderPainting(); savePhotos(p.id);
+        toast('Photo removed',900);
+      });
+    }
+
+    /* rating */
+    $('rating').addEventListener('input',function(e){
+      var v=e.target.value;
+      if(v===''){p.rating=null;}
+      else{
+        var n=Number(v);
+        if(isNaN(n))return;
+        if(n<0)n=0; if(n>10)n=10;
+        p.rating=Math.round(n*10)/10;
+      }
+      save(); renderTabsOnly();
+    });
+    $('rating').addEventListener('blur',function(){renderPainting();});
+
+    /* kit code */
+    $('kitCode').addEventListener('input',function(e){p.code=e.target.value;save();});
+
+    /* sizes */
+    pg.querySelectorAll('[data-size]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var sz=b.getAttribute('data-size');
+        p.size=(p.size===sz)?null:sz;
+        renderPainting(); save();
+      });
+    });
+    $('addSize').addEventListener('click',function(){
+      var v=$('newSize').value.trim();
+      if(!v)return;
+      if(state.sizes.indexOf(v)===-1)state.sizes.push(v);
+      p.size=v; renderPainting(); save();
+    });
+    $('newSize').addEventListener('keydown',function(e){if(e.key==='Enter')$('addSize').click();});
+
+    /* sellers */
+    pg.querySelectorAll('[data-seller]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var s=b.getAttribute('data-seller');
+        p.seller=(p.seller===s)?null:s;
+        renderPainting(); save();
+      });
+    });
+    $('addSeller').addEventListener('click',function(){
+      var v=$('newSeller').value.trim();
+      if(!v)return;
+      if(state.sellers.indexOf(v)===-1)state.sellers.push(v);
+      p.seller=v; renderPainting(); save();
+    });
+    $('newSeller').addEventListener('keydown',function(e){if(e.key==='Enter')$('addSeller').click();});
+
+    /* tags */
+    pg.querySelectorAll('[data-tag]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var tg=b.getAttribute('data-tag');
+        if(p.tags[tg])delete p.tags[tg]; else p.tags[tg]=1;
+        renderPainting(); save();
+      });
+    });
+    $('addTag').addEventListener('click',function(){
+      var v=$('newTag').value.trim().toLowerCase();
+      if(!v)return;
+      if(state.tags.indexOf(v)===-1)state.tags.push(v);
+      p.tags[v]=1; renderPainting(); save();
+    });
+    $('newTag').addEventListener('keydown',function(e){if(e.key==='Enter')$('addTag').click();});
+
+    /* base controls */
+    $('q').addEventListener('input',function(e){query=e.target.value;renderGrid();});
+    $('onlySel').addEventListener('click',function(){state.onlySel=!state.onlySel;renderPainting();save();});
+    $('rename').addEventListener('click',function(){renaming=!renaming;renderPainting();});
+    $('renameSave').addEventListener('click',function(){
+      var v=$('renameInput').value.trim();
+      if(v)active().name=v;
+      renaming=false; render(); save();
+    });
+    $('renameCancel').addEventListener('click',function(){renaming=false;renderPainting();});
+    $('renameInput').value=p.name;
+    if(renaming){$('renameInput').focus();$('renameInput').select();}
+    $('renameInput').addEventListener('keydown',function(e){
+      if(e.key==='Enter')$('renameSave').click();
+      if(e.key==='Escape'){renaming=false;renderPainting();}
+    });
+    pg.querySelectorAll('.tbtn').forEach(function(b){
+      b.addEventListener('click',function(){
+        var t=b.getAttribute('data-t');
+        p.type=(p.type===t)?null:t;
+        render(); save();
+      });
+    });
+
+    /* finish category toggles */
+    pg.querySelectorAll('.fbtn').forEach(function(b){
+      b.addEventListener('click',function(){
+        var f=b.getAttribute('data-f');
+        if(f in p.spec){
+          var hasContent=Object.keys(p.spec[f]).length>0||p.finishes[f];
+          if(hasContent&&!twoTap('fin'+f,b,'Tap again to turn off'))return;
+          delete p.spec[f]; delete p.finishes[f]; delete editFin[f];
+        } else {
+          p.spec[f]={};
+        }
+        renderPainting(); save();
+      });
+    });
+
+    /* library entry select / add / edit / delete */
+    pg.querySelectorAll('[data-spec]').forEach(function(c){
+      c.addEventListener('click',function(e){
+        if(e.target&&e.target.getAttribute&&e.target.getAttribute('data-del'))return;
+        var f=c.getAttribute('data-spec'), eid=c.getAttribute('data-eid');
+        if(p.spec[f][eid])delete p.spec[f][eid]; else p.spec[f][eid]=1;
+        renderPainting(); save();
+      });
+    });
+    pg.querySelectorAll('[data-del]').forEach(function(x){
+      x.addEventListener('click',function(e){
+        e.stopPropagation();
+        var pair=x.getAttribute('data-del').split(':');
+        var f=pair[0], eid=pair[1];
+        if(!twoTap('del'+eid,null)){toast('Tap ✕ again to remove it from every painting',1600);return;}
+        state.specials[f]=(state.specials[f]||[]).filter(function(en){return en.id!==eid;});
+        state.paintings.forEach(function(pp){if(pp.spec&&pp.spec[f])delete pp.spec[f][eid];});
+        renderPainting(); save();
+        toast('Removed from library',1100);
+      });
+    });
+    pg.querySelectorAll('[data-edit]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var f=b.getAttribute('data-edit');
+        editFin[f]=!editFin[f];
+        renderPainting();
+      });
+    });
+    pg.querySelectorAll('[data-addbtn]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var f=b.getAttribute('data-addbtn');
+        var inp=pg.querySelector('input[data-addspec="'+f+'"]');
+        var v=inp.value.trim();
+        if(!v)return;
+        if(!state.specials[f])state.specials[f]=[];
+        var entry={id:uid('s'),text:v};
+        state.specials[f].push(entry);
+        p.spec[f][entry.id]=1;
+        renderPainting(); save();
+      });
+    });
+    pg.querySelectorAll('input[data-addspec]').forEach(function(inp){
+      inp.addEventListener('keydown',function(e){
+        if(e.key==='Enter'){
+          var f=inp.getAttribute('data-addspec');
+          pg.querySelector('[data-addbtn="'+f+'"]').click();
+        }
+      });
+    });
+
+    /* delete painting */
+    $('del').addEventListener('click',function(){
+      if(!twoTap('delpaint',$('del'),'Tap again to delete'))return;
+      var doomed=active();
+      deletePhotosKey(doomed.id);
+      state.paintings=state.paintings.filter(function(x){return x.id!==doomed.id;});
+      if(!state.paintings.length)state.paintings=[{id:uid(),name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null}];
+      state.active=state.paintings[0].id; state.view='overview';
+      resetTransient(); render(); save();
+      toast('Deleted "'+doomed.name+'"',1200);
+    });
+    renderGrid();
+  }
+  function renderTabsOnly(){renderTabs();}
+
+  function renderGrid(){
+    var g=$('grid'); if(!g)return;
+    g.innerHTML='';
+    var p=active(); var q=query.toLowerCase();
+    var shown=0; var frag=document.createDocumentFragment();
+    DMC.forEach(function(row){
+      var code=row[0], name=row[1], hex=row[2];
+      var sel=!!p.colors[code];
+      if(state.onlySel&&!sel)return;
+      if(q&&code.toLowerCase().indexOf(q)===-1&&name.toLowerCase().indexOf(q)===-1)return;
+      shown++;
+      var c=document.createElement('div');
+      c.className='card'+(sel?' sel':'');
+      c.innerHTML='<div class="drill" style="background-color:'+hex+'"></div>'+
+        '<div class="ctext"><div class="code">'+code+'</div><div class="cname">'+esc(name)+'</div></div>'+
+        '<div class="tick">✓</div>';
+      c.addEventListener('click',function(){
+        if(p.colors[code]){delete p.colors[code]; c.classList.remove('sel');}
+        else {p.colors[code]=1; c.classList.add('sel');}
+        updateMeta(); renderTabs(); save();
+      });
+      frag.appendChild(c);
+    });
+    g.appendChild(frag);
+    updateMeta(shown);
+  }
+  function updateMeta(shown){
+    var p=active(); var n=Object.keys(p.colors).length;
+    if(typeof shown==='undefined')shown=$('grid').children.length;
+    var cEl=$('count'); if(!cEl)return;
+    cEl.textContent=p.name+': '+n+' color'+(n===1?'':'s')+' · showing '+shown+' of '+DMC.length;
+    var e=$('emptyMsg');
+    if(shown===0){
+      e.style.display='block';
+      e.textContent=(state.onlySel&&n===0)
+        ? 'No colors marked for this painting yet. Turn off “Selected only” and tap the colors it uses.'
+        : 'No colors match that search.';
+    } else e.style.display='none';
+    $('hint').textContent=state.onlySel?'':'Tap a color to mark it';
+  }
+
+  /* ---------- find page ---------- */
+  function typeOk(p){return findType==='any'||p.type===findType;}
+  function paintingsWith(code){
+    return state.paintings.filter(function(p){return typeOk(p)&&!!p.colors[code];});
+  }
+  function paintingsWithSize(sz){
+    return state.paintings.filter(function(p){return typeOk(p)&&p.size===sz;});
+  }
+  function paintingsWithSpec(f,eid){
+    return state.paintings.filter(function(p){return typeOk(p)&&p.spec&&p.spec[f]&&!!p.spec[f][eid];});
+  }
+  function sortByRating(list){
+    return list.slice().sort(function(a,b){
+      var ra=(a.rating===null||a.rating===undefined||a.rating==='')?-1:Number(a.rating);
+      var rb=(b.rating===null||b.rating===undefined||b.rating==='')?-1:Number(b.rating);
+      return rb-ra;
+    });
+  }
+  function expanderEl(headHtml,owners){
+    var ex=document.createElement('div');
+    ex.className='expander';
+    ex.innerHTML='<div class="exp-head">'+headHtml+'</div>'+(owners.length?'<div class="exp-list"></div>':'');
+    var listEl=ex.querySelector('.exp-list');
+    sortByRating(owners).forEach(function(p){
+      var it=document.createElement('div');
+      it.className='exp-item';
+      it.innerHTML='<span class="exp-name">'+esc(p.name)+'</span>'+ratingBadge(p)+badgeHtml(p.type);
+      it.addEventListener('click',function(ev){
+        ev.stopPropagation();
+        state.active=p.id; state.view='paint'; resetTransient(); render(); save();
+      });
+      listEl.appendChild(it);
+    });
+    return ex;
+  }
+
+  function renderFind(){
+    var pg=$('page');
+    pg.innerHTML=
+      '<div class="typerow"><span class="lbl">Diamond type:</span>'+
+        '<button class="tbtn any'+(findType==='any'?' on':'')+'" data-t="any" type="button">All</button>'+
+        '<button class="tbtn sq'+(findType==='square'?' on':'')+'" data-t="square" type="button">■ Square</button>'+
+        '<button class="tbtn rd'+(findType==='round'?' on':'')+'" data-t="round" type="button">● Round</button>'+
+        '<button class="tbtn od'+(findType==='odd'?' on':'')+'" data-t="odd" type="button">✦ Odd</button>'+
+      '</div>'+
+      '<div class="toolbar"><label class="search">🔎<input id="fq" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(findQuery)+'"></label></div>'+
+      '<div class="meta"><span id="fmeta"></span><span>Tap anything to see which paintings have it</span></div>'+
+      '<div id="fspecials"></div>'+
+      '<div class="section-lbl">All colors</div>'+
+      '<div class="grid" id="fgrid"></div>'+
+      '<div class="empty" id="femptyMsg" style="display:none"></div>';
+    pg.querySelectorAll('.tbtn').forEach(function(b){
+      b.addEventListener('click',function(){findType=b.getAttribute('data-t');renderFind();});
+    });
+    $('fq').addEventListener('input',function(e){findQuery=e.target.value;renderFindLists();});
+    renderFindLists();
+  }
+
+  function renderFindLists(){
+    var q=findQuery.toLowerCase();
+    var fs=$('fspecials'); fs.innerHTML='';
+
+    /* sizes section */
+    var sizesShown=state.sizes.filter(function(sz){
+      return !q||sz.toLowerCase().indexOf(q)!==-1;
+    });
+    if(sizesShown.length){
+      var slbl=document.createElement('div');
+      slbl.className='section-lbl'; slbl.textContent='Sizes (cm)';
+      fs.appendChild(slbl);
+      var sgrid=document.createElement('div'); sgrid.className='grid';
+      sizesShown.forEach(function(sz){
+        var owners=paintingsWithSize(sz);
+        var c=document.createElement('div');
+        c.className='card'+(expandedSize===sz?' open':'');
+        c.innerHTML='<div class="drill spec" style="background-color:var(--ink);font-size:11px;">▭</div>'+
+          '<div class="ctext"><div class="code">'+esc(sz)+'</div><div class="cname">size</div></div>'+
+          '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
+        c.addEventListener('click',function(){
+          expandedSize=(expandedSize===sz)?null:sz; expandedColor=null; expandedSpec=null;
+          renderFindLists();
+        });
+        sgrid.appendChild(c);
+        if(expandedSize===sz){
+          var typeTxt=(findType!=='any')?(' ('+TYPES[findType].sym+' '+TYPES[findType].label.toLowerCase()+' only)'):'';
+          var head=owners.length
+            ? esc(sz)+' cm: '+owners.length+' painting'+(owners.length===1?'':'s')+typeTxt+':'
+            : 'No paintings are '+esc(sz)+' cm'+typeTxt+'.';
+          sgrid.appendChild(expanderEl(head,owners));
+        }
+      });
+      fs.appendChild(sgrid);
+    }
+
+    /* specials sections */
+    FINISHES.forEach(function(f){
+      var lib=(state.specials[f.id]||[]).filter(function(en){
+        return !q||en.text.toLowerCase().indexOf(q)!==-1;
+      });
+      if(!lib.length)return;
+      var lbl=document.createElement('div');
+      lbl.className='section-lbl'; lbl.style.color=f.fg;
+      lbl.textContent=f.label+' special diamonds';
+      fs.appendChild(lbl);
+      var grid=document.createElement('div'); grid.className='grid';
+      lib.forEach(function(entry){
+        var owners=paintingsWithSpec(f.id,entry.id);
+        var kid=f.id+'|'+entry.id;
+        var c=document.createElement('div');
+        c.className='card'+(expandedSpec===kid?' open':'');
+        c.innerHTML=specCardHtml(f.id,entry,'<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>');
+        c.addEventListener('click',function(){
+          expandedSpec=(expandedSpec===kid)?null:kid; expandedColor=null; expandedSize=null;
+          renderFindLists();
+        });
+        grid.appendChild(c);
+        if(expandedSpec===kid){
+          var typeTxt=(findType!=='any')?(' ('+TYPES[findType].sym+' '+TYPES[findType].label.toLowerCase()+' only)'):'';
+          var head=owners.length
+            ? esc(entry.text)+' ('+f.label+') is in '+owners.length+' painting'+(owners.length===1?'':'s')+typeTxt+':'
+            : esc(entry.text)+' ('+f.label+') isn’t in any of your paintings'+typeTxt+'.';
+          grid.appendChild(expanderEl(head,owners));
+        }
+      });
+      fs.appendChild(grid);
+    });
+
+    /* colors grid */
+    var g=$('fgrid'); g.innerHTML='';
+    var shown=0; var frag=document.createDocumentFragment();
+    DMC.forEach(function(row){
+      var code=row[0], name=row[1], hex=row[2];
+      if(q&&code.toLowerCase().indexOf(q)===-1&&name.toLowerCase().indexOf(q)===-1)return;
+      shown++;
+      var owners=paintingsWith(code);
+      var c=document.createElement('div');
+      c.className='card'+(expandedColor===code?' open':'');
+      c.innerHTML='<div class="drill" style="background-color:'+hex+'"></div>'+
+        '<div class="ctext"><div class="code">'+code+'</div><div class="cname">'+esc(name)+'</div></div>'+
+        '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
+      c.addEventListener('click',function(){
+        expandedColor=(expandedColor===code)?null:code; expandedSpec=null; expandedSize=null;
+        renderFindLists();
+      });
+      frag.appendChild(c);
+      if(expandedColor===code){
+        var typeTxt=(findType!=='any')?(' ('+TYPES[findType].sym+' '+TYPES[findType].label.toLowerCase()+' only)'):'';
+        var head=owners.length
+          ? code+' '+esc(name)+' is in '+owners.length+' painting'+(owners.length===1?'':'s')+typeTxt+':'
+          : code+' '+esc(name)+' isn’t in any of your paintings'+typeTxt+'.';
+        frag.appendChild(expanderEl(head,owners));
+      }
+    });
+    g.appendChild(frag);
+    var inAny=0;
+    DMC.forEach(function(r){if(paintingsWith(r[0]).length)inAny++;});
+    $('fmeta').textContent='Showing '+shown+' of '+DMC.length+' colors · '+inAny+' are in your paintings'+
+      (findType!=='any'?' ('+TYPES[findType].label.toLowerCase()+')':'');
+    var e=$('femptyMsg');
+    if(shown===0&&!$('fspecials').children.length){e.style.display='block';e.textContent='Nothing matches that search.';}
+    else e.style.display='none';
+  }
+
+  /* ---------- root ---------- */
+  function render(){
+    renderTabs();
+    if(state.view==='overview')renderOverview();
+    else if(state.view==='find')renderFind();
+    else renderPainting();
+  }
+
+  $('fileInput').addEventListener('change',function(e){
+    var files=e.target.files||[];
+    for(var i=0;i<files.length;i++)addImageFile(files[i]);
+    e.target.value='';
+  });
+
+  load(function(){render();});
+})();
+
+</script>
+
+</body>
+</html>
