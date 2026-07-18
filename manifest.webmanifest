@@ -1,0 +1,14 @@
+{
+  "name": "Diamond Painting Colors",
+  "short_name": "DP Colors",
+  "description": "Track your diamond painting kits, colors, photos and progress.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F2F5",
+  "theme_color": "#5B3FA8",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

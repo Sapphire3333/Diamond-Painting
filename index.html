@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F3F2F5">
 <title>Diamond Painting Colors</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DP Colors">
 <style>html,body{margin:0;background:#F3F2F5;}</style>
 </head>
 <body>
@@ -129,6 +135,25 @@
   .ovphotos.frame-square .ovphoto img{width:108px;height:108px;}
   .ovphotos.frame-round .ovphoto img{width:108px;height:108px;border-radius:50%;}
   .ovphoto-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;letter-spacing:.3px;padding:2px 8px;border-radius:999px;}
+  .ovcard.stripe{padding-left:16px;}
+  .ovcard.stripe::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;border-radius:14px 0 0 14px;background:var(--stripe,transparent);}
+  .ovprog{height:7px;border-radius:999px;background:var(--unk-soft);overflow:hidden;margin-top:9px;}
+  .ovprog>i{display:block;height:100%;border-radius:999px;background:var(--rd);}
+  .ovprog-lbl{font-size:11px;color:var(--muted);font-weight:700;margin-top:3px;}
+  .ovthumbc{width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--line);display:none;flex:0 0 auto;}
+  .ovcard.compact{padding-top:9px;padding-bottom:9px;}
+  .ovcard.compact .ovthumbc{display:block;}
+  .ovcard.compact .ovbody{display:none;}
+  .acc-sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0;}
+  .acc-sw.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink);}
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);display:flex;align-items:center;justify-content:center;z-index:100;padding:18px;cursor:zoom-out;}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;}
+  .undobar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:9px 12px;display:flex;gap:12px;align-items:center;z-index:90;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:92%;}
+  .undobar button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer;font-size:13px;}
+  .paint-head{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0 8px;display:flex;align-items:center;gap:8px;}
+  .pins{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 6px;}
+  .pin{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--line);border-radius:999px;padding:2px 8px 2px 3px;font-size:11.5px;font-weight:800;cursor:pointer;background:var(--panel);}
+  .pin .dot{width:15px;height:15px;border-radius:50%;border:1px solid rgba(0,0,0,.15);}
   .mini{width:16px;height:16px;border-radius:5px;border:1px solid rgba(0,0,0,.14);
     background-image:linear-gradient(135deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 50%,rgba(0,0,0,.1) 100%);}
   .mini.more{background:var(--unk-soft);color:var(--unk);font-size:9px;font-weight:800;width:auto;padding:0 5px;
@@ -248,17 +273,45 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var STATUSMAP={}; STATUSES.forEach(function(s){STATUSMAP[s.id]=s;});
   var DEFAULT_TAGS=['good','bad diamonds','boring','wrong shade','unclear','missing diamonds','beautiful colors'];
   var DEFAULT_SIZES=['20×20','30×30','30×40','40×50','50×70'];
+  var ACCENTS=[
+    {id:'violet', name:'Violet', accent:'#5B3FA8', soft:'#EFEAFB', dsoft:'#2E2646'},
+    {id:'teal',   name:'Teal',   accent:'#0E8C8C', soft:'#DFF3F3', dsoft:'#123536'},
+    {id:'rose',   name:'Rose',   accent:'#C43D6E', soft:'#FBE7EF', dsoft:'#3A1B28'},
+    {id:'blue',   name:'Blue',   accent:'#2F6FBF', soft:'#E7F0FB', dsoft:'#152740'},
+    {id:'green',  name:'Green',  accent:'#2F9E63', soft:'#E6F6EE', dsoft:'#12301F'},
+    {id:'amber',  name:'Amber',  accent:'#B5731F', soft:'#FBF0DC', dsoft:'#332616'}
+  ];
+  var ACCENTMAP={}; ACCENTS.forEach(function(a){ACCENTMAP[a.id]=a;});
+  var COLOR_FAMILIES=['Red','Orange','Yellow','Green','Teal','Blue','Purple','Pink','Brown','Neutral'];
 
   var state={
-    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',updatedAt:0}],
+    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0}],
     active:'p1', onlySel:false, view:'paintings',
     specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added', pGroup:'none', pSearchField:'all',
-    autoBackup:'off', dark:false
+    autoBackup:'off', dark:false, density:'full', accent:'violet'
   };
   var query='', findQuery='', findType='any', pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, armed={};
+  var collapsedGroups={}, colorFamily='', showPaste=false, undoData=null, undoTimer=null;
   var syncPhase='';   /* '' normal, 'choose' after enabling when cloud already has data */
   var DMCMAP={}; DMC.forEach(function(r){DMCMAP[r[0]]=r;});
+  var DMCLOWER={}; DMC.forEach(function(r){DMCLOWER[r[0].toLowerCase()]=r[0];});
+  function famOf(hex){
+    hex=String(hex).replace('#','');
+    var r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
+    var mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn,l=(mx+mn)/510;
+    if(d<25||d/(mx||1)<0.15)return 'Neutral';
+    var h; if(mx===r)h=60*(((g-b)/d)%6); else if(mx===g)h=60*((b-r)/d+2); else h=60*((r-g)/d+4);
+    if(h<0)h+=360;
+    if(h<16||h>=330)return 'Red';
+    if(h<45)return l<0.42?'Brown':'Orange';
+    if(h<66)return l<0.40?'Brown':'Yellow';
+    if(h<165)return 'Green';
+    if(h<200)return 'Teal';
+    if(h<255)return 'Blue';
+    if(h<295)return 'Purple';
+    return 'Pink';
+  }
 
   function $(id){return document.getElementById(id);}
   function uid(pfx){return (pfx||'p')+Math.random().toString(36).slice(2,9);}
@@ -399,6 +452,24 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function nowTs(){try{return Date.now();}catch(e){return 0;}}
   function todayStr(){try{var d=new Date();function p2(n){return (n<10?'0':'')+n;}return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}catch(e){return '';}}
+  function showUndo(painting,idx){
+    if(undoTimer)clearTimeout(undoTimer);
+    var old=document.querySelector('.undobar'); if(old)old.remove();
+    var bar=document.createElement('div'); bar.className='undobar';
+    var span=document.createElement('span'); span.textContent='Deleted “'+painting.name+'”';
+    var btn=document.createElement('button'); btn.textContent='Undo';
+    btn.addEventListener('click',function(){
+      if(undoTimer)clearTimeout(undoTimer); bar.remove();
+      var at=Math.min(idx,state.paintings.length);
+      state.paintings.splice(at,0,painting);
+      state.active=painting.id; state.view='paint';
+      render(); save(); if(painting.photos&&painting.photos.length)savePhotos(painting.id);
+      toast('Restored ✓',1200);
+    });
+    bar.appendChild(span); bar.appendChild(btn);
+    document.body.appendChild(bar);
+    undoTimer=setTimeout(function(){bar.remove();},7000);
+  }
   function saveEdit(){var a=active();if(a)a.updatedAt=nowTs();save();}
   function fmtDate(ts){
     if(!ts)return 'unknown date';
@@ -418,6 +489,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(!s.pSearchField)s.pSearchField='all';
     if(!s.autoBackup)s.autoBackup='off';
     if(!('dark' in s))s.dark=false;
+    if(!s.density)s.density='full';
+    if(!s.accent||!ACCENTMAP[s.accent])s.accent='violet';
     if(!s.specials)s.specials={};
     if(!s.sellers)s.sellers=[];
     if(!s.tags||!s.tags.length)s.tags=DEFAULT_TAGS.slice();
@@ -439,6 +512,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!('started' in p))p.started='';
       if(!('finished' in p))p.finished='';
       if(!p.frame)p.frame='landscape';
+      if(!('progress' in p))p.progress=0;
+      if(!('price' in p))p.price='';
       Object.keys(p.finishes).forEach(function(f){
         if(!p.spec[f])p.spec[f]={};
         if(!p.finishes[f])delete p.finishes[f];
@@ -666,7 +741,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     mk('paints','🖼 Paintings<span class="cnt">'+state.paintings.length+'</span>',function(){state.view='paintings';resetTransient();render();save();},state.view==='paintings'||state.view==='paint');
     mk('find','🔎 Find',function(){state.view='find';resetTransient();render();save();},state.view==='find');
     mk('add','+ New painting',function(){
-      var p={id:uid(),name:'Painting '+(state.paintings.length+1),colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',updatedAt:nowTs()};
+      var p={id:uid(),name:'Painting '+(state.paintings.length+1),colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:nowTs()};
       state.paintings.push(p); state.active=p.id; state.view='paint';
       renaming=true; render(); save();
     },false);
@@ -679,9 +754,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var html='<div class="ovsub" style="margin:2px 2px 12px;">Your paintings live in the <b>🖼 Paintings</b> tab. This page holds your summary, display, sync, storage and backups.</div>';
     html+='<div class="section-lbl">Summary</div>'+statsHtml();
     html+='<div class="section-lbl">Display</div>'+
-      '<div class="backup"><div class="bk-btns">'+
-        '<button class="chipbtn'+(state.dark?' on':'')+'" id="darkToggle" type="button">🌙 Dark mode: '+(state.dark?'On':'Off')+'</button>'+
-      '</div></div>';
+      '<div class="backup">'+
+        '<div class="bk-btns">'+
+          '<button class="chipbtn'+(state.dark?' on':'')+'" id="darkToggle" type="button">🌙 Dark mode: '+(state.dark?'On':'Off')+'</button>'+
+          '<button class="chipbtn'+(state.density==='compact'?' on':'')+'" id="densToggle" type="button">▤ Compact cards: '+(state.density==='compact'?'On':'Off')+'</button>'+
+        '</div>'+
+        '<div class="bk-btns" style="margin-top:8px;align-items:center;">'+
+          '<span class="pd-lbl" style="margin:0;align-self:center;">Accent:</span>'+
+          ACCENTS.map(function(a){return '<button class="acc-sw'+(state.accent===a.id?' on':'')+'" data-accent="'+a.id+'" type="button" title="'+a.name+'" style="background:'+a.accent+'"></button>';}).join('')+
+        '</div>'+
+      '</div>';
     html+=syncSectionHtml();
     html+='<div class="section-lbl">Storage</div><div class="backup" id="storMeter"></div>';
     html+='<div class="section-lbl">Backup &amp; restore</div>'+
@@ -749,6 +831,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       saveBackup($('bkSavePhotos').checked,function(){renderBackupList();});
     });
     if($('darkToggle'))$('darkToggle').addEventListener('click',function(){state.dark=!state.dark;applyTheme();renderOverview();save();});
+    if($('densToggle'))$('densToggle').addEventListener('click',function(){state.density=(state.density==='compact')?'full':'compact';renderOverview();save();});
+    pg.querySelectorAll('[data-accent]').forEach(function(b){b.addEventListener('click',function(){state.accent=b.getAttribute('data-accent');applyTheme();renderOverview();save();});});
     pg.querySelectorAll('[data-auto]').forEach(function(b){b.addEventListener('click',function(){
       state.autoBackup=b.getAttribute('data-auto');save();maybeAutoBackup(function(){renderOverview();});
     });});
@@ -816,20 +900,23 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var ps=state.paintings, n=ps.length;
     var byStatus={wishlist:0,progress:0,done:0};
     var byType={square:0,round:0,odd:0};
-    var rsum=0,rn=0,colors=0;
+    var rsum=0,rn=0,colors=0,spend=0,spendN=0;
     ps.forEach(function(p){
       if(p.status&&byStatus.hasOwnProperty(p.status))byStatus[p.status]++;
       if(p.type&&byType.hasOwnProperty(p.type))byType[p.type]++;
       if(p.rating!==null&&p.rating!==undefined&&p.rating!==''){rsum+=Number(p.rating);rn++;}
       colors+=Object.keys(p.colors||{}).length;
+      var pr=parseFloat(String(p.price||'').replace(/[^0-9.]/g,''));
+      if(!isNaN(pr)){spend+=pr;spendN++;}
     });
     var avg=rn?(rsum/rn).toFixed(1):'—';
+    var spendStr=spendN?spend.toFixed(2):'—';
     function stat(num,label){return '<div style="text-align:center;min-width:60px;flex:1 1 60px;"><div style="font-size:22px;font-weight:800;color:var(--accent);">'+num+'</div><div style="font-size:11px;color:var(--muted);">'+label+'</div></div>';}
     return '<div class="backup">'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
         stat(n,'paintings')+stat(byStatus.done,'finished')+stat(byStatus.progress,'in progress')+stat(byStatus.wishlist,'wishlist')+
       '</div>'+
-      '<div class="bk-note" style="margin-top:8px;">Avg rating '+avg+' · types: ■ '+byType.square+'  ● '+byType.round+'  ✦ '+byType.odd+' · '+colors+' colors selected in total</div>'+
+      '<div class="bk-note" style="margin-top:8px;">Avg rating '+avg+' · types: ■ '+byType.square+'  ● '+byType.round+'  ✦ '+byType.odd+' · '+colors+' colors selected in total'+(spendN?(' · total spend '+spendStr):'')+'</div>'+
       '</div>';
   }
   function renderBackupList(){
@@ -876,7 +963,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var labels=['Sold','Result'];
       photoHtml='<div class="ovphotos frame-'+(p.frame||'landscape')+'">';
       p.photos.slice(0,2).forEach(function(ph,i){
-        photoHtml+='<div class="ovphoto"><img src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'"><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
+        photoHtml+='<div class="ovphoto"><img class="lb-img" data-src="'+ph.d+'" src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'"><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
       });
       photoHtml+='</div>';
     }
@@ -884,16 +971,27 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(p.size)sub+=' · '+esc(p.size);
     if(p.seller)sub+=' · '+esc(p.seller);
     if(p.code)sub+=' · '+esc(p.code);
+    if(p.price)sub+=' · '+esc(p.price);
     if(p.started)sub+=' · ▶ '+esc(p.started);
     if(p.finished)sub+=' · ✓ '+esc(p.finished);
     if(state.ovSort==='edited'&&p.updatedAt)sub+=' · 🕒 '+fmtDate(p.updatedAt);
-    return '<div class="ovcard" data-id="'+p.id+'">'+
-      '<div class="ovtop"><span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
+    var prog='';
+    if((p.status==='progress')||(p.progress>0&&p.status!=='done')){
+      var pct=Math.max(0,Math.min(100,p.progress||0));
+      prog='<div class="ovprog"><i style="width:'+pct+'%"></i></div><div class="ovprog-lbl">'+pct+'% done</div>';
+    }
+    var st=p.status&&STATUSMAP[p.status];
+    var stripeCls=st?' stripe':'';
+    var stripeStyle=st?' style="--stripe:'+st.fg+'"':'';
+    var thumbc=(p.photos&&p.photos.length)?'<img class="ovthumbc" src="'+p.photos[0].d+'" alt="" style="'+photoStyle(p.photos[0])+'">':'';
+    return '<div class="ovcard'+stripeCls+(state.density==='compact'?' compact':'')+'" data-id="'+p.id+'"'+stripeStyle+'>'+
+      '<div class="ovtop">'+thumbc+'<span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
       '<div class="ovbody">'+
         '<div class="ovinfo">'+
           '<div class="ovsub">'+sub+'</div>'+
           (fins?'<div class="ovfins">'+fins+'</div>':'')+
           tagHtml+
+          prog+
         '</div>'+
         photoHtml+
       '</div>'+
@@ -975,8 +1073,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     }
     var out='';
     groups.forEach(function(g){
-      out+='<div class="section-lbl">'+g.label+' <span style="color:var(--muted);font-weight:700;">'+g.items.length+'</span></div>';
-      out+='<div class="ovlist">'+g.items.map(paintingCardHtml).join('')+'</div>';
+      var collapsed=!!collapsedGroups[g.label];
+      out+='<div class="section-lbl grp-hd" data-grp="'+encodeURIComponent(g.label)+'" style="cursor:pointer;user-select:none;">'+(collapsed?'▸':'▾')+' '+g.label+' <span style="color:var(--muted);font-weight:700;">'+g.items.length+'</span></div>';
+      if(!collapsed)out+='<div class="ovlist">'+g.items.map(paintingCardHtml).join('')+'</div>';
     });
     return out;
   }
@@ -987,6 +1086,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(state.pGroup==='none')return '<div class="ovlist">'+list.map(paintingCardHtml).join('')+'</div>';
     return groupedHtml(list);
   }
+  function openLightbox(src){
+    var lb=document.createElement('div'); lb.className='lightbox';
+    var im=document.createElement('img'); im.src=src; lb.appendChild(im);
+    lb.addEventListener('click',function(){lb.remove();});
+    document.body.appendChild(lb);
+  }
   function wirePaintingCards(){
     $('page').querySelectorAll('.ovcard').forEach(function(c){
       c.addEventListener('click',function(){
@@ -994,11 +1099,17 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         resetTransient(); render(); save();
       });
     });
+    $('page').querySelectorAll('.lb-img').forEach(function(im){
+      im.addEventListener('click',function(e){e.stopPropagation();openLightbox(im.getAttribute('data-src'));});
+    });
   }
   function renderPaintingsList(){
     var el=$('pList'); if(!el)return;
     el.innerHTML=paintingsListHtml();
     wirePaintingCards();
+    el.querySelectorAll('.grp-hd').forEach(function(h){
+      h.addEventListener('click',function(){var key=decodeURIComponent(h.getAttribute('data-grp'));collapsedGroups[key]=!collapsedGroups[key];renderPaintingsList();});
+    });
   }
   function renderPaintings(){
     var pg=$('page');
@@ -1317,7 +1428,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
 
     pg.innerHTML=
-      '<button class="chipbtn" id="backPaints" type="button" style="margin-bottom:10px;font-weight:700;">← All paintings</button>'+
+      '<div class="paint-head">'+
+        '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
+        '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(p.name)+'</span>'+
+      '</div>'+
       '<div class="phead">'+
         '<div class="photos">'+ph+'</div>'+
         '<div class="pdetails">'+
@@ -1328,6 +1442,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           '<div class="pd-row"><div class="pd-lbl">Size (cm)</div><div class="selchips">'+sizeChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Rating (0–10, e.g. 5.6)</div>'+
             '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="'+(p.rating===null?'':p.rating)+'">'+ratingBadge(p)+'</div></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input id="progRange" type="range" min="0" max="100" step="5" value="'+(p.progress||0)+'" style="flex:1;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Price</div><input class="codeinput" id="priceInput" type="text" maxlength="20" placeholder="e.g. €25 or 25" value="'+esc(p.price||'')+'"></div>'+
           '<div class="pd-row"><div class="pd-lbl">Dates</div><div class="selchips" style="gap:10px;">'+dateInputs+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Seller</div><div class="selchips">'+sellerChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Tags</div><div class="selchips">'+tagChips+'</div></div>'+
@@ -1336,8 +1452,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div class="toolbar">'+
         '<label class="search">🔎<input id="q" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(query)+'"></label>'+
         '<button class="chipbtn'+(state.onlySel?' on':'')+'" id="onlySel" type="button">Selected only</button>'+
+        '<button class="chipbtn" id="pasteList" type="button">＋ Paste list</button>'+
+        '<button class="chipbtn" id="copyColors" type="button">⧉ Copy colours</button>'+
         '<button class="chipbtn" id="rename" type="button">Rename</button>'+
         '<button class="chipbtn" id="dupe" type="button">Duplicate</button>'+
+        '<button class="chipbtn" id="moveUp" type="button" title="Move earlier in the list">↑</button>'+
+        '<button class="chipbtn" id="moveDown" type="button" title="Move later in the list">↓</button>'+
         '<button class="chipbtn danger" id="del" type="button">Delete</button>'+
       '</div>'+
       '<div class="renamer'+(renaming?' show':'')+'" id="renamer">'+
@@ -1352,6 +1472,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '</div>'+
       '<div class="finrow"><span class="lbl">Special diamonds:</span>'+finChips+'</div>'+
       finBoxes+
+      (showPaste?('<div class="backup" id="pasteBox">'+
+        '<div class="bk-note">Paste DMC numbers (any separators — commas, spaces, new lines). Matching colours get selected.</div>'+
+        '<textarea id="pasteText" rows="3" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13px;background:var(--panel);color:var(--ink);" placeholder="e.g. 321, 310 700 3801 White"></textarea>'+
+        '<div class="bk-btns" style="margin-top:6px;"><button class="chipbtn" id="pasteApply" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">Add these</button><button class="chipbtn" id="pasteCancel" type="button">Cancel</button></div>'+
+        '</div>'):'')+
+      '<div class="ovsort" style="margin-top:2px;"><span class="pd-lbl" style="margin:0">Colours:</span>'+
+        '<button class="chipbtn'+(colorFamily===''?' on':'')+'" data-fam="" type="button">All</button>'+
+        COLOR_FAMILIES.map(function(fm){return '<button class="chipbtn'+(colorFamily===fm?' on':'')+'" data-fam="'+fm+'" type="button">'+fm+'</button>';}).join('')+
+      '</div>'+
+      '<div class="pins" id="pins"></div>'+
       '<div class="meta"><span id="count"></span><span id="hint"></span></div>'+
       '<div class="grid" id="grid"></div>'+
       '<div class="empty" id="emptyMsg" style="display:none"></div>';
@@ -1361,6 +1491,40 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     /* card frame shape */
     pg.querySelectorAll('[data-frame]').forEach(function(b){
       b.addEventListener('click',function(){p.frame=b.getAttribute('data-frame');renderPainting();saveEdit();});
+    });
+
+    /* progress + price */
+    if($('progRange'))$('progRange').addEventListener('input',function(e){p.progress=parseInt(e.target.value,10)||0;var pv=$('progVal');if(pv)pv.textContent=p.progress+'%';saveEdit();});
+    if($('priceInput'))$('priceInput').addEventListener('input',function(e){p.price=e.target.value;saveEdit();});
+    /* reorder in list */
+    if($('moveUp'))$('moveUp').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i>0){state.paintings.splice(i,1);state.paintings.splice(i-1,0,p);save();toast('Moved earlier ✓',900);}else toast('Already first',900);});
+    if($('moveDown'))$('moveDown').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i<state.paintings.length-1){state.paintings.splice(i,1);state.paintings.splice(i+1,0,p);save();toast('Moved later ✓',900);}else toast('Already last',900);});
+    /* copy colours */
+    if($('copyColors'))$('copyColors').addEventListener('click',function(){
+      var lines=DMC.filter(function(r){return p.colors[r[0]];}).map(function(r){return r[0]+' '+r[1];});
+      if(!lines.length){toast('No colours selected',1200);return;}
+      var txt=lines.join('\n');
+      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(function(){toast('Copied '+lines.length+' colours ✓',1400);},function(){toast('Copy blocked here',1600);});
+      else toast('Copy not supported here',1600);
+    });
+    /* paste a list of DMC numbers */
+    if($('pasteList'))$('pasteList').addEventListener('click',function(){showPaste=!showPaste;renderPainting();});
+    if($('pasteApply'))$('pasteApply').addEventListener('click',function(){
+      var raw=($('pasteText')&&$('pasteText').value)||'';
+      var toks=raw.split(/[^0-9A-Za-z]+/).filter(Boolean);
+      var added=0,unknown=0;
+      toks.forEach(function(t){var key=DMCLOWER[t.toLowerCase()];if(key){if(!p.colors[key]){p.colors[key]=1;added++;}}else unknown++;});
+      showPaste=false; renderPainting(); renderTabs(); saveEdit();
+      toast('Added '+added+' colour'+(added===1?'':'s')+(unknown?(' · '+unknown+' not found'):'')+' ✓',2000);
+    });
+    if($('pasteCancel'))$('pasteCancel').addEventListener('click',function(){showPaste=false;renderPainting();});
+    /* colour family filter */
+    pg.querySelectorAll('[data-fam]').forEach(function(b){
+      b.addEventListener('click',function(){
+        colorFamily=b.getAttribute('data-fam');
+        pg.querySelectorAll('[data-fam]').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-fam')===colorFamily);});
+        renderGrid();
+      });
     });
 
     /* status */
@@ -1599,17 +1763,29 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     $('del').addEventListener('click',function(){
       if(!twoTap('delpaint',$('del'),'Tap again to delete'))return;
       var doomed=active();
+      var doomedIdx=state.paintings.indexOf(doomed);
       deletePhotosKey(doomed.id);
       state.paintings=state.paintings.filter(function(x){return x.id!==doomed.id;});
-      if(!state.paintings.length)state.paintings=[{id:uid(),name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',updatedAt:nowTs()}];
+      if(!state.paintings.length)state.paintings=[{id:uid(),name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:nowTs()}];
       state.active=state.paintings[0].id; state.view='paintings';
       resetTransient(); render(); save();
-      toast('Deleted "'+doomed.name+'"',1200);
+      showUndo(doomed, doomedIdx);
     });
     renderGrid();
   }
   function renderTabsOnly(){renderTabs();}
 
+  function refreshPins(){
+    var pinsEl=$('pins'); if(!pinsEl)return;
+    var p=active();
+    var selCodes=DMC.filter(function(r){return p.colors[r[0]];});
+    if(!selCodes.length){pinsEl.innerHTML='';return;}
+    pinsEl.innerHTML='<span class="pd-lbl" style="margin:0 4px 0 0;align-self:center;">Selected '+selCodes.length+':</span>'+
+      selCodes.map(function(r){return '<span class="pin" data-code="'+r[0]+'"><span class="dot" style="background:'+r[2]+'"></span>'+esc(r[0])+' ✕</span>';}).join('');
+    pinsEl.querySelectorAll('.pin').forEach(function(pn){pn.addEventListener('click',function(){
+      delete active().colors[pn.getAttribute('data-code')]; updateMeta(); renderTabs(); renderGrid(); saveEdit();
+    });});
+  }
   function renderGrid(){
     var g=$('grid'); if(!g)return;
     g.innerHTML='';
@@ -1620,6 +1796,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var sel=!!p.colors[code];
       if(state.onlySel&&!sel)return;
       if(q&&code.toLowerCase().indexOf(q)===-1&&name.toLowerCase().indexOf(q)===-1)return;
+      if(colorFamily&&famOf(hex)!==colorFamily)return;
       shown++;
       var c=document.createElement('div');
       c.className='card'+(sel?' sel':'');
@@ -1629,12 +1806,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       c.addEventListener('click',function(){
         if(p.colors[code]){delete p.colors[code]; c.classList.remove('sel');}
         else {p.colors[code]=1; c.classList.add('sel');}
-        updateMeta(); renderTabs(); saveEdit();
+        updateMeta(); renderTabs(); refreshPins(); saveEdit();
       });
       frag.appendChild(c);
     });
     g.appendChild(frag);
     updateMeta(shown);
+    refreshPins();
   }
   function updateMeta(shown){
     var p=active(); var n=Object.keys(p.colors).length;
@@ -1818,6 +1996,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function applyTheme(){
     var app=$('app'); if(app)app.classList.toggle('dark',!!state.dark);
     try{
+      var a=ACCENTMAP[state.accent]||ACCENTMAP.violet;
+      if(app){app.style.setProperty('--accent',a.accent);app.style.setProperty('--accent-soft',state.dark?a.dsoft:a.soft);}
       document.documentElement.style.background=state.dark?'#16141B':'#F3F2F5';
       if(document.body)document.body.style.background=state.dark?'#16141B':'#F3F2F5';
       var mt=document.querySelector('meta[name="theme-color"]'); if(mt)mt.setAttribute('content',state.dark?'#16141B':'#F3F2F5');
@@ -1844,7 +2024,15 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
   load(function(){render();});
 })();
+</script>
 
+<script>
+  /* installable + offline app (PWA) */
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
 </script>
 
 </body>
