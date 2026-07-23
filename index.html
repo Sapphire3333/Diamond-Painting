@@ -1614,10 +1614,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     pg.style.paddingBottom=arrangeMode?'210px':'';
     /* the free layout stays visible once you've arranged, not only while arranging */
     if(!(arrangeMode||p.arranged))return;
-    pg.style.position='relative';
+    /* anchor to the page BODY (not #page) so the sticky top bar growing or shrinking
+       never shifts the photos relative to the content they were placed against */
+    var host=document.getElementById('pageBody')||pg;
+    host.style.position='relative';
     var layer=document.createElement('div');
     layer.id='arrLayer'; layer.className='arr-layer';
-    layer.style.height=Math.max(pg.scrollHeight,400)+'px';
+    layer.style.height=Math.max(host.scrollHeight,400)+'px';
     p.photos.forEach(function(photo,i){
       arrLayout(photo,i);
       var im=document.createElement('img');
@@ -1627,7 +1630,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       im.style.width=photo.aw+'%'; im.style.transform='rotate('+photo.arot+'deg)';
       layer.appendChild(im);
     });
-    pg.appendChild(layer);
+    host.appendChild(layer);
     if(arrangeMode)wireArrange(p,layer);
     else {
       /* not arranging: tapping a photo just selects it for the photo tools */
@@ -1801,10 +1804,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var pg=$('page');
 
     /* photos block */
+    /* NOTE: the flow of this block must be identical in both modes, otherwise the
+       page content shifts underneath the absolutely-placed photos. */
     var ph='';
-    if(arrangeMode){ ph=arrangeUiHtml(p); } else {
     if(!p.arranged){
-      ph+='<div class="photo-grid">';
+      ph+='<div class="photo-grid"'+(arrangeMode?' style="visibility:hidden"':'')+'>';
       p.photos.forEach(function(photo,i){
         var lbl=(i===0?'<span class="pg-lbl">Sold</span>':(i===1?'<span class="pg-lbl">Result</span>':''));
         ph+='<div class="pg-item">'+lbl+'<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" style="'+photoStyle(photo)+'"></div>';
@@ -1812,9 +1816,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       ph+='</div>';
     }
     ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
-      (p.photos.length?'<button class="pbtn" id="arrEnter" type="button">⇱ Arrange &amp; edit</button>':'')+'</div>';
+      (p.photos.length?('<button class="pbtn'+(arrangeMode?' on':'')+'" id="arrEnter" type="button">'+(arrangeMode?'✓ Done arranging':'⇱ Arrange &amp; edit')+'</button>'):'')+'</div>';
     ph+='<div class="photo-hint">'+(p.photos.length?'Tap a photo to open its tools in the bar at the top. The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Use ⇱ Arrange &amp; edit to place photos freely anywhere on this page.':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image. The first two become the “Sold” and “Result” pictures on cards.')+'</div>';
-    }
+    if(arrangeMode)ph+=arrangeUiHtml(p); /* fixed bottom bar — takes no space in the flow */
 
     /* Photo tools + card frame live in the sticky top bar, so photos placed on the
        page can never cover them (and they never cover your photos either). */
@@ -1934,6 +1938,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '</div>'+
         toolsHtml+
       '</div>'+
+      '<div id="pageBody">'+
       '<div class="phead">'+
         '<div class="photos">'+ph+'</div>'+
         '<div class="pdetails">'+
@@ -1986,7 +1991,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div class="pins" id="pins"></div>'+
       '<div class="meta"><span id="count"></span><span id="hint"></span></div>'+
       '<div class="grid" id="grid"></div>'+
-      '<div class="empty" id="emptyMsg" style="display:none"></div>';
+      '<div class="empty" id="emptyMsg" style="display:none"></div>'+
+      '</div>';
 
     $('backPaints').addEventListener('click',function(){state.view='paintings';resetTransient();render();save();});
     if($('undoBtn2'))$('undoBtn2').addEventListener('click',doUndo);
@@ -2058,6 +2064,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
 
     /* photos events */
+    if($('phAdd'))$('phAdd').addEventListener('click',function(){$('fileInput').click();});
+    if($('arrEnter'))$('arrEnter').addEventListener('click',function(){arrangeMode=!arrangeMode;arrSel=-1;selPhoto=-1;renderPainting();});
     if(arrangeMode){ /* the draggable layer + its toolbar are wired in buildArrLayer() */ } else {
     pg.querySelectorAll('.photo-grid img').forEach(function(im){
       im.addEventListener('click',function(){
@@ -2066,8 +2074,6 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         renderPainting();
       });
     });
-    if($('phAdd'))$('phAdd').addEventListener('click',function(){$('fileInput').click();});
-    if($('arrEnter'))$('arrEnter').addEventListener('click',function(){arrangeMode=true;arrSel=-1;renderPainting();});
     if(selPhoto>=0&&selPhoto<p.photos.length){
       if($('phClose'))$('phClose').addEventListener('click',function(){selPhoto=-1;renderPainting();});
       $('phSold').addEventListener('click',function(){
