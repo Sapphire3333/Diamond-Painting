@@ -158,12 +158,16 @@
   .selbox.on{background:var(--accent);border-color:var(--accent);}
   .ovcard.picked{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset;}
   /* ---- arrange mode ---- */
-  .arrange{position:relative;width:100%;height:420px;background:var(--unk-soft);border:1.5px dashed var(--line);border-radius:14px;overflow:hidden;touch-action:none;}
-  .arr-img{position:absolute;display:block;cursor:grab;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.18);user-select:none;-webkit-user-drag:none;}
-  .arr-img.sel{outline:2.5px solid var(--accent);outline-offset:2px;}
-  .arr-handle{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);z-index:5;touch-action:none;}
-  .arr-handle.rot{background:var(--star);}
+  .arr-layer{position:absolute;left:0;top:0;width:100%;pointer-events:none;z-index:30;}
+  .arr-img{position:absolute;display:block;cursor:grab;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,.25);
+    user-select:none;-webkit-user-drag:none;pointer-events:auto;touch-action:none;}
+  .arr-img.sel{outline:3px solid var(--accent);outline-offset:2px;}
+  .arr-handle{position:absolute;width:26px;height:26px;border-radius:7px;background:var(--accent);border:2.5px solid #fff;
+    box-shadow:0 2px 7px rgba(0,0,0,.45);z-index:40;touch-action:none;pointer-events:auto;cursor:nwse-resize;}
+  .arr-handle.rot{background:var(--star);border-radius:50%;cursor:grab;}
   .arr-hint{font-size:11px;color:var(--muted);margin-top:5px;}
+  .arr-bar{position:sticky;top:46px;z-index:35;background:var(--bg);padding:6px 0 4px;}
+  .arr-on{outline:2px dashed var(--accent);outline-offset:4px;border-radius:12px;}
   .cropbox{position:absolute;border:2px dashed #fff;background:rgba(91,63,168,.25);pointer-events:none;}
   .cropwrap{position:relative;display:inline-block;max-width:100%;touch-action:none;}
   .cropwrap img{max-width:100%;max-height:56vh;display:block;border-radius:8px;}
@@ -201,6 +205,7 @@
   .photo-s0{width:56px;height:56px;}
   .photo-s1{width:96px;height:96px;}
   .photo-s2{width:160px;height:160px;}
+  .photo-s3{width:240px;height:240px;}
   .photo-btns{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;}
   .pbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:9px;padding:5px 9px;
     font-size:13px;font-weight:700;cursor:pointer;}
@@ -1462,9 +1467,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   });
 
   /* ---------- arrange-mode helpers ---------- */
+  /* ax = % of page width, ay = px from the top of the page, aw = % of page width */
   function arrLayout(photo,i){
-    if(photo.ax==null)photo.ax=6+(i%3)*31;
-    if(photo.ay==null)photo.ay=5+Math.floor(i/3)*33;
+    if(photo.aunit!=='px'){
+      if(photo.ay==null)photo.ay=16+Math.floor(i/3)*150;
+      else photo.ay=Math.round(photo.ay/100*420); /* migrate old in-box % coords */
+      photo.aunit='px';
+    }
+    if(photo.ax==null)photo.ax=4+(i%3)*31;
     if(photo.aw==null)photo.aw=28;
     if(photo.arot==null)photo.arot=0;
     return photo;
@@ -1567,51 +1577,77 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
 
   function arrangeUiHtml(p){
-    var h='<div class="arrange" id="arrCanvas">';
-    p.photos.forEach(function(photo,i){
-      arrLayout(photo,i);
-      h+='<img class="arr-img'+(i===arrSel?' sel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" '+
-         'style="left:'+photo.ax+'%;top:'+photo.ay+'%;width:'+photo.aw+'%;transform:rotate('+photo.arot+'deg);">';
-    });
-    h+='</div>';
-    h+='<div class="photo-btns">'+
-      '<button class="pbtn on" id="arrDone" type="button">✓ Done arranging</button>'+
-      '<button class="pbtn" id="arrAdd" type="button">＋ Add photo</button>'+
-      '<button class="pbtn" id="arrSold" type="button">★ Use as Sold cover</button>'+
-      '<button class="pbtn" id="arrResult" type="button">★ Use as Result cover</button>'+
+    var h='<div class="arr-bar">'+
+      '<div class="photo-btns">'+
+        '<button class="pbtn on" id="arrDone" type="button">✓ Done arranging</button>'+
+        '<button class="pbtn" id="arrAdd" type="button">＋ Add photo</button>'+
+        '<button class="pbtn" id="arrSmall" type="button">− Smaller</button>'+
+        '<button class="pbtn" id="arrBig" type="button">＋ Bigger</button>'+
+        '<button class="pbtn" id="arrTiltL" type="button">⟲ Tilt</button>'+
+        '<button class="pbtn" id="arrTiltR" type="button">⟳ Tilt</button>'+
+      '</div>'+
+      '<div class="photo-btns">'+
+        '<button class="pbtn" id="arrSold" type="button">★ Sold cover</button>'+
+        '<button class="pbtn" id="arrResult" type="button">★ Result cover</button>'+
+        '<button class="pbtn" id="arrCrop" type="button">⬚ Crop</button>'+
+        '<button class="pbtn" id="arrCut" type="button">✂ Cut out background</button>'+
+        '<button class="pbtn" id="arrReset" type="button">⤺ Reset layout</button>'+
+        '<button class="pbtn danger" id="arrDel" type="button">✕ Remove</button>'+
+      '</div>'+
+      '<div class="arr-hint">Drag photos anywhere on this page — beside the name, the rating, over the colour list, wherever. Tap one to select, then drag any <b>purple corner</b> to resize, or the <b>gold circle</b> to tilt (or use − / ＋ and ⟲ / ⟳). Paste (Ctrl+V) or ＋ Add drops a new image where you last tapped.</div>'+
       '</div>';
-    h+='<div class="photo-btns">'+
-      '<button class="pbtn" id="arrCrop" type="button">⬚ Crop</button>'+
-      '<button class="pbtn" id="arrCut" type="button">✂ Cut out background</button>'+
-      '<button class="pbtn" id="arrTiltL" type="button">⟲ Tilt</button>'+
-      '<button class="pbtn" id="arrTiltR" type="button">⟳ Tilt</button>'+
-      '<button class="pbtn" id="arrReset" type="button">⤺ Reset layout</button>'+
-      '<button class="pbtn danger" id="arrDel" type="button">✕ Remove</button>'+
-      '</div>';
-    h+='<div class="arr-hint">Drag any photo to move it. Tap one to select, then drag the <b>purple</b> handle to resize or the <b>gold</b> handle to tilt. Paste (Ctrl+V) or ＋ Add drops a new image in. “Use as cover” makes the selected photo the Sold or Result picture on the card. Crop and Cut-out change the picture itself.</div>';
     return h;
   }
-  function wireArrange(p){
-    var canvas=$('arrCanvas'); if(!canvas)return;
+  function buildArrLayer(p){
+    var pg=$('page'); if(!pg)return;
+    var old=document.getElementById('arrLayer'); if(old)old.remove();
+    if(!arrangeMode)return;
+    pg.style.position='relative';
+    var layer=document.createElement('div');
+    layer.id='arrLayer'; layer.className='arr-layer';
+    layer.style.height=Math.max(pg.scrollHeight,400)+'px';
+    p.photos.forEach(function(photo,i){
+      arrLayout(photo,i);
+      var im=document.createElement('img');
+      im.className='arr-img'+(i===arrSel?' sel':'');
+      im.setAttribute('data-i',i); im.src=photo.d; im.alt='';
+      im.style.left=photo.ax+'%'; im.style.top=photo.ay+'px';
+      im.style.width=photo.aw+'%'; im.style.transform='rotate('+photo.arot+'deg)';
+      layer.appendChild(im);
+    });
+    pg.appendChild(layer);
+    wireArrange(p,layer);
+  }
+  function wireArrange(p,layer){
+    if(!layer)return;
+    var CORNERS=[['nw',0,0],['ne',1,0],['sw',0,1],['se',1,1]];
+    function selImg(){return layer.querySelector('.arr-img[data-i="'+arrSel+'"]');}
     function syncHandles(){
-      var im=canvas.querySelector('.arr-img.sel'); var hs=canvas.querySelectorAll('.arr-handle');
-      if(!im||hs.length<2)return;
+      var im=selImg(); var hs=layer.querySelectorAll('.arr-handle');
+      if(!im||!hs.length)return;
       var L=im.offsetLeft,T=im.offsetTop,W=im.offsetWidth,H=im.offsetHeight;
-      hs[0].style.left=(L+W-11)+'px'; hs[0].style.top=(T+H-11)+'px';
-      hs[1].style.left=(L+W-11)+'px'; hs[1].style.top=(T-11)+'px';
+      hs.forEach(function(hh){
+        var k=hh.getAttribute('data-k');
+        if(k==='rot'){hh.style.left=(L+W/2-13)+'px';hh.style.top=(T-34)+'px';return;}
+        var c=CORNERS.filter(function(x){return x[0]===k;})[0]; if(!c)return;
+        hh.style.left=(L+c[1]*W-13)+'px'; hh.style.top=(T+c[2]*H-13)+'px';
+      });
     }
     function placeHandles(){
-      canvas.querySelectorAll('.arr-handle').forEach(function(x){x.remove();});
+      layer.querySelectorAll('.arr-handle').forEach(function(x){x.remove();});
       if(arrSel<0||arrSel>=p.photos.length)return;
-      var im=canvas.querySelector('.arr-img[data-i="'+arrSel+'"]'); if(!im)return;
-      var rs=document.createElement('div'); rs.className='arr-handle';
-      var rt=document.createElement('div'); rt.className='arr-handle rot';
-      canvas.appendChild(rs); canvas.appendChild(rt);
-      syncHandles(); wireHandle(rs,'size'); wireHandle(rt,'rot');
+      if(!selImg())return;
+      CORNERS.forEach(function(c){
+        var el=document.createElement('div'); el.className='arr-handle'; el.setAttribute('data-k',c[0]);
+        layer.appendChild(el); wireHandle(el,'size');
+      });
+      var rt=document.createElement('div'); rt.className='arr-handle rot'; rt.setAttribute('data-k','rot');
+      layer.appendChild(rt); wireHandle(rt,'rot');
+      syncHandles();
     }
     function selectArr(i){
       arrSel=i;
-      canvas.querySelectorAll('.arr-img').forEach(function(x){
+      layer.querySelectorAll('.arr-img').forEach(function(x){
         x.classList.toggle('sel',parseInt(x.getAttribute('data-i'),10)===i);
       });
       placeHandles();
@@ -1620,16 +1656,17 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       el.addEventListener('pointerdown',function(e){
         e.preventDefault(); e.stopPropagation();
         var photo=p.photos[arrSel]; if(!photo)return;
-        var im=canvas.querySelector('.arr-img[data-i="'+arrSel+'"]'); if(!im)return;
-        var r=canvas.getBoundingClientRect();
+        var im=selImg(); if(!im)return;
+        var r=layer.getBoundingClientRect();
         var cx=r.left+im.offsetLeft+im.offsetWidth/2, cy=r.top+im.offsetTop+im.offsetHeight/2;
-        var startX=e.clientX, aw0=photo.aw, rot0=photo.arot;
+        var aw0=photo.aw, rot0=photo.arot;
+        var d0=Math.max(8,Math.hypot(e.clientX-cx,e.clientY-cy));
         var startAng=Math.atan2(e.clientY-cy,e.clientX-cx)*180/Math.PI;
         try{el.setPointerCapture(e.pointerId);}catch(_){}
         function move(ev){
           if(kind==='size'){
-            var dx=(ev.clientX-startX)/r.width*100;
-            photo.aw=Math.max(6,Math.min(110,aw0+dx));
+            var d1=Math.hypot(ev.clientX-cx,ev.clientY-cy);
+            photo.aw=Math.max(5,Math.min(140,aw0*(d1/d0)));
             im.style.width=photo.aw+'%';
           }else{
             var ang=Math.atan2(ev.clientY-cy,ev.clientX-cx)*180/Math.PI;
@@ -1646,25 +1683,22 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         el.addEventListener('pointermove',move); el.addEventListener('pointerup',up);
       });
     }
-    canvas.addEventListener('pointerdown',function(e){
-      var r=canvas.getBoundingClientRect();
-      lastPastePt={x:Math.max(0,Math.min(90,(e.clientX-r.left)/r.width*100)),y:Math.max(0,Math.min(90,(e.clientY-r.top)/r.height*100))};
-    });
-    canvas.querySelectorAll('.arr-img').forEach(function(im){
+    layer.querySelectorAll('.arr-img').forEach(function(im){
       im.addEventListener('pointerdown',function(e){
         e.preventDefault();
         var i=parseInt(im.getAttribute('data-i'),10);
         selectArr(i);
         var photo=p.photos[i]; if(!photo)return;
-        var r=canvas.getBoundingClientRect();
+        var r=layer.getBoundingClientRect();
+        lastPastePt={x:Math.max(0,Math.min(88,(e.clientX-r.left)/r.width*100)),y:Math.max(0,e.clientY-r.top)};
         var startX=e.clientX,startY=e.clientY,ax0=photo.ax,ay0=photo.ay,moved=false;
         try{im.setPointerCapture(e.pointerId);}catch(_){}
         function move(ev){
-          var dx=(ev.clientX-startX)/r.width*100, dy=(ev.clientY-startY)/r.height*100;
-          if(Math.abs(dx)>0.4||Math.abs(dy)>0.4)moved=true;
-          photo.ax=Math.max(-25,Math.min(100,ax0+dx));
-          photo.ay=Math.max(-25,Math.min(100,ay0+dy));
-          im.style.left=photo.ax+'%'; im.style.top=photo.ay+'%';
+          var dx=(ev.clientX-startX)/r.width*100, dy=(ev.clientY-startY);
+          if(Math.abs(dx)>0.4||Math.abs(dy)>3)moved=true;
+          photo.ax=Math.max(-30,Math.min(102,ax0+dx));
+          photo.ay=Math.max(-20,ay0+dy);
+          im.style.left=photo.ax+'%'; im.style.top=photo.ay+'px';
           syncHandles();
         }
         function up(ev){
@@ -1676,6 +1710,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       });
     });
     if(arrSel>=0)placeHandles();
+
+    function resizeSel(mult){
+      if(needSel())return;
+      var photo=p.photos[arrSel];
+      photo.aw=Math.max(5,Math.min(140,(photo.aw||28)*mult));
+      var im=selImg(); if(im)im.style.width=photo.aw+'%';
+      syncHandles(); savePhotos(p.id); pushHistory();
+    }
+    if($('arrSmall'))$('arrSmall').addEventListener('click',function(){resizeSel(1/1.18);});
+    if($('arrBig'))$('arrBig').addEventListener('click',function(){resizeSel(1.18);});
 
     function needSel(){ if(arrSel<0||arrSel>=p.photos.length){toast('Tap a photo first',1400);return true;} return false; }
     $('arrDone').addEventListener('click',function(){arrangeMode=false;arrSel=-1;renderPainting();});
@@ -1759,6 +1803,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       ph+='<div class="photo-btns">'+
         '<button class="pbtn" id="phSold" type="button">★ Sold (1st)</button>'+
         '<button class="pbtn" id="phResult" type="button">★ Result (2nd)</button>'+
+        '<button class="pbtn" id="phSmaller" type="button">− Smaller</button>'+
+        '<button class="pbtn" id="phBigger" type="button">＋ Bigger</button>'+
         '<button class="pbtn" id="phLeft" type="button">◀ order</button>'+
         '<button class="pbtn" id="phRight" type="button">order ▶</button>'+
         '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
@@ -1973,7 +2019,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
 
     /* photos events */
-    if(arrangeMode){ wireArrange(p); } else {
+    if(arrangeMode){ /* the draggable layer + its toolbar are wired in buildArrLayer() */ } else {
     pg.querySelectorAll('.photo-grid img').forEach(function(im){
       im.addEventListener('click',function(){
         var i=parseInt(im.getAttribute('data-i'),10);
@@ -1995,6 +2041,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       });
       $('phRight').addEventListener('click',function(){
         if(selPhoto<p.photos.length-1){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto+1,0,a);selPhoto++;renderPainting();savePhotos(p.id);}
+      });
+      if($('phSmaller'))$('phSmaller').addEventListener('click',function(){
+        var ph2=p.photos[selPhoto]; ph2.s=Math.max(0,(ph2.s==null?1:ph2.s)-1); renderPainting(); savePhotos(p.id);
+      });
+      if($('phBigger'))$('phBigger').addEventListener('click',function(){
+        var ph2=p.photos[selPhoto]; ph2.s=Math.min(3,(ph2.s==null?1:ph2.s)+1); renderPainting(); savePhotos(p.id);
       });
       $('phFit').addEventListener('click',function(){
         var ph2=p.photos[selPhoto]; ph2.fit=((ph2.fit||'cover')==='contain')?'cover':'contain'; renderPainting(); savePhotos(p.id);
@@ -2196,6 +2248,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       showUndo(doomed, doomedIdx);
     });
     renderGrid();
+    if(arrangeMode)buildArrLayer(p);
   }
   function renderTabsOnly(){renderTabs();}
 
