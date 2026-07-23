@@ -154,6 +154,19 @@
   .pins{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 6px;}
   .pin{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--line);border-radius:999px;padding:2px 8px 2px 3px;font-size:11.5px;font-weight:800;cursor:pointer;background:var(--panel);}
   .pin .dot{width:15px;height:15px;border-radius:50%;border:1px solid rgba(0,0,0,.15);}
+  .selbox{width:20px;height:20px;border-radius:6px;border:2px solid var(--line);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;}
+  .selbox.on{background:var(--accent);border-color:var(--accent);}
+  .ovcard.picked{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset;}
+  /* ---- arrange mode ---- */
+  .arrange{position:relative;width:100%;height:420px;background:var(--unk-soft);border:1.5px dashed var(--line);border-radius:14px;overflow:hidden;touch-action:none;}
+  .arr-img{position:absolute;display:block;cursor:grab;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.18);user-select:none;-webkit-user-drag:none;}
+  .arr-img.sel{outline:2.5px solid var(--accent);outline-offset:2px;}
+  .arr-handle{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);z-index:5;touch-action:none;}
+  .arr-handle.rot{background:var(--star);}
+  .arr-hint{font-size:11px;color:var(--muted);margin-top:5px;}
+  .cropbox{position:absolute;border:2px dashed #fff;background:rgba(91,63,168,.25);pointer-events:none;}
+  .cropwrap{position:relative;display:inline-block;max-width:100%;touch-action:none;}
+  .cropwrap img{max-width:100%;max-height:56vh;display:block;border-radius:8px;}
   .mini{width:16px;height:16px;border-radius:5px;border:1px solid rgba(0,0,0,.14);
     background-image:linear-gradient(135deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 50%,rgba(0,0,0,.1) 100%);}
   .mini.more{background:var(--unk-soft);color:var(--unk);font-size:9px;font-weight:800;width:auto;padding:0 5px;
@@ -293,6 +306,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var query='', findQuery='', findType='any', pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, armed={};
   var collapsedGroups={}, colorFamily='', showPaste=false, undoData=null, undoTimer=null;
+  var history=[], histIdx=-1, histT=null, photoCache={}, clipboard=[], trash=[];
+  var selectMode=false, selectedIds={};
+  var arrangeMode=false, arrSel=-1, cropOn=false, cropRect=null, lastPastePt=null;
   var syncPhase='';   /* '' normal, 'choose' after enabling when cloud already has data */
   var DMCMAP={}; DMC.forEach(function(r){DMCMAP[r[0]]=r;});
   var DMCLOWER={}; DMC.forEach(function(r){DMCLOWER[r[0].toLowerCase()]=r[0];});
@@ -470,7 +486,57 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     document.body.appendChild(bar);
     undoTimer=setTimeout(function(){bar.remove();},7000);
   }
-  function saveEdit(){var a=active();if(a)a.updatedAt=nowTs();save();}
+  function saveEdit(){var a=active();if(a)a.updatedAt=nowTs();save();pushHistory();}
+
+  /* ---------- undo / redo history (data only; photos are re-linked) ---------- */
+  function dataSnapshot(){
+    return JSON.stringify({
+      paintings:state.paintings.map(function(p){var c={};for(var k in p){if(k!=='photos')c[k]=p[k];}return c;}),
+      specials:state.specials, sellers:state.sellers, tags:state.tags, sizes:state.sizes
+    });
+  }
+  function cachePhotos(){state.paintings.forEach(function(p){if(p.photos)photoCache[p.id]=p.photos;});}
+  function historyInit(){cachePhotos();history=[dataSnapshot()];histIdx=0;}
+  function pushHistory(){
+    clearTimeout(histT);
+    histT=setTimeout(function(){
+      cachePhotos();
+      var snap=dataSnapshot();
+      if(history[histIdx]===snap)return;
+      history=history.slice(0,histIdx+1);
+      history.push(snap);
+      if(history.length>40)history.shift();
+      histIdx=history.length-1;
+      refreshUndoBtns();
+    },350);
+  }
+  function canUndo(){return histIdx>0;}
+  function canRedo(){return histIdx>=0&&histIdx<history.length-1;}
+  function refreshUndoBtns(){
+    ['undoBtn','redoBtn','undoBtn2','redoBtn2'].forEach(function(id){
+      var b=$(id); if(!b)return;
+      var isUndo=/undo/i.test(id);
+      b.disabled=isUndo?!canUndo():!canRedo();
+      b.style.opacity=b.disabled?'.45':'1';
+    });
+  }
+  function applySnapshot(json){
+    cachePhotos();
+    var d;try{d=JSON.parse(json);}catch(e){return;}
+    var keepView=state.view, keepActive=state.active;
+    state.paintings=d.paintings.map(function(p){p.photos=photoCache[p.id]||[];return p;});
+    state.specials=d.specials||{}; state.sellers=d.sellers||[]; state.tags=d.tags||[]; state.sizes=d.sizes||[];
+    normalize(state);
+    var stillThere=state.paintings.some(function(p){return p.id===keepActive;});
+    state.active=stillThere?keepActive:(state.paintings[0]?state.paintings[0].id:'');
+    state.view=(keepView==='paint'&&!stillThere)?'paintings':keepView;
+    resetTransient();
+    render(); save();
+    state.paintings.forEach(function(p){if(p.photos&&p.photos.length)savePhotos(p.id);});
+    refreshUndoBtns();
+  }
+  function doUndo(){if(!canUndo())return;clearTimeout(histT);histIdx--;applySnapshot(history[histIdx]);toast('Undone ↶',900);}
+  function doRedo(){if(!canRedo())return;clearTimeout(histT);histIdx++;applySnapshot(history[histIdx]);toast('Redone ↷',900);}
   function fmtDate(ts){
     if(!ts)return 'unknown date';
     try{
@@ -702,7 +768,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     openStore(function(){
       hydrate(function(){
         cb();
-        cloudPull(function(ch){if(ch)hydrate(function(){render();});});
+        historyInit();
+        cloudPull(function(ch){if(ch)hydrate(function(){render();historyInit();});});
         startSyncLoop();
         maybeAutoBackup();
       });
@@ -743,10 +810,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     mk('add','+ New painting',function(){
       var p={id:uid(),name:'Painting '+(state.paintings.length+1),colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:nowTs()};
       state.paintings.push(p); state.active=p.id; state.view='paint';
-      renaming=true; render(); save();
+      renaming=true; render(); save(); pushHistory();
     },false);
   }
-  function resetTransient(){renaming=false;expandedColor=null;expandedSpec=null;expandedSize=null;selPhoto=-1;editFin={};armed={};}
+  function resetTransient(){renaming=false;expandedColor=null;expandedSpec=null;expandedSize=null;selPhoto=-1;editFin={};armed={};arrangeMode=false;arrSel=-1;}
 
   /* ---------- overview ---------- */
   function renderOverview(){
@@ -984,8 +1051,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var stripeCls=st?' stripe':'';
     var stripeStyle=st?' style="--stripe:'+st.fg+'"':'';
     var thumbc=(p.photos&&p.photos.length)?'<img class="ovthumbc" src="'+p.photos[0].d+'" alt="" style="'+photoStyle(p.photos[0])+'">':'';
-    return '<div class="ovcard'+stripeCls+(state.density==='compact'?' compact':'')+'" data-id="'+p.id+'"'+stripeStyle+'>'+
-      '<div class="ovtop">'+thumbc+'<span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
+    var selBox=selectMode?('<span class="selbox'+(selectedIds[p.id]?' on':'')+'">'+(selectedIds[p.id]?'✓':'')+'</span>'):'';
+    return '<div class="ovcard'+stripeCls+(state.density==='compact'?' compact':'')+(selectedIds[p.id]?' picked':'')+'" data-id="'+p.id+'"'+stripeStyle+'>'+
+      '<div class="ovtop">'+selBox+thumbc+'<span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
       '<div class="ovbody">'+
         '<div class="ovinfo">'+
           '<div class="ovsub">'+sub+'</div>'+
@@ -1086,6 +1154,51 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(state.pGroup==='none')return '<div class="ovlist">'+list.map(paintingCardHtml).join('')+'</div>';
     return groupedHtml(list);
   }
+  function newPainting(name){
+    return {id:uid(),name:name||'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,
+      tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:nowTs()};
+  }
+  function selectedList(){return state.paintings.filter(function(p){return selectedIds[p.id];});}
+  function copySelected(){
+    var sel=selectedList();
+    if(!sel.length){toast('Tick some paintings first',1500);return;}
+    clipboard=sel.map(function(p){return JSON.parse(JSON.stringify(p));});
+    toast('Copied '+clipboard.length+' painting'+(clipboard.length===1?'':'s')+' ✓',1400);
+    renderPaintings();
+  }
+  function pasteClipboard(){
+    if(!clipboard.length){toast('Nothing copied yet',1200);return;}
+    var added=[];
+    clipboard.forEach(function(src){
+      var c=JSON.parse(JSON.stringify(src));
+      c.id=uid(); c.name=(src.name||'Painting')+' (copy)'; c.updatedAt=nowTs();
+      state.paintings.push(c); added.push(c);
+    });
+    render(); save(); pushHistory();
+    added.forEach(function(c){if(c.photos&&c.photos.length)savePhotos(c.id);});
+    toast('Pasted '+added.length+' painting'+(added.length===1?'':'s')+' ✓',1400);
+  }
+  function deleteSelected(){
+    var sel=selectedList();
+    if(!sel.length){toast('Tick some paintings first',1500);return;}
+    sel.forEach(function(p){trash.unshift({p:p,idx:state.paintings.indexOf(p)});});
+    if(trash.length>20)trash.length=20;
+    state.paintings=state.paintings.filter(function(p){return !selectedIds[p.id];});
+    if(!state.paintings.length)state.paintings=[newPainting('Painting 1')];
+    if(!state.paintings.some(function(p){return p.id===state.active;}))state.active=state.paintings[0].id;
+    selectedIds={};
+    render(); save(); pushHistory();
+    toast('Deleted '+sel.length+' ✓ — tap ♻ Restore to bring back',2200);
+  }
+  function restoreLast(){
+    if(!trash.length){toast('Nothing to restore',1200);return;}
+    var t=trash.shift();
+    var at=Math.min(t.idx,state.paintings.length);
+    state.paintings.splice(at,0,t.p);
+    render(); save(); pushHistory();
+    if(t.p.photos&&t.p.photos.length)savePhotos(t.p.id);
+    toast('Restored “'+t.p.name+'” ✓',1400);
+  }
   function openLightbox(src){
     var lb=document.createElement('div'); lb.className='lightbox';
     var im=document.createElement('img'); im.src=src; lb.appendChild(im);
@@ -1095,7 +1208,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function wirePaintingCards(){
     $('page').querySelectorAll('.ovcard').forEach(function(c){
       c.addEventListener('click',function(){
-        state.active=c.getAttribute('data-id'); state.view='paint';
+        var id=c.getAttribute('data-id');
+        if(selectMode){
+          if(selectedIds[id])delete selectedIds[id]; else selectedIds[id]=1;
+          renderPaintings();
+          return;
+        }
+        state.active=id; state.view='paint';
         resetTransient(); render(); save();
       });
     });
@@ -1117,6 +1236,15 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var phMap={all:'Search name, seller, tag, code, diamond #…',name:'Search painting name…',diamond:'Search diamond number, e.g. 321…',seller:'Search seller…',code:'Search kit code…',tag:'Search tag…'};
     var ph=phMap[state.pSearchField]||'Search…';
     var html='<div class="toolbar"><label class="search">🔎<input id="pq" type="text" inputmode="search" placeholder="'+esc(ph)+'" value="'+esc(pQuery)+'"></label></div>';
+    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Actions:</span>'+
+      '<button class="chipbtn" id="undoBtn" type="button">↶ Undo</button>'+
+      '<button class="chipbtn" id="redoBtn" type="button">↷ Redo</button>'+
+      '<button class="chipbtn'+(selectMode?' on':'')+'" id="selBtn" type="button">☑ Select</button>'+
+      (selectMode?('<button class="chipbtn" id="copyBtn" type="button">⧉ Copy</button>'+
+                   '<button class="chipbtn danger" id="delBtn" type="button">🗑 Delete</button>'):'')+
+      (clipboard.length?('<button class="chipbtn" id="pasteBtn" type="button">📋 Paste ('+clipboard.length+')</button>'):'')+
+      (trash.length?('<button class="chipbtn" id="restoreBtn" type="button">♻ Restore ('+trash.length+')</button>'):'')+
+      '</div>';
     html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Search in:</span>'+
       SF.map(function(x){return '<button class="chipbtn'+(state.pSearchField===x[0]?' on':'')+'" data-sf="'+x[0]+'" type="button">'+x[1]+'</button>';}).join('')+'</div>';
     html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Group:</span>'+
@@ -1133,7 +1261,18 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     pg.querySelectorAll('[data-g]').forEach(function(b){b.addEventListener('click',function(){state.pGroup=b.getAttribute('data-g');renderPaintings();save();});});
     pg.querySelectorAll('[data-sf]').forEach(function(b){b.addEventListener('click',function(){state.pSearchField=b.getAttribute('data-sf');renderPaintings();save();});});
     $('pq').addEventListener('input',function(e){pQuery=e.target.value;renderPaintingsList();});
+    if($('undoBtn'))$('undoBtn').addEventListener('click',doUndo);
+    if($('redoBtn'))$('redoBtn').addEventListener('click',doRedo);
+    if($('selBtn'))$('selBtn').addEventListener('click',function(){selectMode=!selectMode;if(!selectMode)selectedIds={};renderPaintings();});
+    if($('copyBtn'))$('copyBtn').addEventListener('click',copySelected);
+    if($('delBtn'))$('delBtn').addEventListener('click',function(){
+      if(!twoTap('delsel',$('delBtn'),'Tap again to delete'))return;
+      deleteSelected();
+    });
+    if($('pasteBtn'))$('pasteBtn').addEventListener('click',pasteClipboard);
+    if($('restoreBtn'))$('restoreBtn').addEventListener('click',restoreLast);
     renderPaintingsList();
+    refreshUndoBtns();
   }
 
   /* ---------- cloud sync UI (email + password) ---------- */
@@ -1297,9 +1436,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         cv.getContext('2d').drawImage(img,0,0,w,h);
         var d=cv.toDataURL('image/jpeg',0.72);
         var p=active();
-        p.photos.push({d:d,s:1});
-        selPhoto=p.photos.length-1;
-        renderPainting(); savePhotos(p.id);
+        var np={d:d,s:1};
+        if(arrangeMode){
+          np.ax=lastPastePt?lastPastePt.x:38; np.ay=lastPastePt?lastPastePt.y:34;
+          np.aw=28; np.arot=0;
+        }
+        p.photos.push(np);
+        if(arrangeMode)arrSel=p.photos.length-1; else selPhoto=p.photos.length-1;
+        renderPainting(); savePhotos(p.id); pushHistory();
         toast('Photo added ✓',900);
       };
       img.src=rd.result;
@@ -1317,19 +1461,289 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     }
   });
 
+  /* ---------- arrange-mode helpers ---------- */
+  function arrLayout(photo,i){
+    if(photo.ax==null)photo.ax=6+(i%3)*31;
+    if(photo.ay==null)photo.ay=5+Math.floor(i/3)*33;
+    if(photo.aw==null)photo.aw=28;
+    if(photo.arot==null)photo.arot=0;
+    return photo;
+  }
+  /* trim/knock out a plain background: flood-fill inwards from the edges, then crop to what's left */
+  function cutOutBackground(photo,cb){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width,h=img.height;
+      if(!w||!h){cb(false);return;}
+      var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      var ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
+      var data;try{data=ctx.getImageData(0,0,w,h);}catch(e){cb(false);return;}
+      var d=data.data,n=w*h;
+      function at(x,y){var i=(y*w+x)*4;return [d[i],d[i+1],d[i+2]];}
+      var cs=[at(0,0),at(w-1,0),at(0,h-1),at(w-1,h-1)],bg=[0,0,0];
+      cs.forEach(function(c){bg[0]+=c[0];bg[1]+=c[1];bg[2]+=c[2];});
+      bg=[bg[0]/4,bg[1]/4,bg[2]/4];
+      var tol=62, seen=new Uint8Array(n), stack=[];
+      function near(i){var r=d[i*4]-bg[0],g=d[i*4+1]-bg[1],b=d[i*4+2]-bg[2];return (r*r+g*g+b*b)<tol*tol;}
+      for(var x=0;x<w;x++){stack.push(x);stack.push((h-1)*w+x);}
+      for(var y=0;y<h;y++){stack.push(y*w);stack.push(y*w+w-1);}
+      while(stack.length){
+        var i=stack.pop();
+        if(i<0||i>=n||seen[i])continue;
+        if(!near(i))continue;
+        seen[i]=1; d[i*4+3]=0;
+        var xx=i%w, yy=(i-xx)/w;
+        if(xx>0)stack.push(i-1);
+        if(xx<w-1)stack.push(i+1);
+        if(yy>0)stack.push(i-w);
+        if(yy<h-1)stack.push(i+w);
+      }
+      var minX=w,minY=h,maxX=-1,maxY=-1;
+      for(var j=0;j<n;j++){
+        if(d[j*4+3]>10){var jx=j%w,jy=(j-jx)/w;
+          if(jx<minX)minX=jx; if(jx>maxX)maxX=jx;
+          if(jy<minY)minY=jy; if(jy>maxY)maxY=jy;}
+      }
+      if(maxX<0){cb(false);return;}
+      ctx.putImageData(data,0,0);
+      var cw=maxX-minX+1, chh=maxY-minY+1;
+      var out=document.createElement('canvas');out.width=cw;out.height=chh;
+      out.getContext('2d').drawImage(cv,minX,minY,cw,chh,0,0,cw,chh);
+      photo.d=out.toDataURL('image/png');
+      cb(true);
+    };
+    img.onerror=function(){cb(false);};
+    img.src=photo.d;
+  }
+  /* drag-a-rectangle crop overlay */
+  function openCrop(photo,cb){
+    var ov=document.createElement('div'); ov.className='lightbox';
+    ov.style.flexDirection='column'; ov.style.gap='10px'; ov.style.cursor='default';
+    var hint=document.createElement('div'); hint.style.cssText='color:#fff;font-size:12.5px;font-weight:700;';
+    hint.textContent='Drag on the image to choose the part to keep.';
+    var wrap=document.createElement('div'); wrap.className='cropwrap';
+    var im=document.createElement('img'); im.src=photo.d; wrap.appendChild(im);
+    var box=document.createElement('div'); box.className='cropbox'; box.style.display='none'; wrap.appendChild(box);
+    var bar=document.createElement('div'); bar.style.cssText='display:flex;gap:8px;';
+    var apply=document.createElement('button'); apply.className='chipbtn'; apply.textContent='Apply crop';
+    apply.style.cssText='background:#5B3FA8;color:#fff;border-color:#5B3FA8;';
+    var cancel=document.createElement('button'); cancel.className='chipbtn'; cancel.textContent='Cancel';
+    bar.appendChild(apply); bar.appendChild(cancel);
+    ov.appendChild(hint); ov.appendChild(wrap); ov.appendChild(bar);
+    document.body.appendChild(ov);
+    var sx=0,sy=0,ex=0,ey=0,drawing=false;
+    function upd(){
+      var l=Math.min(sx,ex),t=Math.min(sy,ey),ww=Math.abs(ex-sx),hh=Math.abs(ey-sy);
+      box.style.left=l+'px';box.style.top=t+'px';box.style.width=ww+'px';box.style.height=hh+'px';
+    }
+    wrap.addEventListener('pointerdown',function(e){
+      var r=im.getBoundingClientRect(); drawing=true;
+      sx=e.clientX-r.left; sy=e.clientY-r.top; ex=sx; ey=sy;
+      box.style.display='block'; upd();
+      try{wrap.setPointerCapture(e.pointerId);}catch(_){}
+    });
+    wrap.addEventListener('pointermove',function(e){
+      if(!drawing)return; var r=im.getBoundingClientRect();
+      ex=e.clientX-r.left; ey=e.clientY-r.top; upd();
+    });
+    wrap.addEventListener('pointerup',function(e){drawing=false;try{wrap.releasePointerCapture(e.pointerId);}catch(_){}});
+    cancel.addEventListener('click',function(){ov.remove();cb(false);});
+    apply.addEventListener('click',function(){
+      var r=im.getBoundingClientRect();
+      var l=Math.min(sx,ex),t=Math.min(sy,ey),ww=Math.abs(ex-sx),hh=Math.abs(ey-sy);
+      if(ww<8||hh<8){ov.remove();cb(false);return;}
+      var scale=im.naturalWidth/r.width;
+      var img2=new Image();
+      img2.onload=function(){
+        var cv=document.createElement('canvas');
+        cv.width=Math.max(1,Math.round(ww*scale)); cv.height=Math.max(1,Math.round(hh*scale));
+        cv.getContext('2d').drawImage(img2,Math.round(l*scale),Math.round(t*scale),cv.width,cv.height,0,0,cv.width,cv.height);
+        photo.d=cv.toDataURL('image/jpeg',0.85);
+        ov.remove(); cb(true);
+      };
+      img2.onerror=function(){ov.remove();cb(false);};
+      img2.src=photo.d;
+    });
+  }
+
+  function arrangeUiHtml(p){
+    var h='<div class="arrange" id="arrCanvas">';
+    p.photos.forEach(function(photo,i){
+      arrLayout(photo,i);
+      h+='<img class="arr-img'+(i===arrSel?' sel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" '+
+         'style="left:'+photo.ax+'%;top:'+photo.ay+'%;width:'+photo.aw+'%;transform:rotate('+photo.arot+'deg);">';
+    });
+    h+='</div>';
+    h+='<div class="photo-btns">'+
+      '<button class="pbtn on" id="arrDone" type="button">✓ Done arranging</button>'+
+      '<button class="pbtn" id="arrAdd" type="button">＋ Add photo</button>'+
+      '<button class="pbtn" id="arrSold" type="button">★ Use as Sold cover</button>'+
+      '<button class="pbtn" id="arrResult" type="button">★ Use as Result cover</button>'+
+      '</div>';
+    h+='<div class="photo-btns">'+
+      '<button class="pbtn" id="arrCrop" type="button">⬚ Crop</button>'+
+      '<button class="pbtn" id="arrCut" type="button">✂ Cut out background</button>'+
+      '<button class="pbtn" id="arrTiltL" type="button">⟲ Tilt</button>'+
+      '<button class="pbtn" id="arrTiltR" type="button">⟳ Tilt</button>'+
+      '<button class="pbtn" id="arrReset" type="button">⤺ Reset layout</button>'+
+      '<button class="pbtn danger" id="arrDel" type="button">✕ Remove</button>'+
+      '</div>';
+    h+='<div class="arr-hint">Drag any photo to move it. Tap one to select, then drag the <b>purple</b> handle to resize or the <b>gold</b> handle to tilt. Paste (Ctrl+V) or ＋ Add drops a new image in. “Use as cover” makes the selected photo the Sold or Result picture on the card. Crop and Cut-out change the picture itself.</div>';
+    return h;
+  }
+  function wireArrange(p){
+    var canvas=$('arrCanvas'); if(!canvas)return;
+    function syncHandles(){
+      var im=canvas.querySelector('.arr-img.sel'); var hs=canvas.querySelectorAll('.arr-handle');
+      if(!im||hs.length<2)return;
+      var L=im.offsetLeft,T=im.offsetTop,W=im.offsetWidth,H=im.offsetHeight;
+      hs[0].style.left=(L+W-11)+'px'; hs[0].style.top=(T+H-11)+'px';
+      hs[1].style.left=(L+W-11)+'px'; hs[1].style.top=(T-11)+'px';
+    }
+    function placeHandles(){
+      canvas.querySelectorAll('.arr-handle').forEach(function(x){x.remove();});
+      if(arrSel<0||arrSel>=p.photos.length)return;
+      var im=canvas.querySelector('.arr-img[data-i="'+arrSel+'"]'); if(!im)return;
+      var rs=document.createElement('div'); rs.className='arr-handle';
+      var rt=document.createElement('div'); rt.className='arr-handle rot';
+      canvas.appendChild(rs); canvas.appendChild(rt);
+      syncHandles(); wireHandle(rs,'size'); wireHandle(rt,'rot');
+    }
+    function selectArr(i){
+      arrSel=i;
+      canvas.querySelectorAll('.arr-img').forEach(function(x){
+        x.classList.toggle('sel',parseInt(x.getAttribute('data-i'),10)===i);
+      });
+      placeHandles();
+    }
+    function wireHandle(el,kind){
+      el.addEventListener('pointerdown',function(e){
+        e.preventDefault(); e.stopPropagation();
+        var photo=p.photos[arrSel]; if(!photo)return;
+        var im=canvas.querySelector('.arr-img[data-i="'+arrSel+'"]'); if(!im)return;
+        var r=canvas.getBoundingClientRect();
+        var cx=r.left+im.offsetLeft+im.offsetWidth/2, cy=r.top+im.offsetTop+im.offsetHeight/2;
+        var startX=e.clientX, aw0=photo.aw, rot0=photo.arot;
+        var startAng=Math.atan2(e.clientY-cy,e.clientX-cx)*180/Math.PI;
+        try{el.setPointerCapture(e.pointerId);}catch(_){}
+        function move(ev){
+          if(kind==='size'){
+            var dx=(ev.clientX-startX)/r.width*100;
+            photo.aw=Math.max(6,Math.min(110,aw0+dx));
+            im.style.width=photo.aw+'%';
+          }else{
+            var ang=Math.atan2(ev.clientY-cy,ev.clientX-cx)*180/Math.PI;
+            photo.arot=Math.round(rot0+(ang-startAng));
+            im.style.transform='rotate('+photo.arot+'deg)';
+          }
+          syncHandles();
+        }
+        function up(ev){
+          try{el.releasePointerCapture(ev.pointerId);}catch(_){}
+          el.removeEventListener('pointermove',move); el.removeEventListener('pointerup',up);
+          savePhotos(p.id); pushHistory();
+        }
+        el.addEventListener('pointermove',move); el.addEventListener('pointerup',up);
+      });
+    }
+    canvas.addEventListener('pointerdown',function(e){
+      var r=canvas.getBoundingClientRect();
+      lastPastePt={x:Math.max(0,Math.min(90,(e.clientX-r.left)/r.width*100)),y:Math.max(0,Math.min(90,(e.clientY-r.top)/r.height*100))};
+    });
+    canvas.querySelectorAll('.arr-img').forEach(function(im){
+      im.addEventListener('pointerdown',function(e){
+        e.preventDefault();
+        var i=parseInt(im.getAttribute('data-i'),10);
+        selectArr(i);
+        var photo=p.photos[i]; if(!photo)return;
+        var r=canvas.getBoundingClientRect();
+        var startX=e.clientX,startY=e.clientY,ax0=photo.ax,ay0=photo.ay,moved=false;
+        try{im.setPointerCapture(e.pointerId);}catch(_){}
+        function move(ev){
+          var dx=(ev.clientX-startX)/r.width*100, dy=(ev.clientY-startY)/r.height*100;
+          if(Math.abs(dx)>0.4||Math.abs(dy)>0.4)moved=true;
+          photo.ax=Math.max(-25,Math.min(100,ax0+dx));
+          photo.ay=Math.max(-25,Math.min(100,ay0+dy));
+          im.style.left=photo.ax+'%'; im.style.top=photo.ay+'%';
+          syncHandles();
+        }
+        function up(ev){
+          try{im.releasePointerCapture(ev.pointerId);}catch(_){}
+          im.removeEventListener('pointermove',move); im.removeEventListener('pointerup',up);
+          if(moved){savePhotos(p.id); pushHistory();}
+        }
+        im.addEventListener('pointermove',move); im.addEventListener('pointerup',up);
+      });
+    });
+    if(arrSel>=0)placeHandles();
+
+    function needSel(){ if(arrSel<0||arrSel>=p.photos.length){toast('Tap a photo first',1400);return true;} return false; }
+    $('arrDone').addEventListener('click',function(){arrangeMode=false;arrSel=-1;renderPainting();});
+    $('arrAdd').addEventListener('click',function(){$('fileInput').click();});
+    $('arrSold').addEventListener('click',function(){
+      if(needSel())return;
+      var a=p.photos.splice(arrSel,1)[0]; p.photos.unshift(a); arrSel=0;
+      renderPainting(); savePhotos(p.id); pushHistory(); toast('Set as Sold cover ✓',1300);
+    });
+    $('arrResult').addEventListener('click',function(){
+      if(needSel())return;
+      var a=p.photos.splice(arrSel,1)[0]; var to=Math.min(1,p.photos.length);
+      p.photos.splice(to,0,a); arrSel=to;
+      renderPainting(); savePhotos(p.id); pushHistory(); toast('Set as Result cover ✓',1300);
+    });
+    $('arrTiltL').addEventListener('click',function(){
+      if(needSel())return;
+      p.photos[arrSel].arot=(p.photos[arrSel].arot||0)-5; renderPainting(); savePhotos(p.id); pushHistory();
+    });
+    $('arrTiltR').addEventListener('click',function(){
+      if(needSel())return;
+      p.photos[arrSel].arot=(p.photos[arrSel].arot||0)+5; renderPainting(); savePhotos(p.id); pushHistory();
+    });
+    $('arrReset').addEventListener('click',function(){
+      p.photos.forEach(function(photo,i){photo.ax=null;photo.ay=null;photo.aw=null;photo.arot=null;arrLayout(photo,i);});
+      renderPainting(); savePhotos(p.id); pushHistory(); toast('Layout reset ✓',1100);
+    });
+    $('arrDel').addEventListener('click',function(){
+      if(needSel())return;
+      if(!twoTap('arrdel',$('arrDel'),'✕ remove?'))return;
+      p.photos.splice(arrSel,1); arrSel=-1;
+      renderPainting(); savePhotos(p.id); pushHistory(); toast('Photo removed',1000);
+    });
+    $('arrCrop').addEventListener('click',function(){
+      if(needSel())return;
+      openCrop(p.photos[arrSel],function(ok){
+        if(ok){renderPainting();savePhotos(p.id);pushHistory();toast('Cropped ✓',1200);}
+      });
+    });
+    $('arrCut').addEventListener('click',function(){
+      if(needSel())return;
+      toast('Cutting out background…',1200);
+      var photo=p.photos[arrSel];
+      setTimeout(function(){
+        cutOutBackground(photo,function(ok){
+          if(ok){renderPainting();savePhotos(p.id);pushHistory();toast('Background cut out ✓',1400);}
+          else toast('Could not cut this one out — works best on a plain/white background',2600);
+        });
+      },40);
+    });
+  }
+
   /* ---------- painting page ---------- */
   function renderPainting(){
     var p=active();
     var pg=$('page');
 
     /* photos block */
-    var ph='<div class="photo-grid">';
+    var ph='';
+    if(arrangeMode){ ph=arrangeUiHtml(p); } else {
+    ph+='<div class="photo-grid">';
     p.photos.forEach(function(photo,i){
       var lbl=(i===0?'<span class="pg-lbl">Sold</span>':(i===1?'<span class="pg-lbl">Result</span>':''));
       ph+='<div class="pg-item">'+lbl+'<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" style="'+photoStyle(photo)+'"></div>';
     });
     ph+='</div>';
-    ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button></div>';
+    ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
+      (p.photos.length?'<button class="pbtn" id="arrEnter" type="button">⇱ Arrange &amp; edit</button>':'')+'</div>';
     if(selPhoto>=0&&selPhoto<p.photos.length){
       var selP=p.photos[selPhoto];
       var isCover=((selP.fit||'cover')!=='contain');
@@ -1358,6 +1772,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="chipbtn'+(p.frame==='square'?' on':'')+'" data-frame="square" type="button">◻ Square</button>'+
         '<button class="chipbtn'+(p.frame==='round'?' on':'')+'" data-frame="round" type="button">◯ Round</button>'+
       '</div>';
+    }
     }
 
     /* size chips */
@@ -1430,7 +1845,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     pg.innerHTML=
       '<div class="paint-head">'+
         '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
-        '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(p.name)+'</span>'+
+        '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
+        '<button class="chipbtn" id="undoBtn2" type="button" title="Undo">↶</button>'+
+        '<button class="chipbtn" id="redoBtn2" type="button" title="Redo">↷</button>'+
       '</div>'+
       '<div class="phead">'+
         '<div class="photos">'+ph+'</div>'+
@@ -1487,6 +1904,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div class="empty" id="emptyMsg" style="display:none"></div>';
 
     $('backPaints').addEventListener('click',function(){state.view='paintings';resetTransient();render();save();});
+    if($('undoBtn2'))$('undoBtn2').addEventListener('click',doUndo);
+    if($('redoBtn2'))$('redoBtn2').addEventListener('click',doRedo);
+    refreshUndoBtns();
 
     /* card frame shape */
     pg.querySelectorAll('[data-frame]').forEach(function(b){
@@ -1497,8 +1917,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('progRange'))$('progRange').addEventListener('input',function(e){p.progress=parseInt(e.target.value,10)||0;var pv=$('progVal');if(pv)pv.textContent=p.progress+'%';saveEdit();});
     if($('priceInput'))$('priceInput').addEventListener('input',function(e){p.price=e.target.value;saveEdit();});
     /* reorder in list */
-    if($('moveUp'))$('moveUp').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i>0){state.paintings.splice(i,1);state.paintings.splice(i-1,0,p);save();toast('Moved earlier ✓',900);}else toast('Already first',900);});
-    if($('moveDown'))$('moveDown').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i<state.paintings.length-1){state.paintings.splice(i,1);state.paintings.splice(i+1,0,p);save();toast('Moved later ✓',900);}else toast('Already last',900);});
+    if($('moveUp'))$('moveUp').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i>0){state.paintings.splice(i,1);state.paintings.splice(i-1,0,p);save();pushHistory();toast('Moved earlier ✓',900);}else toast('Already first',900);});
+    if($('moveDown'))$('moveDown').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i<state.paintings.length-1){state.paintings.splice(i,1);state.paintings.splice(i+1,0,p);save();pushHistory();toast('Moved later ✓',900);}else toast('Already last',900);});
     /* copy colours */
     if($('copyColors'))$('copyColors').addEventListener('click',function(){
       var lines=DMC.filter(function(r){return p.colors[r[0]];}).map(function(r){return r[0]+' '+r[1];});
@@ -1549,10 +1969,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       state.paintings.splice(idx+1,0,copy);
       state.active=copy.id;
       render(); save(); if(copy.photos&&copy.photos.length)savePhotos(copy.id);
-      toast('Duplicated ✓',1200);
+      pushHistory(); toast('Duplicated ✓',1200);
     });
 
     /* photos events */
+    if(arrangeMode){ wireArrange(p); } else {
     pg.querySelectorAll('.photo-grid img').forEach(function(im){
       im.addEventListener('click',function(){
         var i=parseInt(im.getAttribute('data-i'),10);
@@ -1560,7 +1981,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         renderPainting();
       });
     });
-    $('phAdd').addEventListener('click',function(){$('fileInput').click();});
+    if($('phAdd'))$('phAdd').addEventListener('click',function(){$('fileInput').click();});
+    if($('arrEnter'))$('arrEnter').addEventListener('click',function(){arrangeMode=true;arrSel=-1;renderPainting();});
     if(selPhoto>=0&&selPhoto<p.photos.length){
       $('phSold').addEventListener('click',function(){
         var a=p.photos.splice(selPhoto,1)[0];p.photos.unshift(a);selPhoto=0;renderPainting();savePhotos(p.id);
@@ -1595,6 +2017,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         p.photos.splice(selPhoto,1); selPhoto=-1; renderPainting(); savePhotos(p.id);
         toast('Photo removed',900);
       });
+    }
     }
 
     /* rating */
@@ -1768,7 +2191,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       state.paintings=state.paintings.filter(function(x){return x.id!==doomed.id;});
       if(!state.paintings.length)state.paintings=[{id:uid(),name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:nowTs()}];
       state.active=state.paintings[0].id; state.view='paintings';
-      resetTransient(); render(); save();
+      resetTransient(); render(); save(); pushHistory();
+      trash.unshift({p:doomed,idx:doomedIdx}); if(trash.length>20)trash.pop();
       showUndo(doomed, doomedIdx);
     });
     renderGrid();
@@ -2016,6 +2440,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var files=e.target.files||[];
     for(var i=0;i<files.length;i++)addImageFile(files[i]);
     e.target.value='';
+  });
+
+  /* keyboard: Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z or Ctrl+Y = redo */
+  document.addEventListener('keydown',function(e){
+    if(!(e.ctrlKey||e.metaKey))return;
+    var k=(e.key||'').toLowerCase();
+    var ae=document.activeElement;
+    if(ae&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&k==='z')return; /* let inputs do their own undo */
+    if(k==='z'&&!e.shiftKey){e.preventDefault();doUndo();}
+    else if((k==='z'&&e.shiftKey)||k==='y'){e.preventDefault();doRedo();}
   });
 
   /* pull newer cloud changes when the tab regains focus */
