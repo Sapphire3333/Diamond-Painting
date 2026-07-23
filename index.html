@@ -162,11 +162,14 @@
   .arr-img{position:absolute;display:block;cursor:grab;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,.25);
     user-select:none;-webkit-user-drag:none;pointer-events:auto;touch-action:none;}
   .arr-img.sel{outline:3px solid var(--accent);outline-offset:2px;}
+  .arr-img.locked{cursor:pointer;}
   .arr-handle{position:absolute;width:26px;height:26px;border-radius:7px;background:var(--accent);border:2.5px solid #fff;
     box-shadow:0 2px 7px rgba(0,0,0,.45);z-index:40;touch-action:none;pointer-events:auto;cursor:nwse-resize;}
   .arr-handle.rot{background:var(--star);border-radius:50%;cursor:grab;}
   .arr-hint{font-size:11px;color:var(--muted);margin-top:5px;}
-  .arr-bar{position:sticky;top:46px;z-index:35;background:var(--bg);padding:6px 0 4px;}
+  .arr-bar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--panel);border-top:1.5px solid var(--line);
+    padding:8px 12px 10px;box-shadow:0 -4px 18px rgba(0,0,0,.22);max-height:44vh;overflow:auto;}
+  .arr-bar .arr-hint{margin-top:6px;}
   .arr-on{outline:2px dashed var(--accent);outline-offset:4px;border-radius:12px;}
   .cropbox{position:absolute;border:2px dashed #fff;background:rgba(91,63,168,.25);pointer-events:none;}
   .cropwrap{position:relative;display:inline-block;max-width:100%;touch-action:none;}
@@ -585,6 +588,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!p.frame)p.frame='landscape';
       if(!('progress' in p))p.progress=0;
       if(!('price' in p))p.price='';
+      if(!('arranged' in p))p.arranged=false;
       Object.keys(p.finishes).forEach(function(f){
         if(!p.spec[f])p.spec[f]={};
         if(!p.finishes[f])delete p.finishes[f];
@@ -1601,7 +1605,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function buildArrLayer(p){
     var pg=$('page'); if(!pg)return;
     var old=document.getElementById('arrLayer'); if(old)old.remove();
-    if(!arrangeMode)return;
+    pg.style.paddingBottom=arrangeMode?'210px':'';
+    /* the free layout stays visible once you've arranged, not only while arranging */
+    if(!(arrangeMode||p.arranged))return;
     pg.style.position='relative';
     var layer=document.createElement('div');
     layer.id='arrLayer'; layer.className='arr-layer';
@@ -1609,14 +1615,24 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     p.photos.forEach(function(photo,i){
       arrLayout(photo,i);
       var im=document.createElement('img');
-      im.className='arr-img'+(i===arrSel?' sel':'');
+      im.className='arr-img'+(arrangeMode&&i===arrSel?' sel':'')+(arrangeMode?'':(' locked'+(i===selPhoto?' sel':'')));
       im.setAttribute('data-i',i); im.src=photo.d; im.alt='';
       im.style.left=photo.ax+'%'; im.style.top=photo.ay+'px';
       im.style.width=photo.aw+'%'; im.style.transform='rotate('+photo.arot+'deg)';
       layer.appendChild(im);
     });
     pg.appendChild(layer);
-    wireArrange(p,layer);
+    if(arrangeMode)wireArrange(p,layer);
+    else {
+      /* not arranging: tapping a photo just selects it for the photo tools */
+      layer.querySelectorAll('.arr-img').forEach(function(im){
+        im.addEventListener('click',function(){
+          var i=parseInt(im.getAttribute('data-i'),10);
+          selPhoto=(selPhoto===i)?-1:i;
+          renderPainting();
+        });
+      });
+    }
   }
   function wireArrange(p,layer){
     if(!layer)return;
@@ -1678,7 +1694,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         function up(ev){
           try{el.releasePointerCapture(ev.pointerId);}catch(_){}
           el.removeEventListener('pointermove',move); el.removeEventListener('pointerup',up);
-          savePhotos(p.id); pushHistory();
+          p.arranged=true; savePhotos(p.id); saveEdit();
         }
         el.addEventListener('pointermove',move); el.addEventListener('pointerup',up);
       });
@@ -1704,7 +1720,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         function up(ev){
           try{im.releasePointerCapture(ev.pointerId);}catch(_){}
           im.removeEventListener('pointermove',move); im.removeEventListener('pointerup',up);
-          if(moved){savePhotos(p.id); pushHistory();}
+          if(moved){p.arranged=true; savePhotos(p.id); saveEdit();}
         }
         im.addEventListener('pointermove',move); im.addEventListener('pointerup',up);
       });
@@ -1716,7 +1732,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var photo=p.photos[arrSel];
       photo.aw=Math.max(5,Math.min(140,(photo.aw||28)*mult));
       var im=selImg(); if(im)im.style.width=photo.aw+'%';
-      syncHandles(); savePhotos(p.id); pushHistory();
+      syncHandles(); p.arranged=true; savePhotos(p.id); saveEdit();
     }
     if($('arrSmall'))$('arrSmall').addEventListener('click',function(){resizeSel(1/1.18);});
     if($('arrBig'))$('arrBig').addEventListener('click',function(){resizeSel(1.18);});
@@ -1737,15 +1753,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     $('arrTiltL').addEventListener('click',function(){
       if(needSel())return;
-      p.photos[arrSel].arot=(p.photos[arrSel].arot||0)-5; renderPainting(); savePhotos(p.id); pushHistory();
+      p.photos[arrSel].arot=(p.photos[arrSel].arot||0)-5; p.arranged=true; renderPainting(); savePhotos(p.id); saveEdit();
     });
     $('arrTiltR').addEventListener('click',function(){
       if(needSel())return;
-      p.photos[arrSel].arot=(p.photos[arrSel].arot||0)+5; renderPainting(); savePhotos(p.id); pushHistory();
+      p.photos[arrSel].arot=(p.photos[arrSel].arot||0)+5; p.arranged=true; renderPainting(); savePhotos(p.id); saveEdit();
     });
     $('arrReset').addEventListener('click',function(){
-      p.photos.forEach(function(photo,i){photo.ax=null;photo.ay=null;photo.aw=null;photo.arot=null;arrLayout(photo,i);});
-      renderPainting(); savePhotos(p.id); pushHistory(); toast('Layout reset ✓',1100);
+      p.photos.forEach(function(photo,i){photo.ax=null;photo.ay=null;photo.aw=null;photo.arot=null;photo.aunit=null;arrLayout(photo,i);});
+      p.arranged=false; arrangeMode=false; arrSel=-1;
+      renderPainting(); savePhotos(p.id); saveEdit(); toast('Back to the normal photo strip ✓',1600);
     });
     $('arrDel').addEventListener('click',function(){
       if(needSel())return;
@@ -1780,12 +1797,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     /* photos block */
     var ph='';
     if(arrangeMode){ ph=arrangeUiHtml(p); } else {
-    ph+='<div class="photo-grid">';
-    p.photos.forEach(function(photo,i){
-      var lbl=(i===0?'<span class="pg-lbl">Sold</span>':(i===1?'<span class="pg-lbl">Result</span>':''));
-      ph+='<div class="pg-item">'+lbl+'<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" style="'+photoStyle(photo)+'"></div>';
-    });
-    ph+='</div>';
+    if(!p.arranged){
+      ph+='<div class="photo-grid">';
+      p.photos.forEach(function(photo,i){
+        var lbl=(i===0?'<span class="pg-lbl">Sold</span>':(i===1?'<span class="pg-lbl">Result</span>':''));
+        ph+='<div class="pg-item">'+lbl+'<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" style="'+photoStyle(photo)+'"></div>';
+      });
+      ph+='</div>';
+    }
     ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
       (p.photos.length?'<button class="pbtn" id="arrEnter" type="button">⇱ Arrange &amp; edit</button>':'')+'</div>';
     if(selPhoto>=0&&selPhoto<p.photos.length){
@@ -2248,7 +2267,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       showUndo(doomed, doomedIdx);
     });
     renderGrid();
-    if(arrangeMode)buildArrLayer(p);
+    buildArrLayer(p);
   }
   function renderTabsOnly(){renderTabs();}
 
@@ -2482,6 +2501,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function render(){
     applyTheme();
+    var pgEl=$('page'); if(pgEl)pgEl.style.paddingBottom='';
     renderTabs();
     if(state.view==='overview')renderOverview();
     else if(state.view==='paintings')renderPaintings();
