@@ -1,5 +1,5 @@
 /* Diamond Painting Colors - offline service worker */
-var CACHE = 'dp-colors-v2';
+var CACHE = 'dp-colors-v3';
 var ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', function (e) {
