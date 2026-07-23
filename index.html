@@ -215,7 +215,7 @@
   .photo-s1{width:96px;height:96px;}
   .photo-s2{width:160px;height:160px;}
   .photo-s3{width:240px;height:240px;}
-  .photo-btns{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;}
+  .photo-btns{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;position:relative;z-index:35;}
   .pbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:9px;padding:5px 9px;
     font-size:13px;font-weight:700;cursor:pointer;}
   .pbtn.danger{color:#A8324B;}
@@ -2042,6 +2042,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<div class="paint-head">'+
           '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
           '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
+          (p.arranged&&!arrangeMode?'<button class="chipbtn" id="arrEnter2" type="button" title="Arrange &amp; edit photos">⇱ Arrange</button>':'')+
           '<button class="chipbtn" id="undoBtn2" type="button" title="Undo">↶</button>'+
           '<button class="chipbtn" id="redoBtn2" type="button" title="Redo">↷</button>'+
         '</div>'+
@@ -2175,6 +2176,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     /* photos events */
     if($('phAdd'))$('phAdd').addEventListener('click',function(){$('fileInput').click();});
     if($('arrEnter'))$('arrEnter').addEventListener('click',function(){arrangeMode=!arrangeMode;arrSel=-1;selPhoto=-1;renderPainting();});
+    if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){arrangeMode=true;arrSel=-1;selPhoto=-1;renderPainting();});
     if(arrangeMode){ /* the draggable layer + its toolbar are wired in buildArrLayer() */ } else {
     pg.querySelectorAll('.photo-grid img').forEach(function(im){
       im.addEventListener('click',function(){
