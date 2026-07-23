@@ -150,7 +150,13 @@
   .lightbox img{max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;}
   .undobar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:9px 12px;display:flex;gap:12px;align-items:center;z-index:90;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:92%;}
   .undobar button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer;font-size:13px;}
-  .paint-head{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0 8px;display:flex;align-items:center;gap:8px;}
+  .paint-sticky{position:sticky;top:0;z-index:50;background:var(--bg);padding-bottom:6px;box-shadow:0 6px 10px -8px rgba(0,0,0,.35);}
+  .paint-head{padding:6px 0 4px;display:flex;align-items:center;gap:8px;}
+  .photo-tools{border-top:1px solid var(--line);padding-top:6px;}
+  .pt-row{display:flex;gap:10px;align-items:flex-start;}
+  .pt-btns{flex:1 1 auto;min-width:0;}
+  .photo-tools .photo-preview{max-width:104px;margin-top:0;flex:0 0 auto;}
+  .photo-tools .photo-btns{margin-top:4px;}
   .pins{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 6px;}
   .pin{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--line);border-radius:999px;padding:2px 8px 2px 3px;font-size:11.5px;font-weight:800;cursor:pointer;background:var(--panel);}
   .pin .dot{width:15px;height:15px;border-radius:50%;border:1px solid rgba(0,0,0,.15);}
@@ -1807,37 +1813,48 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     }
     ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
       (p.photos.length?'<button class="pbtn" id="arrEnter" type="button">⇱ Arrange &amp; edit</button>':'')+'</div>';
-    if(selPhoto>=0&&selPhoto<p.photos.length){
-      var selP=p.photos[selPhoto];
-      var isCover=((selP.fit||'cover')!=='contain');
-      ph+='<div class="photo-preview frame-'+(p.frame||'landscape')+'"><span class="pv-lbl">Card preview</span><img src="'+selP.d+'" alt="" style="'+photoStyle(selP)+'"></div>';
-      ph+='<div class="photo-btns">'+
-        '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill (crop)':'▤ Whole image')+'</button>'+
-        '<button class="pbtn'+(selP.flip?' on':'')+'" id="phFlip" type="button">⇄ Flip</button>'+
-        (isCover?('<button class="pbtn" id="phPanL" type="button">←</button>'+
-                  '<button class="pbtn" id="phPanU" type="button">↑</button>'+
-                  '<button class="pbtn" id="phPanD" type="button">↓</button>'+
-                  '<button class="pbtn" id="phPanR" type="button">→</button>'):'')+
-        '</div>';
-      ph+='<div class="photo-btns">'+
-        '<button class="pbtn" id="phSold" type="button">★ Sold (1st)</button>'+
-        '<button class="pbtn" id="phResult" type="button">★ Result (2nd)</button>'+
-        '<button class="pbtn" id="phSmaller" type="button">− Smaller</button>'+
-        '<button class="pbtn" id="phBigger" type="button">＋ Bigger</button>'+
-        '<button class="pbtn" id="phLeft" type="button">◀ order</button>'+
-        '<button class="pbtn" id="phRight" type="button">order ▶</button>'+
-        '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
-        '</div>';
+    ph+='<div class="photo-hint">'+(p.photos.length?'Tap a photo to open its tools in the bar at the top. The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Use ⇱ Arrange &amp; edit to place photos freely anywhere on this page.':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image. The first two become the “Sold” and “Result” pictures on cards.')+'</div>';
     }
-    ph+='<div class="photo-hint">'+(p.photos.length?'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Tap a photo to select it, then choose Fill (crop) vs Whole image, ⇄ Flip, nudge the crop with ← ↑ ↓ →, set Sold/Result, reorder, or remove. Portrait/square photos look best on “Whole image”.':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image. The first two become the “Sold” and “Result” pictures on cards.')+'</div>';
-    if(p.photos.length){
-      ph+='<div class="ovsort" style="margin-top:6px;"><span class="pd-lbl" style="margin:0">Card frame:</span>'+
+
+    /* Photo tools + card frame live in the sticky top bar, so photos placed on the
+       page can never cover them (and they never cover your photos either). */
+    var toolsHtml='';
+    if(!arrangeMode&&p.photos.length){
+      toolsHtml+='<div class="photo-tools">';
+      if(selPhoto>=0&&selPhoto<p.photos.length){
+        var selP=p.photos[selPhoto];
+        var isCover=((selP.fit||'cover')!=='contain');
+        toolsHtml+='<div class="pt-row">'+
+          '<div class="photo-preview frame-'+(p.frame||'landscape')+'"><span class="pv-lbl">Card</span><img src="'+selP.d+'" alt="" style="'+photoStyle(selP)+'"></div>'+
+          '<div class="pt-btns">'+
+            '<div class="photo-btns">'+
+              '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill (crop)':'▤ Whole image')+'</button>'+
+              '<button class="pbtn'+(selP.flip?' on':'')+'" id="phFlip" type="button">⇄ Flip</button>'+
+              (isCover?('<button class="pbtn" id="phPanL" type="button">←</button>'+
+                        '<button class="pbtn" id="phPanU" type="button">↑</button>'+
+                        '<button class="pbtn" id="phPanD" type="button">↓</button>'+
+                        '<button class="pbtn" id="phPanR" type="button">→</button>'):'')+
+              '<button class="pbtn" id="phSmaller" type="button">− Smaller</button>'+
+              '<button class="pbtn" id="phBigger" type="button">＋ Bigger</button>'+
+            '</div>'+
+            '<div class="photo-btns">'+
+              '<button class="pbtn" id="phSold" type="button">★ Sold (1st)</button>'+
+              '<button class="pbtn" id="phResult" type="button">★ Result (2nd)</button>'+
+              '<button class="pbtn" id="phLeft" type="button">◀ order</button>'+
+              '<button class="pbtn" id="phRight" type="button">order ▶</button>'+
+              '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
+              '<button class="pbtn" id="phClose" type="button">Close</button>'+
+            '</div>'+
+          '</div>'+
+        '</div>';
+      }
+      toolsHtml+='<div class="ovsort" style="margin-top:4px;"><span class="pd-lbl" style="margin:0">Card frame:</span>'+
         '<button class="chipbtn'+(p.frame==='landscape'?' on':'')+'" data-frame="landscape" type="button">▭ Landscape</button>'+
         '<button class="chipbtn'+(p.frame==='portrait'?' on':'')+'" data-frame="portrait" type="button">▯ Portrait</button>'+
         '<button class="chipbtn'+(p.frame==='square'?' on':'')+'" data-frame="square" type="button">◻ Square</button>'+
         '<button class="chipbtn'+(p.frame==='round'?' on':'')+'" data-frame="round" type="button">◯ Round</button>'+
       '</div>';
-    }
+      toolsHtml+='</div>';
     }
 
     /* size chips */
@@ -1908,11 +1925,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
 
     pg.innerHTML=
-      '<div class="paint-head">'+
-        '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
-        '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
-        '<button class="chipbtn" id="undoBtn2" type="button" title="Undo">↶</button>'+
-        '<button class="chipbtn" id="redoBtn2" type="button" title="Redo">↷</button>'+
+      '<div class="paint-sticky">'+
+        '<div class="paint-head">'+
+          '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
+          '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
+          '<button class="chipbtn" id="undoBtn2" type="button" title="Undo">↶</button>'+
+          '<button class="chipbtn" id="redoBtn2" type="button" title="Redo">↷</button>'+
+        '</div>'+
+        toolsHtml+
       '</div>'+
       '<div class="phead">'+
         '<div class="photos">'+ph+'</div>'+
@@ -2049,6 +2069,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('phAdd'))$('phAdd').addEventListener('click',function(){$('fileInput').click();});
     if($('arrEnter'))$('arrEnter').addEventListener('click',function(){arrangeMode=true;arrSel=-1;renderPainting();});
     if(selPhoto>=0&&selPhoto<p.photos.length){
+      if($('phClose'))$('phClose').addEventListener('click',function(){selPhoto=-1;renderPainting();});
       $('phSold').addEventListener('click',function(){
         var a=p.photos.splice(selPhoto,1)[0];p.photos.unshift(a);selPhoto=0;renderPainting();savePhotos(p.id);
       });
