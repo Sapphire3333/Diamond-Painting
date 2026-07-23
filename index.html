@@ -252,6 +252,9 @@
   .sm-bar{height:8px;border-radius:999px;background:var(--unk-soft);overflow:hidden;}
   .sm-fill{height:100%;border-radius:999px;min-width:2px;}
   .renamer input,.codeinput,.rating-row input,.addinline input,.fb-addrow input{background:var(--panel);color:var(--ink);}
+  /* buttons don't inherit text color — set it so they stay readable in dark mode
+     (more specific rules like .pbtn.danger, .selchip.on and inline styles still win) */
+  .tbtn,.fbtn,.pbtn,.selchip{color:var(--ink);}
 
 </style>
 
