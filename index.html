@@ -354,6 +354,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var query='', findQuery='', findType='any', pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, editLists={}, armed={};
   var collapsedGroups={}, colorFamily='', showPaste=false, undoData=null, undoTimer=null;
+  var pasteReview=null, pasteTextVal='', chartImg=null, chartPick=false;
   var history=[], histIdx=-1, histT=null, photoCache={}, clipboard=[], trash=[];
   var selectMode=false, selectedIds={};
   var arrangeMode=false, arrSel=-1, cropOn=false, cropRect=null, lastPastePt=null;
@@ -661,6 +662,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!('price' in p))p.price='';
       if(!('arranged' in p))p.arranged=false;
       if(!('edit' in p))p.edit=true;
+      /* a painting marked Finished is 100% done — catches ones finished before
+         the progress bar started filling itself in */
+      if(p.status==='done'&&!p.progress)p.progress=100;
       Object.keys(p.finishes).forEach(function(f){
         if(!p.spec[f])p.spec[f]={};
         if(!p.finishes[f])delete p.finishes[f];
@@ -927,7 +931,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       resetTransient(); renaming=true; render(); save(); pushHistory(); pushNav();
     },false);
   }
-  function resetTransient(){renaming=false;expandedColor=null;expandedSpec=null;expandedSize=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;}
+  function resetTransient(){renaming=false;expandedColor=null;expandedSpec=null;expandedSize=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
+    showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;chartPick=false;}
 
   /* ---------- back-button navigation ----------
      Each view change adds a browser history entry, so the phone's back gesture
@@ -948,19 +953,21 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function enterArrange(){
     arrangeMode=true; arrSel=-1; selPhoto=-1;
-    pushNav('arrange'); renderPainting();
+    renderPainting();
   }
   function exitArrange(){
     if(!arrangeMode)return;
-    var s=window.history.state;
-    if(s&&s.dpOverlay==='arrange'){window.history.back();return;} /* popstate finishes it */
     arrangeMode=false; arrSel=-1; renderPainting();
   }
+  /* Overlays (full-screen photo, arrange mode) deliberately add NO history entry.
+     Back closes them and immediately re-pushes the entry it consumed, so the stack
+     depth is unchanged. Pushing an entry per overlay meant that closing one by any
+     other route (mode toggle, reset layout, navigation) left an orphan entry behind,
+     which swallowed the next Back press — the "have to press back twice" bug. */
   window.addEventListener('popstate',function(e){
-    /* overlays close first, so back never skips past them */
     var lb=document.querySelector('.lightbox');
-    if(lb){if(lb._destroy)lb._destroy();else lb.remove();return;}
-    if(arrangeMode){arrangeMode=false;arrSel=-1;renderPainting();return;}
+    if(lb){if(lb._destroy)lb._destroy();else lb.remove();pushNav();return;}
+    if(arrangeMode){arrangeMode=false;arrSel=-1;renderPainting();pushNav();return;}
     var st=e.state||{};
     if(!st.dpView)return;
     if(st.dpActive&&state.paintings.some(function(p){return p.id===st.dpActive;}))state.active=st.dpActive;
@@ -1380,18 +1387,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var im=document.createElement('img'); im.src=src; lb.appendChild(im);
     function onKey(e){if(e.key==='Escape')close();}
     function destroy(){lb.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';}
-    /* closing pops the history entry so the back button closes it too */
-    function close(){
-      var s=window.history.state;
-      if(s&&s.dpOverlay==='lightbox'){window.history.back();return;}
-      destroy();
-    }
+    function close(){destroy();}
     lb._destroy=destroy;
     lb.addEventListener('click',close);
     document.addEventListener('keydown',onKey);
     document.body.style.overflow='hidden';
     document.body.appendChild(lb);
-    pushNav('lightbox');
   }
   function wirePaintingCards(){
     $('page').querySelectorAll('.ovcard').forEach(function(c){
@@ -1660,7 +1661,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var pid=active().id;
     for(var i=0;i<items.length;i++){
       if(items[i].type&&items[i].type.indexOf('image')===0){
-        addImageFile(items[i].getAsFile(),pid);
+        /* with the colour panel open, a pasted image is the chart to read from,
+           not another photo of the painting */
+        if(showPaste)setChartImage(items[i].getAsFile());
+        else addImageFile(items[i].getAsFile(),pid);
         e.preventDefault();
       }
     }
@@ -2028,6 +2032,130 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
   }
 
+  /* ---------- add colours from a pasted list or a photographed chart ----------
+     Kit charts are rows like "1  V  168": a row number, a symbol, then the DMC
+     code. No DMC code is numerically below 150, so a bare number under 150 is a
+     row number and is skipped silently rather than reported as unrecognised. */
+  function parsePasteText(raw,p){
+    var toks=String(raw||'').split(/[^0-9A-Za-z]+/).filter(Boolean);
+    var seen={},matched=[],unknown=[],ignored=0;
+    toks.forEach(function(t){
+      var key=DMCLOWER[t.toLowerCase()];
+      if(key){
+        if(!seen[key]){seen[key]=1;matched.push({code:key,already:!!p.colors[key],on:!p.colors[key]});}
+        return;
+      }
+      if(/^\d+$/.test(t)&&parseInt(t,10)<150){ignored++;return;}   /* row number */
+      if(/^[A-Za-z]+$/.test(t)){ignored++;return;}                 /* symbol or header word */
+      /* anything left has digits in it, so it was meant to be a code — worth
+         showing, e.g. an OCR slip like 38O9 for 3809 */
+      if(unknown.indexOf(t)===-1&&unknown.length<40)unknown.push(t);
+    });
+    return {matched:matched,unknown:unknown,ignored:ignored};
+  }
+  function setChartImage(file){
+    if(!file||!/^image\//.test(file.type))return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        var max=1100,w=img.width,h=img.height;
+        if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
+        var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        chartImg=cv.toDataURL('image/jpeg',0.85);   /* kept in memory only, never saved */
+        fillPasteBox();
+        toast('Chart added for reference ✓',1200);
+      };
+      img.src=rd.result;
+    };
+    rd.readAsDataURL(file);
+  }
+  function pasteReviewHtml(){
+    var m=pasteReview.matched;
+    var fresh=m.filter(function(x){return !x.already;});
+    var picked=m.filter(function(x){return x.on;}).length;
+    var h='<div class="bk-note" style="margin-top:8px;"><b>'+m.length+'</b> DMC number'+(m.length===1?'':'s')+
+      ' recognised · '+fresh.length+' new · '+(m.length-fresh.length)+' already in this painting'+
+      (pasteReview.ignored?(' · '+pasteReview.ignored+' row number'+(pasteReview.ignored===1?'':'s')+'/symbol'+(pasteReview.ignored===1?'':'s')+' skipped'):'')+'</div>';
+    if(m.length){
+      h+='<div class="grid compact" style="margin-top:8px;">'+m.map(function(x,i){
+        var row=DMCMAP[x.code];
+        return '<div class="card'+(x.on?' sel':'')+(x.already?' ro':'')+'" data-rev="'+i+'"'+
+          (x.already?' style="opacity:.5"':'')+'>'+
+          '<div class="drill" style="background-color:'+row[2]+'"></div>'+
+          '<div class="ctext"><div class="code">'+row[0]+'</div><div class="cname">'+
+            (x.already?'already in this painting':esc(row[1]))+'</div></div>'+
+          '<div class="tick">✓</div></div>';
+      }).join('')+'</div>';
+    } else {
+      h+='<div class="vw-empty" style="margin-top:8px;">No DMC numbers found in that text.</div>';
+    }
+    if(pasteReview.unknown.length)
+      h+='<div class="bk-note" style="margin-top:8px;">Not recognised: '+pasteReview.unknown.map(esc).join(', ')+'</div>';
+    h+='<div class="bk-btns" style="margin-top:8px;">'+
+      '<button class="chipbtn" id="pasteConfirm" type="button"'+(picked?' style="background:var(--accent);border-color:var(--accent);color:#fff;"':' disabled style="opacity:.5"')+'>'+
+        'Add '+picked+' colour'+(picked===1?'':'s')+'</button>'+
+      '<button class="chipbtn" id="pasteBack" type="button">← Edit the text</button>'+
+      '<button class="chipbtn" id="pasteCancel" type="button">Cancel</button></div>';
+    return h;
+  }
+  function fillPasteBox(){
+    var box=$('pasteBox'); if(!box)return;
+    var p=active();
+    var h='<div class="bk-note">Paste the colour numbers from your kit — commas, spaces or new lines all work. '+
+      'To read them off a photo of the chart: on a phone use Google Lens or iPhone Live Text to select and copy the numbers; '+
+      'on Windows 11 use Snipping Tool → Text actions. Then paste here — nothing is added until you confirm.</div>'+
+      '<textarea id="pasteText" rows="3" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13px;background:var(--panel);color:var(--ink);" placeholder="e.g. 321, 310 700 3801 White — or a whole chart: 1 V 168  2 B 310 …">'+esc(pasteTextVal)+'</textarea>'+
+      '<div class="bk-btns" style="margin-top:6px;">'+
+        '<button class="chipbtn" id="chartAdd" type="button">🖼 '+(chartImg?'Replace':'Add')+' chart photo</button>'+
+        (chartImg?'<button class="chipbtn danger" id="chartClear" type="button">✕ Remove chart</button>':'')+
+        '<span class="bk-note" style="align-self:center;margin:0;">for reference while you check — not saved to the painting</span>'+
+      '</div>';
+    if(chartImg)
+      h+='<img id="chartImgEl" src="'+chartImg+'" alt="colour chart" style="margin-top:8px;max-width:100%;max-height:280px;border-radius:10px;border:1.5px solid var(--line);cursor:zoom-in;display:block;">';
+    if(!pasteReview){
+      h+='<div class="bk-btns" style="margin-top:8px;">'+
+        '<button class="chipbtn" id="pasteCheck" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">Check these numbers</button>'+
+        '<button class="chipbtn" id="pasteCancel" type="button">Cancel</button></div>';
+    } else h+=pasteReviewHtml();
+    box.innerHTML=h;
+
+    var ta=$('pasteText');
+    if(ta)ta.addEventListener('input',function(e){pasteTextVal=e.target.value;});
+    if($('chartAdd'))$('chartAdd').addEventListener('click',function(){chartPick=true;$('fileInput').click();});
+    if($('chartClear'))$('chartClear').addEventListener('click',function(){chartImg=null;fillPasteBox();});
+    if($('chartImgEl'))$('chartImgEl').addEventListener('click',function(){openLightbox(chartImg);});
+    if($('pasteCheck'))$('pasteCheck').addEventListener('click',function(){
+      pasteReview=parsePasteText(pasteTextVal,p);
+      fillPasteBox();
+    });
+    if($('pasteBack'))$('pasteBack').addEventListener('click',function(){pasteReview=null;fillPasteBox();});
+    box.querySelectorAll('[data-rev]').forEach(function(c){
+      c.addEventListener('click',function(){
+        var x=pasteReview.matched[parseInt(c.getAttribute('data-rev'),10)];
+        if(!x||x.already)return;
+        x.on=!x.on; fillPasteBox();
+      });
+    });
+    if($('pasteConfirm'))$('pasteConfirm').addEventListener('click',function(){
+      var added=0;
+      pasteReview.matched.forEach(function(x){
+        if(x.on&&!p.colors[x.code]){p.colors[x.code]=1;added++;}
+      });
+      if(!added){toast('Nothing ticked',1200);return;}
+      showPaste=false; pasteReview=null; pasteTextVal=''; chartImg=null;
+      renderPainting(); renderTabs(); saveEdit();
+      toast('Added '+added+' colour'+(added===1?'':'s')+' ✓',1600);
+    });
+    box.querySelectorAll('#pasteCancel').forEach(function(b){
+      b.addEventListener('click',function(){
+        showPaste=false; pasteReview=null; pasteTextVal=''; chartImg=null;
+        renderPainting();
+      });
+    });
+  }
+
   /* ---------- painting page: view mode ----------
      Everything the painting actually has, laid out neatly and read-only.
      Empty fields are left out entirely. Photos can still be moved. */
@@ -2306,11 +2434,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '</div>'+
       '<div class="finrow"><span class="lbl">Special diamonds:</span>'+finChips+'</div>'+
       finBoxes+
-      (showPaste?('<div class="backup" id="pasteBox">'+
-        '<div class="bk-note">Paste DMC numbers (any separators — commas, spaces, new lines). Matching colours get selected.</div>'+
-        '<textarea id="pasteText" rows="3" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13px;background:var(--panel);color:var(--ink);" placeholder="e.g. 321, 310 700 3801 White"></textarea>'+
-        '<div class="bk-btns" style="margin-top:6px;"><button class="chipbtn" id="pasteApply" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">Add these</button><button class="chipbtn" id="pasteCancel" type="button">Cancel</button></div>'+
-        '</div>'):'')+
+      (showPaste?'<div class="backup" id="pasteBox"></div>':'')+
       '<div class="ovsort" style="margin-top:2px;"><span class="pd-lbl" style="margin:0">Colours:</span>'+
         '<button class="chipbtn'+(colorFamily===''?' on':'')+'" data-fam="" type="button">All</button>'+
         COLOR_FAMILIES.map(function(fm){return '<button class="chipbtn'+(colorFamily===fm?' on':'')+'" data-fam="'+fm+'" type="button">'+fm+'</button>';}).join('')+
@@ -2346,16 +2470,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       else toast('Copy not supported here',1600);
     });
     /* paste a list of DMC numbers */
-    if($('pasteList'))$('pasteList').addEventListener('click',function(){showPaste=!showPaste;renderPainting();});
-    if($('pasteApply'))$('pasteApply').addEventListener('click',function(){
-      var raw=($('pasteText')&&$('pasteText').value)||'';
-      var toks=raw.split(/[^0-9A-Za-z]+/).filter(Boolean);
-      var added=0,unknown=0;
-      toks.forEach(function(t){var key=DMCLOWER[t.toLowerCase()];if(key){if(!p.colors[key]){p.colors[key]=1;added++;}}else unknown++;});
-      showPaste=false; renderPainting(); renderTabs(); saveEdit();
-      toast('Added '+added+' colour'+(added===1?'':'s')+(unknown?(' · '+unknown+' not found'):'')+' ✓',2000);
+    if($('pasteList'))$('pasteList').addEventListener('click',function(){
+      showPaste=!showPaste;
+      if(!showPaste){pasteReview=null;pasteTextVal='';chartImg=null;}
+      renderPainting();
     });
-    if($('pasteCancel'))$('pasteCancel').addEventListener('click',function(){showPaste=false;renderPainting();});
     /* colour family filter */
     pg.querySelectorAll('[data-fam]').forEach(function(b){
       b.addEventListener('click',function(){
@@ -2657,6 +2776,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       showUndo(doomed, doomedIdx);
     });
     renderGrid();
+    if(showPaste)fillPasteBox();
     buildArrLayer(p);
   }
   function renderTabsOnly(){renderTabs();}
@@ -2915,6 +3035,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
   $('fileInput').addEventListener('change',function(e){
     var files=e.target.files||[];
+    if(chartPick){chartPick=false;if(files[0])setChartImage(files[0]);e.target.value='';return;}
     var pid=active().id;
     for(var i=0;i<files.length;i++)addImageFile(files[i],pid);
     e.target.value='';
