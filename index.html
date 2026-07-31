@@ -266,6 +266,25 @@
   .card.ro:active{transform:none;}
   .vw-badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;}
   .vw-empty{color:var(--muted);font-size:13px;margin:0 2px 8px;}
+  /* view mode stage: Sold cover on the left, details in the middle, Result on the
+     right. Nothing here changes between arranging and done, so the page can't
+     shift underneath the photos. */
+  .vw-stage{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;}
+  .vw-side{flex:1 1 130px;min-width:0;position:relative;}
+  .vw-card{flex:2.2 1 280px;min-width:0;background:var(--panel);border:1.5px solid var(--line);
+    border-radius:14px;padding:12px;}
+  .vw-side img{width:100%;display:block;border-radius:12px;border:1.5px solid var(--line);
+    background:var(--unk-soft);cursor:zoom-in;box-shadow:0 2px 12px rgba(0,0,0,.18);}
+  .vw-side.frame-landscape img{aspect-ratio:4/3;}
+  .vw-side.frame-portrait img{aspect-ratio:3/4;}
+  .vw-side.frame-square img{aspect-ratio:1;}
+  .vw-side.frame-round img{aspect-ratio:1;border-radius:50%;}
+  /* phones: the two covers share the top row at a usable size, details below */
+  @media (max-width:640px){
+    .vw-stage{flex-wrap:wrap;}
+    .vw-side{flex:1 1 calc(50% - 6px);}
+    .vw-card{flex:1 1 100%;order:1;}
+  }
 
 </style>
 
@@ -1652,16 +1671,18 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      on the PC keeps its shape on a phone: the whole composition scales together
      instead of the vertical offsets staying at a fixed pixel distance (which put
      photos over completely different content on a taller, narrower screen). */
-  function arrLayout(photo,i,hostW){
+  function arrLayout(photo,i,hostW,below){
     var W=hostW||360;
+    /* `below` places new free photos under the view-mode stage instead of on top of it */
+    var defY=below?(46+Math.floor(i/3)*24):((16+Math.floor(i/3)*150)/W*100);
     if(photo.aunit!=='w'){
-      if(photo.ay==null)photo.ay=(16+Math.floor(i/3)*150)/W*100;
+      if(photo.ay==null)photo.ay=defY;
       else if(photo.aunit==='px')photo.ay=photo.ay/W*100;      /* px from the top */
       else photo.ay=(photo.ay/100*420)/W*100;                  /* very old in-box % */
       photo.aunit='w';
     }
     if(photo.ax==null)photo.ax=4+(i%3)*31;
-    if(photo.ay==null)photo.ay=(16+Math.floor(i/3)*150)/W*100;
+    if(photo.ay==null)photo.ay=defY;
     if(photo.aw==null)photo.aw=28;
     if(photo.arot==null)photo.arot=0;
     return photo;
@@ -1781,7 +1802,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="pbtn" id="arrReset" type="button">⤺ Reset layout</button>'+
         '<button class="pbtn danger" id="arrDel" type="button">✕ Remove</button>'+
       '</div>'+
-      '<div class="arr-hint">Drag photos anywhere on this page — beside the name, the rating, over the colour list, wherever. Tap one to select, then drag any <b>purple corner</b> to resize, or the <b>gold circle</b> to tilt (or use − / ＋ and ⟲ / ⟳). Paste (Ctrl+V) or ＋ Add drops a new image where you last tapped.</div>'+
+      '<div class="arr-hint">'+
+        (p.edit===false
+          ? 'The <b>Sold</b> and <b>Result</b> covers stay put — left and right of the details. Everything from the third photo on can be dragged anywhere on this page. '
+          : 'Drag photos anywhere on this page — beside the name, the rating, over the colour list, wherever. ')+
+        'Tap one to select, then drag any <b>purple corner</b> to resize, or the <b>gold circle</b> to tilt (or use − / ＋ and ⟲ / ⟳). Paste (Ctrl+V) or ＋ Add drops a new image where you last tapped.</div>'+
       '</div>';
     return h;
   }
@@ -1789,8 +1814,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var pg=$('page'); if(!pg)return;
     var old=document.getElementById('arrLayer'); if(old)old.remove();
     pg.style.paddingBottom=arrangeMode?'210px':'';
+    /* view mode anchors the Sold and Result covers in the stage, so only the
+       third photo onwards is free-floating there */
+    var viewMode=(p.edit===false);
+    var startIdx=viewMode?2:0;
+    if(viewMode){if(p.photos.length<=startIdx)return;}
     /* the free layout stays visible once you've arranged, not only while arranging */
-    if(!(arrangeMode||p.arranged))return;
+    else if(!(arrangeMode||p.arranged))return;
     /* anchor to the page BODY (not #page) so the sticky top bar growing or shrinking
        never shifts the photos relative to the content they were placed against */
     var host=document.getElementById('pageBody')||pg;
@@ -1803,8 +1833,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
        migrate the stored coordinates against a bogus width and wreck the layout,
        so wait for the next render/resize when the real width is known */
     if(!hostW)return;
+    var slot=0;
     p.photos.forEach(function(photo,i){
-      arrLayout(photo,i,hostW);
+      if(i<startIdx)return;
+      arrLayout(photo,slot++,hostW,viewMode);
       var im=document.createElement('img');
       im.className='arr-img'+(arrangeMode&&i===arrSel?' sel':'')+(arrangeMode?'':(' locked'+(i===selPhoto?' sel':'')));
       im.setAttribute('data-i',i); im.src=photo.d; im.alt='';
@@ -1961,7 +1993,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     $('arrReset').addEventListener('click',function(){
       var hostEl=document.getElementById('pageBody')||$('page');
       var hw=(hostEl&&hostEl.clientWidth)||360;
-      p.photos.forEach(function(photo,i){photo.ax=null;photo.ay=null;photo.aw=null;photo.arot=null;photo.aunit=null;arrLayout(photo,i,hw);});
+      var vm=(p.edit===false), from=vm?2:0, slot=0;
+      p.photos.forEach(function(photo,i){
+        photo.ax=null;photo.ay=null;photo.aw=null;photo.arot=null;photo.aunit=null;
+        if(i>=from)arrLayout(photo,slot++,hw,vm);
+      });
       p.arranged=false; arrangeMode=false; arrSel=-1;
       renderPainting(); savePhotos(p.id); saveEdit(); toast('Back to the normal photo strip ✓',1600);
     });
@@ -2000,17 +2036,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function renderPaintingView(p){
     var pg=$('page');
-    var ph='';
-    if(!p.arranged&&p.photos.length){
-      ph+='<div class="photo-grid"'+(arrangeMode?' style="visibility:hidden"':'')+'>';
-      p.photos.forEach(function(photo,i){
-        var lbl=(i===0?'<span class="pg-lbl">Sold</span>':(i===1?'<span class="pg-lbl">Result</span>':''));
-        ph+='<div class="pg-item">'+lbl+'<img class="photo-s'+(photo.s||1)+'" data-i="'+i+'" src="'+photo.d+'" alt="" style="'+photoStyle(photo)+'"></div>';
-      });
-      ph+='</div>';
+    /* the first two photos are anchored: Sold on the left, Result on the right.
+       Everything from the third on floats freely (see buildArrLayer). */
+    var frame='frame-'+(p.frame||'landscape');
+    function sideHtml(i,label){
+      var photo=p.photos[i]; if(!photo)return '';
+      return '<div class="vw-side '+frame+'"><span class="pg-lbl">'+label+'</span>'+
+        '<img data-i="'+i+'" src="'+photo.d+'" alt="'+esc(label)+' picture" style="'+photoStyle(photo)+'"></div>';
     }
-    if(arrangeMode)ph+=arrangeUiHtml(p);
-
     var tagKeys=Object.keys(p.tags||{});
     var fins=finTagsHtml(p);
     var prog='';
@@ -2049,14 +2082,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<div class="paint-head">'+
           '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
           '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
-          (p.photos.length?('<button class="chipbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
+          (p.photos.length>2?('<button class="chipbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
           '<button class="chipbtn" id="modeToggle" type="button" title="Switch to edit mode">📖🖋 Edit</button>'+
         '</div>'+
       '</div>'+
       '<div id="pageBody">'+
-        '<div class="phead">'+
-          (ph?'<div class="photos">'+ph+'</div>':'')+
-          '<div class="pdetails">'+
+        '<div class="vw-stage">'+
+          sideHtml(0,'Sold')+
+          '<div class="vw-card">'+
             '<div class="pd-name">'+esc(p.name)+'</div>'+
             '<div class="vw-badges">'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
             (fins?'<div class="ovfins">'+fins+'</div>':'')+
@@ -2064,10 +2097,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
             (tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag">'+esc(t)+'</span>';}).join('')+'</div>'):'')+
             prog+
           '</div>'+
+          sideHtml(1,'Result')+
         '</div>'+
         '<div class="section-lbl">Colours ('+sel.length+')</div>'+
         colHtml+specHtml+
-      '</div>';
+      '</div>'+
+      /* the arrange bar is position:fixed, so keeping it outside #pageBody means
+         the page flow is byte-for-byte identical whether arranging or not */
+      (arrangeMode?arrangeUiHtml(p):'');
 
     $('backPaints').addEventListener('click',function(){navTo('paintings');});
     $('modeToggle').addEventListener('click',function(){
@@ -2077,7 +2114,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){
       if(arrangeMode)exitArrange(); else enterArrange();
     });
-    pg.querySelectorAll('.photo-grid img').forEach(function(im){
+    pg.querySelectorAll('.vw-side img').forEach(function(im){
       im.addEventListener('click',function(){openLightbox(im.src);});
     });
     buildArrLayer(p);
