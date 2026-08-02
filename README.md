@@ -11,7 +11,15 @@ A free, no-nonsense tracker for your diamond painting hobby. Keep every kit, eve
 
 ## What is it?
 
-Diamond Painting Colors is a single-page web app for diamond painters. For every painting you can track:
+Diamond Painting Colors is a single-page web app for tracking craft projects. It handles three kinds, and each one shows only the fields that make sense for it:
+
+- 💎 **Diamond paintings** — the full DMC colour catalogue, drill types, special diamonds
+- 🎨 **Paint by number** — your own colour palette picked by eye, since the pots have no standard code
+- ✏️ **Your own drawings** — a big hero picture with a photo gallery, plus the media you used
+
+Switching a project's kind only hides sections — nothing is ever deleted, so you can switch back and everything is still there.
+
+For every diamond painting you can track:
 
 - 🎨 **Which DMC colors it uses** — tap them in a built-in catalog of all 454 DMC colors, or paste a whole list of numbers from the kit at once
 - 💠 **Diamond type** — square ■, round ●, or odd ✦
@@ -51,9 +59,9 @@ After that it opens full-screen from its own icon and works offline.
 | Tab | What it does |
 |---|---|
 | **⌂ Overview** | Stats about your collection, dark mode & accent color, storage meter, cloud sync, backups |
-| **🖼 Paintings** | All your paintings — search, sort, group, multi-select, copy/paste, delete/restore |
-| **🔎 Find** | Look up any DMC color, size, or special diamond and see which paintings have it |
-| **+ New painting** | Adds a painting |
+| **🖼 Projects** | Everything you've made — filter by kind, search, sort, group, multi-select, copy/paste, delete/restore |
+| **🔎 Find** | Look up any DMC color, size, special diamond or medium and see which projects use it |
+| **+ New project** | Adds a project (same kind as the last one you made) |
 
 ### Tips
 

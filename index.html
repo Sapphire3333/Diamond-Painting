@@ -279,6 +279,13 @@
   .vw-side.frame-portrait img{aspect-ratio:3/4;}
   .vw-side.frame-square img{aspect-ratio:1;}
   .vw-side.frame-round img{aspect-ratio:1;border-radius:50%;}
+  /* drawings: one big picture with the rest in a gallery underneath */
+  .vw-hero{flex:1.4 1 300px;min-width:0;}
+  .vw-hero img{width:100%;display:block;max-height:440px;border-radius:12px;border:1.5px solid var(--line);
+    background:var(--unk-soft);cursor:zoom-in;box-shadow:0 2px 14px rgba(0,0,0,.2);}
+  .vw-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px;}
+  .vw-gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);
+    background:var(--unk-soft);cursor:zoom-in;display:block;}
   /* phones: the two covers share the top row at a usable size, details below */
   @media (max-width:640px){
     .vw-stage{flex-wrap:wrap;}
@@ -334,6 +341,19 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var STATUSMAP={}; STATUSES.forEach(function(s){STATUSMAP[s.id]=s;});
   var DEFAULT_TAGS=['good','bad diamonds','boring','wrong shade','unclear','missing diamonds','beautiful colors'];
   var DEFAULT_SIZES=['20×20','30×30','30×40','40×50','50×70'];
+  /* three kinds of project share one record; sections show or hide by kind, and
+     switching kind only hides a section — nothing is ever thrown away */
+  var KINDS=[
+    {id:'diamond',label:'Diamond painting',sym:'💎'},
+    {id:'pbn',    label:'Paint by number', sym:'🎨'},
+    {id:'drawing',label:'My drawing',      sym:'✏️'}
+  ];
+  var KINDMAP={}; KINDS.forEach(function(k){KINDMAP[k.id]=k;});
+  function kindOf(p){return (p&&p.kind&&KINDMAP[p.kind])?p.kind:'diamond';}
+  function isDiamond(p){return kindOf(p)==='diamond';}
+  function usesMedia(p){var k=kindOf(p);return k==='pbn'||k==='drawing';}
+  var DEFAULT_MEDIA=['prismacolor pencils','ohuhu markers','acrylic','watercolour','gouache',
+    'coloured pencils','fineliner','gel pens','pastels','digital'];
   var ACCENTS=[
     {id:'violet', name:'Violet', accent:'#5B3FA8', soft:'#EFEAFB', dsoft:'#2E2646'},
     {id:'teal',   name:'Teal',   accent:'#0E8C8C', soft:'#DFF3F3', dsoft:'#123536'},
@@ -349,9 +369,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true}],
     active:'p1', onlySel:false, view:'paintings',
     specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added', pGroup:'none', pSearchField:'all',
-    autoBackup:'off', dark:false, density:'full', accent:'violet'
+    autoBackup:'off', dark:false, density:'full', accent:'violet',
+    media:DEFAULT_MEDIA.slice(), pKind:'all', lastKind:'diamond'
   };
-  var query='', findQuery='', findType='any', pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null;
+  var query='', findQuery='', findType='any', pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null, expandedMedia=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, editLists={}, armed={};
   var collapsedGroups={}, colorFamily='', showPaste=false, undoData=null, undoTimer=null;
   var pasteReview=null, pasteTextVal='', chartImg=null, chartPick=false;
@@ -398,6 +419,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function badgeHtml(type){
     if(type&&TYPES[type]){var t=TYPES[type];return '<span class="badge '+t.cls+'">'+t.sym+' '+t.label+'</span>';}
     return '<span class="badge unk">? type not set</span>';
+  }
+  function kindBadge(p){
+    var k=KINDMAP[kindOf(p)];
+    return '<span class="badge unk">'+k.sym+' '+k.label+'</span>';
   }
   function ratingBadge(p){
     if(p.rating===null||p.rating===undefined||p.rating==='')return '';
@@ -641,6 +666,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(!s.sellers)s.sellers=[];
     if(!s.tags||!s.tags.length)s.tags=DEFAULT_TAGS.slice();
     if(!s.sizes||!s.sizes.length)s.sizes=DEFAULT_SIZES.slice();
+    if(!s.media||!s.media.length)s.media=DEFAULT_MEDIA.slice();
+    if(!s.pKind)s.pKind='all';
+    if(!s.lastKind||!KINDMAP[s.lastKind])s.lastKind='diamond';
     if(!s.ovSort)s.ovSort='added';
     s.paintings.forEach(function(p){
       if(!('type' in p))p.type=null;
@@ -662,6 +690,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!('price' in p))p.price='';
       if(!('arranged' in p))p.arranged=false;
       if(!('edit' in p))p.edit=true;
+      if(!p.kind||!KINDMAP[p.kind])p.kind='diamond';   /* everything so far is a diamond painting */
+      if(!p.media)p.media={};
+      if(!p.palette)p.palette=[];
+      if(!('notes' in p))p.notes='';
       /* a painting marked Finished is 100% done — catches ones finished before
          the progress bar started filling itself in */
       if(p.status==='done'&&!p.progress)p.progress=100;
@@ -923,10 +955,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       b.addEventListener('click',fn); t.appendChild(b);
     }
     mk('home','⌂ Overview',function(){navTo('overview');},state.view==='overview');
-    mk('paints','🖼 Paintings<span class="cnt">'+state.paintings.length+'</span>',function(){navTo('paintings');},state.view==='paintings'||state.view==='paint');
+    mk('paints','🖼 Projects<span class="cnt">'+state.paintings.length+'</span>',function(){navTo('paintings');},state.view==='paintings'||state.view==='paint');
     mk('find','🔎 Find',function(){navTo('find');},state.view==='find');
-    mk('add','+ New painting',function(){
-      var p=newPainting('Painting '+(state.paintings.length+1));
+    mk('add','+ New project',function(){
+      var p=newPainting('Project '+(state.paintings.length+1));
       state.paintings.push(p); state.active=p.id; state.view='paint';
       resetTransient(); renaming=true; render(); save(); pushHistory(); pushNav();
     },false);
@@ -1142,7 +1174,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var byStatus={wishlist:0,progress:0,done:0};
     var byType={square:0,round:0,odd:0};
     var rsum=0,rn=0,colors=0,spend=0,spendN=0;
+    var byKind={diamond:0,pbn:0,drawing:0};
     ps.forEach(function(p){
+      byKind[kindOf(p)]++;
       if(p.status&&byStatus.hasOwnProperty(p.status))byStatus[p.status]++;
       if(p.type&&byType.hasOwnProperty(p.type))byType[p.type]++;
       if(p.rating!==null&&p.rating!==undefined&&p.rating!==''){rsum+=Number(p.rating);rn++;}
@@ -1157,7 +1191,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
         stat(n,'paintings')+stat(byStatus.done,'finished')+stat(byStatus.progress,'in progress')+stat(byStatus.wishlist,'wishlist')+
       '</div>'+
-      '<div class="bk-note" style="margin-top:8px;">Avg rating '+avg+' · types: ■ '+byType.square+'  ● '+byType.round+'  ✦ '+byType.odd+' · '+colors+' colors selected in total'+(spendN?(' · total spend '+spendStr):'')+'</div>'+
+      '<div class="bk-note" style="margin-top:8px;">'+
+        KINDS.map(function(k){return k.sym+' '+k.label+' '+byKind[k.id];}).join(' · ')+
+      '</div>'+
+      '<div class="bk-note" style="margin-top:4px;">Avg rating '+avg+' · diamond types: ■ '+byType.square+'  ● '+byType.round+'  ✦ '+byType.odd+' · '+colors+' colours selected in total'+(spendN?(' · total spend '+spendStr):'')+'</div>'+
       '</div>';
   }
   function renderBackupList(){
@@ -1208,7 +1245,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       });
       photoHtml+='</div>';
     }
-    var sub=codes.length+' color'+(codes.length===1?'':'s');
+    var kd=kindOf(p), sub;
+    if(kd==='diamond')sub=codes.length+' colour'+(codes.length===1?'':'s');
+    else if(kd==='pbn')sub=(p.palette&&p.palette.length)?(p.palette.length+' colour'+(p.palette.length===1?'':'s')+' picked'):'paint by number';
+    else sub=p.photos.length+' photo'+(p.photos.length===1?'':'s');
+    var med=Object.keys(p.media||{});
+    if(usesMedia(p)&&med.length)sub+=' · '+esc(med.slice(0,3).join(', '))+(med.length>3?(' +'+(med.length-3)):'');
     if(p.size)sub+=' · '+esc(p.size);
     if(p.seller)sub+=' · '+esc(p.seller);
     if(p.code)sub+=' · '+esc(p.code);
@@ -1227,7 +1269,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var thumbc=(p.photos&&p.photos.length)?'<img class="ovthumbc" src="'+p.photos[0].d+'" alt="" style="'+photoStyle(p.photos[0])+'">':'';
     var selBox=selectMode?('<span class="selbox'+(selectedIds[p.id]?' on':'')+'">'+(selectedIds[p.id]?'✓':'')+'</span>'):'';
     return '<div class="ovcard'+stripeCls+(state.density==='compact'?' compact':'')+(selectedIds[p.id]?' picked':'')+'" data-id="'+p.id+'"'+stripeStyle+'>'+
-      '<div class="ovtop">'+selBox+thumbc+'<span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
+      '<div class="ovtop">'+selBox+thumbc+'<span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+
+        (isDiamond(p)?badgeHtml(p.type):kindBadge(p))+'</div>'+
       '<div class="ovbody">'+
         '<div class="ovinfo">'+
           '<div class="ovsub">'+sub+'</div>'+
@@ -1243,6 +1286,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var q=(pQuery||'').trim().toLowerCase();
     var f=state.pSearchField||'all';
     var list=state.paintings.slice();
+    if(state.pKind&&state.pKind!=='all')list=list.filter(function(p){return kindOf(p)===state.pKind;});
     if(q){
       list=list.filter(function(p){
         if(f==='name')   return (p.name||'').toLowerCase().indexOf(q)!==-1;
@@ -1250,8 +1294,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         if(f==='seller') return (p.seller||'').toLowerCase().indexOf(q)!==-1;
         if(f==='code')   return (p.code||'').toLowerCase().indexOf(q)!==-1;
         if(f==='tag')    return Object.keys(p.tags||{}).some(function(t){return t.toLowerCase().indexOf(q)!==-1;});
+        if(f==='media')  return Object.keys(p.media||{}).some(function(t){return t.toLowerCase().indexOf(q)!==-1;});
         var st=(p.status&&STATUSMAP[p.status])?STATUSMAP[p.status].label:'';
-        var hay=(p.name||'')+' '+(p.seller||'')+' '+(p.code||'')+' '+(p.size||'')+' '+st+' '+Object.keys(p.tags||{}).join(' ')+' '+Object.keys(p.colors||{}).join(' ');
+        var hay=(p.name||'')+' '+(p.seller||'')+' '+(p.code||'')+' '+(p.size||'')+' '+st+' '+KINDMAP[kindOf(p)].label+' '+
+          Object.keys(p.tags||{}).join(' ')+' '+Object.keys(p.media||{}).join(' ')+' '+Object.keys(p.colors||{}).join(' ');
         return hay.toLowerCase().indexOf(q)!==-1;
       });
     }
@@ -1274,7 +1320,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function groupChip(id,label){return '<button class="chipbtn'+(state.pGroup===id?' on':'')+'" data-g="'+id+'" type="button">'+label+'</button>';}
   function groupedHtml(list){
     var groups=[];
-    if(state.pGroup==='type'){
+    if(state.pGroup==='kind'){
+      KINDS.forEach(function(k){
+        var items=list.filter(function(p){return kindOf(p)===k.id;});
+        if(items.length)groups.push({label:k.sym+' '+k.label,items:items});
+      });
+    } else if(state.pGroup==='type'){
       [['square','■ Square'],['round','● Round'],['odd','✦ Odd'],[null,'Type not set']].forEach(function(t){
         var items=list.filter(function(p){return (p.type||null)===t[0];});
         if(items.length)groups.push({label:t[1],items:items});
@@ -1327,16 +1378,19 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     return out;
   }
   function paintingsListHtml(){
-    if(!state.paintings.length)return '<div class="empty">No paintings yet. Tap “+ New painting” to start your first list.</div>';
+    if(!state.paintings.length)return '<div class="empty">No projects yet. Tap “+ New project” to start your first one.</div>';
     var list=filteredPaintings();
-    if(!list.length)return '<div class="empty">No paintings match “'+esc(pQuery)+'”.</div>';
-    var count=(pQuery.trim()?'<div class="meta"><span>Showing '+list.length+' of '+state.paintings.length+' painting'+(state.paintings.length===1?'':'s')+'</span></div>':'');
+    if(!list.length)return '<div class="empty">'+
+      (pQuery.trim()?('No projects match “'+esc(pQuery)+'”'+(state.pKind!=='all'?(' in '+KINDMAP[state.pKind].label):'')+'.')
+                    :('No '+(state.pKind!=='all'?KINDMAP[state.pKind].label.toLowerCase()+' projects':'projects')+' yet.'))+'</div>';
+    var count=((pQuery.trim()||state.pKind!=='all')?'<div class="meta"><span>Showing '+list.length+' of '+state.paintings.length+' project'+(state.paintings.length===1?'':'s')+'</span></div>':'');
     if(state.pGroup==='none')return count+'<div class="ovlist">'+list.map(paintingCardHtml).join('')+'</div>';
     return count+groupedHtml(list);
   }
-  function newPainting(name){
+  function newPainting(name,kind){
     return {id:uid(),name:name||'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,
-      tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:nowTs(),edit:true};
+      tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:nowTs(),edit:true,
+      kind:kind||state.lastKind||'diamond',media:{},palette:[],notes:''};
   }
   function selectedList(){return state.paintings.filter(function(p){return selectedIds[p.id];});}
   function copySelected(){
@@ -1420,8 +1474,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function renderPaintings(){
     var pg=$('page');
-    var SF=[['all','All'],['name','Name'],['diamond','Diamond #'],['seller','Seller'],['code','Kit code'],['tag','Tag']];
-    var phMap={all:'Search name, seller, tag, code, diamond #…',name:'Search painting name…',diamond:'Search diamond number, e.g. 321…',seller:'Search seller…',code:'Search kit code…',tag:'Search tag…'};
+    var SF=[['all','All'],['name','Name'],['diamond','Diamond #'],['seller','Seller'],['code','Kit code'],['tag','Tag'],['media','Media']];
+    var phMap={all:'Search name, seller, tag, code, media, diamond #…',name:'Search project name…',diamond:'Search diamond number, e.g. 321…',seller:'Search seller…',code:'Search kit code…',tag:'Search tag…',media:'Search media, e.g. watercolour…'};
     var ph=phMap[state.pSearchField]||'Search…';
     var html='<div class="toolbar"><label class="search">🔎<input id="pq" type="text" inputmode="search" placeholder="'+esc(ph)+'" value="'+esc(pQuery)+'"></label></div>';
     html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Actions:</span>'+
@@ -1435,10 +1489,17 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       (clipboard.length?('<button class="chipbtn" id="pasteBtn" type="button">📋 Paste ('+clipboard.length+')</button>'):'')+
       (trash.length?('<button class="chipbtn" id="restoreBtn" type="button">♻ Restore ('+trash.length+')</button>'):'')+
       '</div>';
+    var kindCount=function(id){return state.paintings.filter(function(p){return kindOf(p)===id;}).length;};
+    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Show:</span>'+
+      '<button class="chipbtn'+(state.pKind==='all'?' on':'')+'" data-kind="all" type="button">All<span class="cnt" style="color:var(--muted);margin-left:5px;">'+state.paintings.length+'</span></button>'+
+      KINDS.map(function(k){
+        return '<button class="chipbtn'+(state.pKind===k.id?' on':'')+'" data-kind="'+k.id+'" type="button">'+k.sym+' '+k.label+
+          '<span class="cnt" style="color:var(--muted);margin-left:5px;">'+kindCount(k.id)+'</span></button>';
+      }).join('')+'</div>';
     html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Search in:</span>'+
       SF.map(function(x){return '<button class="chipbtn'+(state.pSearchField===x[0]?' on':'')+'" data-sf="'+x[0]+'" type="button">'+x[1]+'</button>';}).join('')+'</div>';
     html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Group:</span>'+
-      groupChip('none','None')+groupChip('status','Status')+groupChip('type','Diamond type')+groupChip('size','Size')+groupChip('seller','Seller')+groupChip('finish','Special diamonds')+'</div>';
+      groupChip('none','None')+groupChip('kind','Kind')+groupChip('status','Status')+groupChip('type','Diamond type')+groupChip('size','Size')+groupChip('seller','Seller')+groupChip('finish','Special diamonds')+'</div>';
     html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Sort:</span>'+
       '<button class="chipbtn'+(state.ovSort==='added'?' on':'')+'" id="sortAdded" type="button">Order added</button>'+
       '<button class="chipbtn'+(state.ovSort==='rating'?' on':'')+'" id="sortRating" type="button">★ Rating</button>'+
@@ -1453,6 +1514,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('sortName'))$('sortName').addEventListener('click',function(){state.ovSort='name';renderPaintings();save();});
     if($('sortPrice'))$('sortPrice').addEventListener('click',function(){state.ovSort='price';renderPaintings();save();});
     pg.querySelectorAll('[data-g]').forEach(function(b){b.addEventListener('click',function(){state.pGroup=b.getAttribute('data-g');renderPaintings();save();});});
+    pg.querySelectorAll('[data-kind]').forEach(function(b){b.addEventListener('click',function(){state.pKind=b.getAttribute('data-kind');renderPaintings();save();});});
     pg.querySelectorAll('[data-sf]').forEach(function(b){b.addEventListener('click',function(){state.pSearchField=b.getAttribute('data-sf');renderPaintings();save();});});
     $('pq').addEventListener('input',function(e){pQuery=e.target.value;renderPaintingsList();});
     if($('undoBtn'))$('undoBtn').addEventListener('click',doUndo);
@@ -1822,6 +1884,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
        third photo onwards is free-floating there */
     var viewMode=(p.edit===false);
     var startIdx=viewMode?2:0;
+    /* a drawing shows every photo in its gallery, so nothing floats there */
+    if(viewMode&&kindOf(p)==='drawing')return;
     if(viewMode){if(p.photos.length<=startIdx)return;}
     /* the free layout stays visible once you've arranged, not only while arranging */
     else if(!(arrangeMode||p.arranged))return;
@@ -2229,23 +2293,56 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var pct=Math.max(0,Math.min(100,p.progress||0));
       prog='<div class="ovprog"><i style="width:'+pct+'%"></i></div><div class="ovprog-lbl">'+pct+'% done</div>';
     }
-    var rows=viewRow('Kit code',esc(p.code||''))+
+    var kd=kindOf(p), isDraw=(kd==='drawing');
+    var rows=(kd!=='drawing'?viewRow('Kit code',esc(p.code||'')):'')+
       viewRow('Size',p.size?(esc(p.size)+' cm'):'')+
-      viewRow('Price',esc(p.price||''))+
-      viewRow('Seller',esc(p.seller||''))+
+      (kd!=='drawing'?viewRow('Price',esc(p.price||'')):'')+
+      (kd!=='drawing'?viewRow('Seller',esc(p.seller||'')):'')+
       viewRow('Started',esc(p.started||''))+
       viewRow('Finished',esc(p.finished||''));
+    var med=Object.keys(p.media||{});
+    var mediaHtml=(usesMedia(p)&&med.length)
+      ? '<div class="ovtags">'+med.map(function(m){return '<span class="ovtag">'+esc(m)+'</span>';}).join('')+'</div>' : '';
+    var notesHtml=p.notes
+      ? '<div class="vw-row" style="display:block;margin-top:8px;"><span class="vw-lbl" style="display:block;">Notes</span>'+
+        '<span class="vw-val" style="white-space:pre-wrap;">'+esc(p.notes)+'</span></div>' : '';
 
-    var sel=DMC.filter(function(r){return p.colors[r[0]];});
-    var colHtml=sel.length
-      ? '<div class="grid compact">'+sel.map(function(r){
-          return '<div class="card ro"><div class="drill" style="background-color:'+r[2]+'"></div>'+
-            '<div class="ctext"><div class="code">'+r[0]+'</div><div class="cname">'+esc(r[1])+'</div></div></div>';
-        }).join('')+'</div>'
-      : '<div class="vw-empty">No colours marked yet — switch to edit mode to add them.</div>';
+    /* the big picture for a drawing, with every other photo in a gallery below */
+    function heroStyle(photo){
+      var fit=photo.fit||'contain';
+      var px=(photo.posX==null?50:photo.posX),py=(photo.posY==null?50:photo.posY);
+      return 'object-fit:'+fit+';object-position:'+px+'% '+py+'%;'+(photo.flip?'transform:scaleX(-1);':'');
+    }
+    var heroHtml=(isDraw&&p.photos[0])
+      ? '<div class="vw-hero"><img data-i="0" src="'+p.photos[0].d+'" alt="" style="'+heroStyle(p.photos[0])+'"></div>' : '';
+    var galleryHtml='';
+    if(isDraw&&p.photos.length>1){
+      galleryHtml='<div class="section-lbl">Photos ('+p.photos.length+')</div><div class="vw-gallery">'+
+        p.photos.slice(1).map(function(ph,i){
+          return '<img data-i="'+(i+1)+'" src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'">';
+        }).join('')+'</div>';
+    }
+
+    var sel=isDiamond(p)?DMC.filter(function(r){return p.colors[r[0]];}):[];
+    var colHtml='';
+    if(isDiamond(p)){
+      colHtml='<div class="section-lbl">Colours ('+sel.length+')</div>'+(sel.length
+        ? '<div class="grid compact">'+sel.map(function(r){
+            return '<div class="card ro"><div class="drill" style="background-color:'+r[2]+'"></div>'+
+              '<div class="ctext"><div class="code">'+r[0]+'</div><div class="cname">'+esc(r[1])+'</div></div></div>';
+          }).join('')+'</div>'
+        : '<div class="vw-empty">No colours marked yet — switch to edit mode to add them.</div>');
+    } else if(kd==='pbn'&&(p.palette||[]).length){
+      colHtml='<div class="section-lbl">Colours in this kit ('+p.palette.length+')</div>'+
+        '<div class="grid compact">'+p.palette.map(function(en,i){
+          return '<div class="card ro"><div class="drill" style="background-color:'+esc(en.color||'#cccccc')+'"></div>'+
+            '<div class="ctext"><div class="code">'+esc(en.label||('Colour '+(i+1)))+'</div>'+
+            '<div class="cname">'+esc(en.color||'')+'</div></div></div>';
+        }).join('')+'</div>';
+    }
 
     var specHtml='';
-    FINISHES.forEach(function(f){
+    if(isDiamond(p))FINISHES.forEach(function(f){
       if(!(f.id in p.spec))return;
       var chosen=(state.specials[f.id]||[]).filter(function(en){return p.spec[f.id][en.id];});
       if(!chosen.length)return;
@@ -2260,25 +2357,25 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<div class="paint-head">'+
           '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
           '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
-          (p.photos.length>2?('<button class="chipbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
+          (!isDraw&&p.photos.length>2?('<button class="chipbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
           '<button class="chipbtn" id="modeToggle" type="button" title="Switch to edit mode">📖🖋 Edit</button>'+
         '</div>'+
       '</div>'+
       '<div id="pageBody">'+
         '<div class="vw-stage">'+
-          sideHtml(0,'Sold')+
+          (isDraw?heroHtml:sideHtml(0,'Sold'))+
           '<div class="vw-card">'+
             '<div class="pd-name">'+esc(p.name)+'</div>'+
-            '<div class="vw-badges">'+statusBadge(p)+ratingBadge(p)+badgeHtml(p.type)+'</div>'+
+            '<div class="vw-badges">'+statusBadge(p)+ratingBadge(p)+(isDiamond(p)?badgeHtml(p.type):kindBadge(p))+'</div>'+
             (fins?'<div class="ovfins">'+fins+'</div>':'')+
             (rows?'<div class="vw-list">'+rows+'</div>':'')+
+            mediaHtml+
             (tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag">'+esc(t)+'</span>';}).join('')+'</div>'):'')+
-            prog+
+            prog+notesHtml+
           '</div>'+
-          sideHtml(1,'Result')+
+          (isDraw?'':sideHtml(1,'Result'))+
         '</div>'+
-        '<div class="section-lbl">Colours ('+sel.length+')</div>'+
-        colHtml+specHtml+
+        galleryHtml+colHtml+specHtml+
       '</div>'+
       /* the arrange bar is position:fixed, so keeping it outside #pageBody means
          the page flow is byte-for-byte identical whether arranging or not */
@@ -2292,7 +2389,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){
       if(arrangeMode)exitArrange(); else enterArrange();
     });
-    pg.querySelectorAll('.vw-side img').forEach(function(im){
+    pg.querySelectorAll('.vw-side img,.vw-hero img,.vw-gallery img').forEach(function(im){
       im.addEventListener('click',function(){openLightbox(im.src);});
     });
     buildArrLayer(p);
@@ -2362,6 +2459,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       toolsHtml+='</div>';
     }
 
+    var kd=kindOf(p);
+    /* kind selector — switching only shows/hides sections, nothing is discarded */
+    var kindChips=KINDS.map(function(k){
+      return '<button class="selchip'+(kd===k.id?' on':'')+'" data-setkind="'+k.id+'" type="button">'+k.sym+' '+k.label+'</button>';
+    }).join('');
+
     /* size / seller / tag chips — in "edit list" mode tapping a chip removes it */
     function listEditBtn(key,has){
       return has?(' <button class="fb-edit" data-editlist="'+key+'" type="button">'+(editLists[key]?'done':'edit list')+'</button>'):'';
@@ -2387,6 +2490,39 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       tagChips+='<button class="selchip'+(on&&!tgEdit?' on':'')+'" data-tag="'+esc(tg)+'" type="button"'+(tgEdit?rmStyle:'')+'>'+(tgEdit?'✕ ':'')+esc(tg)+'</button>';
     });
     tagChips+='<span class="addinline"><input id="newTag" type="text" maxlength="40" placeholder="＋ new tag"><button class="pbtn" id="addTag" type="button">Add</button></span>';
+
+    /* media & tools — shared by paint-by-number and drawings */
+    var mdEdit=!!editLists.media, mediaChips='';
+    state.media.forEach(function(m){
+      var on=!!p.media[m];
+      mediaChips+='<button class="selchip'+(on&&!mdEdit?' on':'')+'" data-media="'+esc(m)+'" type="button"'+(mdEdit?rmStyle:'')+'>'+(mdEdit?'✕ ':'')+esc(m)+'</button>';
+    });
+    mediaChips+='<span class="addinline"><input id="newMedia" type="text" maxlength="40" placeholder="＋ new medium"><button class="pbtn" id="addMedia" type="button">Add</button></span>';
+
+    /* paint-by-number palette: pots have no standard code, so colours are picked by eye */
+    var paletteHtml='';
+    if(kd==='pbn'){
+      var sw=(p.palette||[]).map(function(en,i){
+        return '<div class="card ro" style="padding:6px;">'+
+          '<div class="drill" style="background-color:'+esc(en.color||'#cccccc')+'"></div>'+
+          '<div class="ctext"><div class="code">'+esc(en.label||('Colour '+(i+1)))+'</div>'+
+          '<div class="cname">'+esc(en.color||'')+'</div></div>'+
+          '<div class="delx" data-palx="'+i+'">✕</div></div>';
+      }).join('');
+      paletteHtml='<div class="finbox">'+
+        '<div class="fb-top"><span class="fb-lbl">Colours in this kit'+((p.palette||[]).length?(' ('+p.palette.length+')'):'')+'</span></div>'+
+        (sw?'<div class="fb-chips">'+sw+'</div>':'')+
+        '<div class="fb-addrow">'+
+          '<input type="text" id="palLabel" maxlength="40" placeholder="e.g. 7 — dark green">'+
+          '<input type="color" id="palColor" value="#7BAC94" title="Pick the colour by eye" style="width:40px;height:38px;flex:0 0 auto;padding:2px;border:1.5px solid var(--line);border-radius:9px;background:var(--panel);cursor:pointer;">'+
+          '<button class="pbtn" id="palAdd" type="button">Add</button>'+
+        '</div>'+
+        '<div class="fb-hint">Paint-by-number pots have no standard colour code, so match the colour by eye and label it however the kit numbers them. This palette belongs to this project only.</div>'+
+        '</div>';
+    }
+
+    var notesRow='<div class="pd-row"><div class="pd-lbl">Notes</div>'+
+      '<textarea id="notesInput" rows="2" placeholder="Anything worth remembering…" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;background:var(--panel);color:var(--ink);outline:none;resize:vertical;">'+esc(p.notes||'')+'</textarea></div>';
 
     /* status chips */
     var statusChips='';
@@ -2448,24 +2584,27 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<div class="photos">'+ph+'</div>'+
         '<div class="pdetails">'+
           '<div class="pd-name">'+esc(p.name)+'</div>'+
+          '<div class="pd-row"><div class="pd-lbl">Kind of project</div><div class="selchips">'+kindChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Status</div><div class="selchips">'+statusChips+'</div></div>'+
-          '<div class="pd-row"><div class="pd-lbl">Kit code</div>'+
-            '<input class="codeinput" id="kitCode" type="text" maxlength="60" placeholder="e.g. DP-4471, seller\u2019s article nr\u2026" value="'+esc(p.code||'')+'"></div>'+
+          (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Kit code</div>'+
+            '<input class="codeinput" id="kitCode" type="text" maxlength="60" placeholder="e.g. DP-4471, seller\u2019s article nr\u2026" value="'+esc(p.code||'')+'"></div>'):'')+
           '<div class="pd-row"><div class="pd-lbl">Size (cm)'+listEditBtn('size',state.sizes.length)+'</div><div class="selchips">'+sizeChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Rating (0–10, e.g. 5.6)</div>'+
             '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="'+(p.rating===null?'':p.rating)+'">'+ratingBadge(p)+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input id="progRange" type="range" min="0" max="100" step="5" value="'+(p.progress||0)+'" style="flex:1;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
-          '<div class="pd-row"><div class="pd-lbl">Price</div><input class="codeinput" id="priceInput" type="text" maxlength="20" placeholder="e.g. €25 or 25" value="'+esc(p.price||'')+'"></div>'+
+          (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Price</div><input class="codeinput" id="priceInput" type="text" maxlength="20" placeholder="e.g. €25 or 25" value="'+esc(p.price||'')+'"></div>'):'')+
           '<div class="pd-row"><div class="pd-lbl">Dates</div><div class="selchips" style="gap:10px;">'+dateInputs+'</div></div>'+
-          '<div class="pd-row"><div class="pd-lbl">Seller'+listEditBtn('seller',state.sellers.length)+'</div><div class="selchips">'+sellerChips+'</div></div>'+
+          (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Seller'+listEditBtn('seller',state.sellers.length)+'</div><div class="selchips">'+sellerChips+'</div></div>'):'')+
+          (usesMedia(p)?('<div class="pd-row"><div class="pd-lbl">Media &amp; tools'+listEditBtn('media',state.media.length)+'</div><div class="selchips">'+mediaChips+'</div></div>'):'')+
           '<div class="pd-row"><div class="pd-lbl">Tags'+listEditBtn('tag',state.tags.length)+'</div><div class="selchips">'+tagChips+'</div></div>'+
+          notesRow+
         '</div>'+
       '</div>'+
       '<div class="toolbar">'+
         '<label class="search">🔎<input id="q" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(query)+'"></label>'+
-        '<button class="chipbtn'+(state.onlySel?' on':'')+'" id="onlySel" type="button">Selected only</button>'+
+        (isDiamond(p)?('<button class="chipbtn'+(state.onlySel?' on':'')+'" id="onlySel" type="button">Selected only</button>'+
         '<button class="chipbtn" id="pasteList" type="button">＋ Paste list</button>'+
-        '<button class="chipbtn" id="copyColors" type="button">⧉ Copy colours</button>'+
+        '<button class="chipbtn" id="copyColors" type="button">⧉ Copy colours</button>'):'')+
         '<button class="chipbtn" id="rename" type="button">Rename</button>'+
         '<button class="chipbtn" id="dupe" type="button">Duplicate</button>'+
         '<button class="chipbtn" id="moveUp" type="button" title="Move earlier in the list">↑</button>'+
@@ -2477,22 +2616,25 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="chipbtn" id="renameSave" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">Save name</button>'+
         '<button class="chipbtn" id="renameCancel" type="button">Cancel</button>'+
       '</div>'+
-      '<div class="typerow"><span class="lbl">Diamond type:</span>'+
-        '<button class="tbtn sq'+(p.type==='square'?' on':'')+'" data-t="square" type="button">■ Square</button>'+
-        '<button class="tbtn rd'+(p.type==='round'?' on':'')+'" data-t="round" type="button">● Round</button>'+
-        '<button class="tbtn od'+(p.type==='odd'?' on':'')+'" data-t="odd" type="button">✦ Odd</button>'+
-      '</div>'+
-      '<div class="finrow"><span class="lbl">Special diamonds:</span>'+finChips+'</div>'+
-      finBoxes+
-      (showPaste?'<div class="backup" id="pasteBox"></div>':'')+
-      '<div class="ovsort" style="margin-top:2px;"><span class="pd-lbl" style="margin:0">Colours:</span>'+
-        '<button class="chipbtn'+(colorFamily===''?' on':'')+'" data-fam="" type="button">All</button>'+
-        COLOR_FAMILIES.map(function(fm){return '<button class="chipbtn'+(colorFamily===fm?' on':'')+'" data-fam="'+fm+'" type="button">'+fm+'</button>';}).join('')+
-      '</div>'+
-      '<div class="pins" id="pins"></div>'+
-      '<div class="meta"><span id="count"></span><span id="hint"></span></div>'+
-      '<div class="grid" id="grid"></div>'+
-      '<div class="empty" id="emptyMsg" style="display:none"></div>'+
+      paletteHtml+
+      (isDiamond(p)?(
+        '<div class="typerow"><span class="lbl">Diamond type:</span>'+
+          '<button class="tbtn sq'+(p.type==='square'?' on':'')+'" data-t="square" type="button">■ Square</button>'+
+          '<button class="tbtn rd'+(p.type==='round'?' on':'')+'" data-t="round" type="button">● Round</button>'+
+          '<button class="tbtn od'+(p.type==='odd'?' on':'')+'" data-t="odd" type="button">✦ Odd</button>'+
+        '</div>'+
+        '<div class="finrow"><span class="lbl">Special diamonds:</span>'+finChips+'</div>'+
+        finBoxes+
+        (showPaste?'<div class="backup" id="pasteBox"></div>':'')+
+        '<div class="ovsort" style="margin-top:2px;"><span class="pd-lbl" style="margin:0">Colours:</span>'+
+          '<button class="chipbtn'+(colorFamily===''?' on':'')+'" data-fam="" type="button">All</button>'+
+          COLOR_FAMILIES.map(function(fm){return '<button class="chipbtn'+(colorFamily===fm?' on':'')+'" data-fam="'+fm+'" type="button">'+fm+'</button>';}).join('')+
+        '</div>'+
+        '<div class="pins" id="pins"></div>'+
+        '<div class="meta"><span id="count"></span><span id="hint"></span></div>'+
+        '<div class="grid" id="grid"></div>'+
+        '<div class="empty" id="emptyMsg" style="display:none"></div>'
+      ):'')+
       '</div>';
 
     $('backPaints').addEventListener('click',function(){navTo('paintings');});
@@ -2636,7 +2778,61 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     $('rating').addEventListener('blur',function(){renderPainting();});
 
     /* kit code */
-    $('kitCode').addEventListener('input',function(e){p.code=e.target.value;saveEdit();});
+    if($('kitCode'))$('kitCode').addEventListener('input',function(e){p.code=e.target.value;saveEdit();});
+    if($('notesInput'))$('notesInput').addEventListener('input',function(e){p.notes=e.target.value;saveEdit();});
+
+    /* kind of project — hides sections, never deletes their contents */
+    pg.querySelectorAll('[data-setkind]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var k=b.getAttribute('data-setkind');
+        if(kindOf(p)===k)return;
+        p.kind=k; state.lastKind=k;
+        resetTransient();
+        renderPainting(); renderTabs(); saveEdit();
+        toast(KINDMAP[k].sym+' Now a '+KINDMAP[k].label.toLowerCase()+' — nothing was deleted',1900);
+      });
+    });
+
+    /* media & tools */
+    pg.querySelectorAll('[data-media]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var m=b.getAttribute('data-media');
+        if(editLists.media){
+          if(!twoTap('rmmedia'+m,b,'✕ remove?'))return;
+          state.media=state.media.filter(function(x){return x!==m;});
+          state.paintings.forEach(function(pp){if(pp.media)delete pp.media[m];});
+          renderPainting(); saveEdit(); toast('Medium removed from every project',1500);
+          return;
+        }
+        if(p.media[m])delete p.media[m]; else p.media[m]=1;
+        renderPainting(); saveEdit();
+      });
+    });
+    if($('addMedia'))$('addMedia').addEventListener('click',function(){
+      var v=$('newMedia').value.trim().toLowerCase();
+      if(!v)return;
+      if(state.media.indexOf(v)===-1)state.media.push(v);
+      p.media[v]=1; renderPainting(); saveEdit();
+    });
+    if($('newMedia'))$('newMedia').addEventListener('keydown',function(e){if(e.key==='Enter')$('addMedia').click();});
+
+    /* paint-by-number palette */
+    if($('palAdd'))$('palAdd').addEventListener('click',function(){
+      var lbl=($('palLabel').value||'').trim();
+      var col=$('palColor').value||'#cccccc';
+      if(!p.palette)p.palette=[];
+      p.palette.push({id:uid('c'),color:col,label:lbl});
+      renderPainting(); saveEdit();
+    });
+    if($('palLabel'))$('palLabel').addEventListener('keydown',function(e){if(e.key==='Enter')$('palAdd').click();});
+    pg.querySelectorAll('[data-palx]').forEach(function(x){
+      x.addEventListener('click',function(e){
+        e.stopPropagation();
+        var i=parseInt(x.getAttribute('data-palx'),10);
+        if(!twoTap('palx'+i,null)){toast('Tap ✕ again to remove this colour',1500);return;}
+        p.palette.splice(i,1); renderPainting(); saveEdit();
+      });
+    });
 
     /* edit-list toggles for sizes / sellers / tags */
     pg.querySelectorAll('[data-editlist]').forEach(function(b){
@@ -2684,13 +2880,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         renderPainting(); saveEdit();
       });
     });
-    $('addSeller').addEventListener('click',function(){
+    if($('addSeller'))$('addSeller').addEventListener('click',function(){
       var v=$('newSeller').value.trim();
       if(!v)return;
       if(state.sellers.indexOf(v)===-1)state.sellers.push(v);
       p.seller=v; renderPainting(); saveEdit();
     });
-    $('newSeller').addEventListener('keydown',function(e){if(e.key==='Enter')$('addSeller').click();});
+    if($('newSeller'))$('newSeller').addEventListener('keydown',function(e){if(e.key==='Enter')$('addSeller').click();});
 
     /* tags */
     pg.querySelectorAll('[data-tag]').forEach(function(b){
@@ -2717,7 +2913,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
     /* base controls */
     $('q').addEventListener('input',function(e){query=e.target.value;renderGrid();});
-    $('onlySel').addEventListener('click',function(){state.onlySel=!state.onlySel;renderPainting();save();});
+    if($('onlySel'))$('onlySel').addEventListener('click',function(){state.onlySel=!state.onlySel;renderPainting();save();});
     $('rename').addEventListener('click',function(){renaming=!renaming;renderPainting();});
     $('renameSave').addEventListener('click',function(){
       var v=$('renameInput').value.trim();
@@ -2874,8 +3070,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     refreshPins();
   }
   function updateMeta(shown){
+    var g=$('grid'); if(!g)return;
     var p=active(); var n=Object.keys(p.colors).length;
-    if(typeof shown==='undefined')shown=$('grid').children.length;
+    if(typeof shown==='undefined')shown=g.children.length;
     var cEl=$('count'); if(!cEl)return;
     cEl.textContent=p.name+': '+n+' color'+(n===1?'':'s')+' · showing '+shown+' of '+DMC.length;
     var e=$('emptyMsg');
@@ -2967,7 +3164,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           '<div class="ctext"><div class="code">'+esc(sz)+'</div><div class="cname">size</div></div>'+
           '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
         c.addEventListener('click',function(){
-          expandedSize=(expandedSize===sz)?null:sz; expandedColor=null; expandedSpec=null;
+          expandedSize=(expandedSize===sz)?null:sz; expandedColor=null; expandedSpec=null; expandedMedia=null;
           renderFindLists();
         });
         sgrid.appendChild(c);
@@ -2980,6 +3177,35 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         }
       });
       fs.appendChild(sgrid);
+    }
+
+    /* media & tools — spans paint-by-number and drawings, so the diamond-type
+       filter above doesn't apply to it */
+    var mediaShown=state.media.filter(function(m){return !q||m.toLowerCase().indexOf(q)!==-1;})
+      .filter(function(m){return state.paintings.some(function(p){return p.media&&p.media[m];});});
+    if(mediaShown.length){
+      var mlbl=document.createElement('div');
+      mlbl.className='section-lbl'; mlbl.textContent='Media & tools';
+      fs.appendChild(mlbl);
+      var mgrid=document.createElement('div'); mgrid.className='grid';
+      mediaShown.forEach(function(m){
+        var owners=state.paintings.filter(function(p){return p.media&&p.media[m];});
+        var c=document.createElement('div');
+        c.className='card'+(expandedMedia===m?' open':'');
+        c.innerHTML='<div class="drill spec" style="background-color:var(--accent);font-size:12px;">🖌</div>'+
+          '<div class="ctext"><div class="code">'+esc(m)+'</div><div class="cname">media</div></div>'+
+          '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
+        c.addEventListener('click',function(){
+          expandedMedia=(expandedMedia===m)?null:m; expandedColor=null; expandedSpec=null; expandedSize=null;
+          renderFindLists();
+        });
+        mgrid.appendChild(c);
+        if(expandedMedia===m){
+          var head=esc(m)+' — '+owners.length+' project'+(owners.length===1?'':'s')+':';
+          mgrid.appendChild(expanderEl(head,owners));
+        }
+      });
+      fs.appendChild(mgrid);
     }
 
     /* specials sections */
