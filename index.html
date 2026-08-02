@@ -2036,22 +2036,66 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      Kit charts are rows like "1  V  168": a row number, a symbol, then the DMC
      code. No DMC code is numerically below 150, so a bare number under 150 is a
      row number and is skipped silently rather than reported as unrecognised. */
+  /* Only 454 DMC codes exist, so a number that isn't one of them can usually be
+     repaired: text copied off a chart photo mixes up look-alike characters. */
+  var CONFUSE={'O':'0','o':'0','D':'0','Q':'0','U':'0','I':'1','l':'1','i':'1','L':'1',
+               'Z':'2','z':'2','E':'3','A':'4','S':'5','s':'5','G':'6','b':'6',
+               'T':'7','B':'8','R':'8','g':'9','q':'9'};
+  function digitize(t){return t.replace(/[A-Za-z]/g,function(c){return CONFUSE[c]||c;});}
+  var DMCNUM=DMC.map(function(r){return r[0];}).filter(function(c){return /^\d+$/.test(c);});
+  /* true when one insert, delete or substitution turns a into b */
+  function within1(a,b){
+    if(a===b)return true;
+    var la=a.length,lb=b.length;
+    if(Math.abs(la-lb)>1)return false;
+    var i=0,j=0,diff=0;
+    while(i<la&&j<lb){
+      if(a.charAt(i)===b.charAt(j)){i++;j++;continue;}
+      if(++diff>1)return false;
+      if(la>lb)i++; else if(lb>la)j++; else {i++;j++;}
+    }
+    if(i<la||j<lb)diff++;
+    return diff<=1;
+  }
+  function correctToken(t){
+    /* 1. swap look-alike letters for digits — 38O9 -> 3809 */
+    var d=digitize(t);
+    if(d!==t){
+      var k=DMCLOWER[d.toLowerCase()];
+      if(k)return {code:k,how:'read'};
+    }
+    /* 2. otherwise accept a single-character slip, but only when exactly one
+          real code is that close (no guessing between 3809 and 3808) */
+    if(/^\d+$/.test(d)&&d.length>=3){
+      var hits=[];
+      for(var i=0;i<DMCNUM.length;i++){
+        if(within1(d,DMCNUM[i])){hits.push(DMCNUM[i]);if(hits.length>1)break;}
+      }
+      if(hits.length===1)return {code:hits[0],how:'guess'};
+    }
+    return null;
+  }
   function parsePasteText(raw,p){
     var toks=String(raw||'').split(/[^0-9A-Za-z]+/).filter(Boolean);
-    var seen={},matched=[],unknown=[],ignored=0;
+    var seen={},matched=[],unknown=[],fixes=[],ignored=0;
+    function add(code,from,how){
+      if(seen[code])return;
+      seen[code]=1;
+      matched.push({code:code,already:!!p.colors[code],on:!p.colors[code],from:from||'',how:how||''});
+      if(from)fixes.push(from+' → '+code);
+    }
     toks.forEach(function(t){
       var key=DMCLOWER[t.toLowerCase()];
-      if(key){
-        if(!seen[key]){seen[key]=1;matched.push({code:key,already:!!p.colors[key],on:!p.colors[key]});}
-        return;
-      }
-      if(/^\d+$/.test(t)&&parseInt(t,10)<150){ignored++;return;}   /* row number */
+      if(key){add(key);return;}
+      /* a bare number under 150 is a chart row number, never a code — and never
+         worth repairing, or row 16 would "become" 168 */
+      if(/^\d+$/.test(t)&&parseInt(t,10)<150){ignored++;return;}
       if(/^[A-Za-z]+$/.test(t)){ignored++;return;}                 /* symbol or header word */
-      /* anything left has digits in it, so it was meant to be a code — worth
-         showing, e.g. an OCR slip like 38O9 for 3809 */
+      var fix=correctToken(t);
+      if(fix){add(fix.code,t,fix.how);return;}
       if(unknown.indexOf(t)===-1&&unknown.length<40)unknown.push(t);
     });
-    return {matched:matched,unknown:unknown,ignored:ignored};
+    return {matched:matched,unknown:unknown,fixes:fixes,ignored:ignored};
   }
   function setChartImage(file){
     if(!file||!/^image\//.test(file.type))return;
@@ -2075,17 +2119,23 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var m=pasteReview.matched;
     var fresh=m.filter(function(x){return !x.already;});
     var picked=m.filter(function(x){return x.on;}).length;
+    var fixed=pasteReview.fixes||[];
     var h='<div class="bk-note" style="margin-top:8px;"><b>'+m.length+'</b> DMC number'+(m.length===1?'':'s')+
       ' recognised · '+fresh.length+' new · '+(m.length-fresh.length)+' already in this painting'+
+      (fixed.length?(' · '+fixed.length+' repaired'):'')+
       (pasteReview.ignored?(' · '+pasteReview.ignored+' row number'+(pasteReview.ignored===1?'':'s')+'/symbol'+(pasteReview.ignored===1?'':'s')+' skipped'):'')+'</div>';
+    if(fixed.length)
+      h+='<div class="bk-note" style="margin-top:6px;color:var(--star);font-weight:700;">⚠ Repaired misreads: '+
+        fixed.map(esc).join(' · ')+' — check these against your chart before adding.</div>';
     if(m.length){
       h+='<div class="grid compact" style="margin-top:8px;">'+m.map(function(x,i){
         var row=DMCMAP[x.code];
-        return '<div class="card'+(x.on?' sel':'')+(x.already?' ro':'')+'" data-rev="'+i+'"'+
-          (x.already?' style="opacity:.5"':'')+'>'+
+        var sub=x.already?'already in this painting':(x.from?('⚠ read “'+esc(x.from)+'”'):esc(row[1]));
+        return '<div class="card'+(x.on?' sel':'')+(x.already?' ro':'')+'" data-rev="'+i+'" style="'+
+          (x.already?'opacity:.5;':'')+(x.from?'border-color:var(--star);':'')+'">'+
           '<div class="drill" style="background-color:'+row[2]+'"></div>'+
-          '<div class="ctext"><div class="code">'+row[0]+'</div><div class="cname">'+
-            (x.already?'already in this painting':esc(row[1]))+'</div></div>'+
+          '<div class="ctext"><div class="code">'+row[0]+'</div><div class="cname"'+
+            (x.from?' style="color:var(--star);font-weight:700;"':'')+'>'+sub+'</div></div>'+
           '<div class="tick">✓</div></div>';
       }).join('')+'</div>';
     } else {
