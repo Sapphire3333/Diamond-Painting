@@ -1985,37 +1985,244 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     }
   }
 
-  /* ---------- photos ---------- */
-  /* pid is captured at pick/paste time so a slow load (or a cloud sync that
-     switches paintings meanwhile) can never attach the photo to the wrong one */
-  function addImageFile(file,pid){
-    if(!file||!/^image\//.test(file.type))return;
+  /* ---------- photos ----------
+     Phones fail at this in ways a PC never does. A big screenshot or camera photo
+     can load far enough for its width and height to be known and still draw
+     NOTHING onto a canvas — and a canvas that was never drawn on is transparent,
+     which turns into solid BLACK the instant it is saved as a JPEG. That is the
+     whole "my photo is just black" bug. So: decode through createImageBitmap
+     where it exists (it copes with sizes the <img> route cannot), shrink in
+     halving steps rather than one huge leap, check the result actually has
+     something in it, and never save a blank. */
+  var photoDiag=[];
+  function noteDiag(rec){rec.when=nowTs();photoDiag.unshift(rec);if(photoDiag.length>8)photoDiag.pop();}
+  function decodeViaImg(file,cb,why){
     var rd=new FileReader();
     rd.onload=function(){
       var img=new Image();
-      img.onload=function(){
-        var p=findPainting(pid);
-        if(!p){toast('That project is gone — photo not added',1800);return;}
-        var max=520, w=img.width, h=img.height;
-        if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
-        var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-        cv.getContext('2d').drawImage(img,0,0,w,h);
-        var d=cv.toDataURL('image/jpeg',0.72);
-        var np={d:d,s:1};
-        var isActive=(state.active===pid);
-        if(arrangeMode&&isActive){
-          np.ax=lastPastePt?lastPastePt.x:38; np.ay=lastPastePt?lastPastePt.y:34;
-          np.aw=28; np.arot=0; np.aunit='w';
-        }
-        p.photos.push(np);
-        if(isActive){if(arrangeMode)arrSel=p.photos.length-1; else selPhoto=p.photos.length-1;}
-        if(isActive&&state.view==='paint')renderPainting();
-        savePhotos(pid); pushHistory();
-        toast('Photo added ✓',900);
-      };
+      img.onload=function(){cb(img,'image',why);};
+      img.onerror=function(){cb(null,'image',(why?why+'; ':'')+'the browser could not decode this file');};
       img.src=rd.result;
     };
-    rd.readAsDataURL(file);
+    rd.onerror=function(){cb(null,'file',(why?why+'; ':'')+'the file could not be read');};
+    try{rd.readAsDataURL(file);}catch(e){cb(null,'file','the file could not be read');}
+  }
+  function closeBitmap(s){if(s&&s.close)try{s.close();}catch(e){}}
+  /* The rescue decoder. createImageBitmap can decode straight to the small size,
+     so the huge canvas the phone choked on is never allocated at all. It is only
+     used when the ordinary route fails, because the ordinary <img> route is the
+     one that reliably applies the camera's rotation flag on every browser. */
+  function decodeViaBitmap(file,tw,th,cb){
+    if(!window.createImageBitmap){cb(null,'bitmap','this browser has no rescue decoder');return;}
+    var opts={imageOrientation:'from-image'};
+    if(tw&&th){opts.resizeWidth=tw;opts.resizeHeight=th;opts.resizeQuality='high';}
+    var pr=null;
+    try{pr=createImageBitmap(file,opts);}catch(e){pr=null;}
+    if(!pr||!pr.then){cb(null,'bitmap','rescue decoder refused this file');return;}
+    pr.then(function(bm){cb(bm,'bitmap','');},
+            function(err){cb(null,'bitmap','rescue decode failed ('+((err&&err.message)||err)+')');});
+  }
+  /* shrink on a transparent canvas: halving first, because one giant drawImage is
+     exactly what phones give up on. Transparency is kept so far, so a draw that
+     did nothing is still detectable afterwards. */
+  function scaleTransparent(src,sw,sh,max){
+    var w=sw,h=sh;
+    if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.max(1,Math.round(w*k));h=Math.max(1,Math.round(h*k));}
+    var cur=src,cw=sw,ch=sh;
+    while(cw>=w*2&&ch>=h*2&&cw>2&&ch>2){
+      var hw=Math.max(w,Math.round(cw/2)),hh=Math.max(h,Math.round(ch/2));
+      var tmp=document.createElement('canvas');tmp.width=hw;tmp.height=hh;
+      try{tmp.getContext('2d').drawImage(cur,0,0,hw,hh);}catch(e){break;}
+      cur=tmp;cw=hw;ch=hh;
+    }
+    var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+    try{cv.getContext('2d').drawImage(cur,0,0,w,h);}catch(e){}
+    return cv;
+  }
+  /* nothing was drawn: every sampled pixel is still fully transparent */
+  function canvasEmpty(cv){
+    var d;
+    try{d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data;}catch(e){return false;}
+    var n=cv.width*cv.height, step=Math.max(1,Math.floor(n/5000));
+    for(var i=0;i<n;i+=step){if(d[i*4+3]!==0)return false;}
+    return true;
+  }
+  /* JPEG has no transparency, so anything see-through must land on white rather
+     than on the black it would otherwise become */
+  function flattenToJpeg(cv,q){
+    var out=document.createElement('canvas'); out.width=cv.width; out.height=cv.height;
+    var ctx=out.getContext('2d');
+    ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,0,out.width,out.height);
+    ctx.drawImage(cv,0,0);
+    return out.toDataURL('image/jpeg',q||0.72);
+  }
+  /* Shrink a picked file down to `max`, however hard this device makes it.
+     cb(dataUrl or null). Everything that happens is recorded for 🩺 Photo check. */
+  function importImage(file,max,quality,cb){
+    var rec={name:file.name||'photo',type:file.type||'(none)',bytes:file.size||0,path:'image'};
+    function note(t){rec.note=(rec.note?rec.note+'; ':'')+t;}
+    function done(cv,src){
+      var d=flattenToJpeg(cv,quality);
+      rec.ok=true; rec.out=cv.width+'×'+cv.height; rec.outBytes=d.length;
+      noteDiag(rec); closeBitmap(src); cb(d,rec);
+    }
+    function give(msg,src){rec.ok=false;note(msg);noteDiag(rec);closeBitmap(src);cb(null,rec);}
+    /* second pass: decode straight to the wanted size, bypassing the big canvas */
+    function rescue(sw,sh){
+      rec.path='image→bitmap';
+      var tw=0,th=0;
+      if(sw&&sh){
+        var k=Math.min(1,Math.min(max/sw,max/sh));
+        tw=Math.max(1,Math.round(sw*k)); th=Math.max(1,Math.round(sh*k));
+      }
+      decodeViaBitmap(file,tw,th,function(bm,p2,why){
+        if(!bm){give(why||'the rescue decoder could not read it either');return;}
+        var bw=bm.width||0,bh=bm.height||0;
+        var cv2=scaleTransparent(bm,bw,bh,max);
+        if(canvasEmpty(cv2)){give('blank again after the rescue decoder ('+bw+'×'+bh+')',bm);return;}
+        rec.size=(rec.size||(sw+'×'+sh))+' → rescued at '+bw+'×'+bh;
+        done(cv2,bm);
+      });
+    }
+    decodeViaImg(file,function(img,path,why){
+      if(why)note(why);
+      if(!img){rescue(0,0);return;}
+      var sw=img.naturalWidth||img.width||0, sh=img.naturalHeight||img.height||0;
+      rec.size=sw+'×'+sh;
+      if(!sw||!sh){note('the image reported no size');rescue(0,0);return;}
+      var cv=scaleTransparent(img,sw,sh,max);
+      if(canvasEmpty(cv)){
+        /* the classic phone failure: it loaded, but drawing it produced nothing */
+        note('drew blank at '+cv.width+'×'+cv.height);
+        rescue(sw,sh); return;
+      }
+      done(cv,null);
+    },'');
+  }
+  /* pid is captured at pick/paste time so a slow load (or a cloud sync that
+     switches paintings meanwhile) can never attach the photo to the wrong one */
+  function addImageFile(file,pid){
+    if(!file)return;
+    /* some phone pickers hand over a blank type, so the name gets a say too and
+       the decoder is the real judge */
+    if(file.type&&!/^image\//.test(file.type)&&!/\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i.test(file.name||''))return;
+    importImage(file,520,0.72,function(d){
+      if(!d){toast('That photo came out blank on this device, so it wasn’t added — tap 🩺 Photo check',4200);return;}
+      var p=findPainting(pid);
+      if(!p){toast('That project is gone — photo not added',1800);return;}
+      var np={d:d,s:1};
+      var isActive=(state.active===pid);
+      if(arrangeMode&&isActive){
+        np.ax=lastPastePt?lastPastePt.x:38; np.ay=lastPastePt?lastPastePt.y:34;
+        np.aw=28; np.arot=0; np.aunit='w';
+      }
+      p.photos.push(np);
+      if(isActive){if(arrangeMode)arrSel=p.photos.length-1; else selPhoto=p.photos.length-1;}
+      if(isActive&&state.view==='paint')renderPainting();
+      savePhotos(pid); pushHistory();
+      toast('Photo added ✓',900);
+    });
+  }
+
+  /* ---------- 🩺 photo check ----------
+     A phone-only failure can't be chased from a PC, so the app can report on
+     itself: what the last imports did, and whether this device can survive
+     shrinking images of realistic sizes at all. */
+  function deviceLines(){
+    var L=[];
+    L.push('Browser: '+navigator.userAgent);
+    var sw=screen.width||0, sh=screen.height||0;
+    var vw=window.innerWidth||document.documentElement.clientWidth||0;
+    var vh=window.innerHeight||document.documentElement.clientHeight||0;
+    L.push('Screen: '+(sw&&sh?(sw+'×'+sh):'unknown')+' · window '+(vw&&vh?(vw+'×'+vh):'unknown')+
+      ' · '+(window.devicePixelRatio||1)+'× pixel ratio');
+    L.push('createImageBitmap: '+(window.createImageBitmap?'available':'MISSING'));
+    L.push('Storage: '+(STORE?STORE.kind:'none')+' · memory hint: '+(navigator.deviceMemory?(navigator.deviceMemory+' GB'):'not reported'));
+    return L;
+  }
+  function selfTestSizes(cb,onStep){
+    var sizes=[[1290,2796],[2048,2048],[4032,3024],[6000,4000]];
+    var out=[], i=0;
+    function next(){
+      if(i>=sizes.length){cb(out);return;}
+      var s=sizes[i++], label=s[0]+'×'+s[1];
+      setTimeout(function(){
+        var src;
+        try{
+          src=document.createElement('canvas'); src.width=s[0]; src.height=s[1];
+          var c=src.getContext('2d');
+          if(!c){out.push(label+': no canvas'); onStep&&onStep(out); next(); return;}
+          c.fillStyle='#3355FF'; c.fillRect(0,0,s[0],s[1]);
+          c.fillStyle='#FFCC00'; c.fillRect(0,0,Math.round(s[0]/2),Math.round(s[1]/2));
+        }catch(e){out.push(label+': could not even make this canvas'); onStep&&onStep(out); next(); return;}
+        var url;
+        try{url=src.toDataURL('image/jpeg',0.8);}catch(e){out.push(label+': could not encode ('+e.message+')'); onStep&&onStep(out); next(); return;}
+        if(!url||url.length<200){out.push(label+': encoded EMPTY — too big for this device'); onStep&&onStep(out); next(); return;}
+        var im=new Image();
+        im.onload=function(){
+          var cv=scaleTransparent(im,im.naturalWidth,im.naturalHeight,520);
+          out.push(label+': '+(canvasEmpty(cv)?'BLANK — this size fails on this device':'ok'));
+          onStep&&onStep(out); next();
+        };
+        im.onerror=function(){out.push(label+': could not decode it back'); onStep&&onStep(out); next();};
+        im.src=url;
+      },30);
+    }
+    next();
+  }
+  function photoReportText(tests){
+    var L=deviceLines();
+    L.push('');
+    L.push('Recent photo imports (newest first):');
+    if(!photoDiag.length)L.push('  none yet — add a photo, then open this again');
+    photoDiag.forEach(function(r){
+      L.push('  '+(r.ok?'OK  ':'FAIL')+' '+r.name+' · '+r.type+' · '+fmtBytes(r.bytes||0)+
+        ' · decoded '+(r.size||'?')+' via '+(r.path||'?')+
+        (r.out?(' → saved '+r.out+' '+fmtBytes(r.outBytes||0)):'')+
+        (r.note?(' · '+r.note):''));
+    });
+    L.push('');
+    L.push('Can this device shrink an image of each size?');
+    if(!tests||!tests.length)L.push('  testing…');
+    else tests.forEach(function(t){L.push('  '+t);});
+    return L.join('\n');
+  }
+  function openPhotoCheck(){
+    var ov=document.createElement('div'); ov.className='lightbox';
+    ov.style.cursor='default'; ov.style.alignItems='flex-start'; ov.style.overflow='auto';
+    var panel=document.createElement('div');
+    panel.style.cssText='background:var(--panel);color:var(--ink);border-radius:14px;padding:14px;max-width:640px;width:100%;';
+    var ttl=document.createElement('div');
+    ttl.style.cssText='font-weight:800;font-size:16px;margin-bottom:6px;'; ttl.textContent='🩺 Photo check';
+    var intro=document.createElement('div'); intro.className='bk-note';
+    intro.textContent='If a photo came out black or wasn’t added on this device, this says why. Tap “Copy report” and paste it into a message — that’s all I need to fix it.';
+    var pre=document.createElement('pre');
+    pre.style.cssText='white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;'+
+      'font-size:11.5px;line-height:1.45;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px;margin:10px 0;';
+    pre.textContent=photoReportText(null);
+    var bar=document.createElement('div'); bar.className='bk-btns';
+    var copy=document.createElement('button'); copy.className='chipbtn'; copy.type='button'; copy.textContent='Copy report';
+    copy.style.cssText='background:var(--accent);border-color:var(--accent);color:#fff;';
+    var close=document.createElement('button'); close.className='chipbtn'; close.type='button'; close.textContent='Close';
+    bar.appendChild(copy); bar.appendChild(close);
+    panel.appendChild(ttl); panel.appendChild(intro); panel.appendChild(pre); panel.appendChild(bar);
+    ov.appendChild(panel);
+    function destroy(){ov.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';}
+    function onKey(e){if(e.key==='Escape')destroy();}
+    ov._destroy=destroy;
+    close.addEventListener('click',destroy);
+    ov.addEventListener('click',function(e){if(e.target===ov)destroy();});
+    copy.addEventListener('click',function(){
+      var txt=pre.textContent;
+      if(navigator.clipboard&&navigator.clipboard.writeText)
+        navigator.clipboard.writeText(txt).then(function(){toast('Report copied ✓',1400);},function(){toast('Copy blocked — select the text and copy it by hand',2400);});
+      else toast('Copy blocked — select the text and copy it by hand',2400);
+    });
+    document.addEventListener('keydown',onKey);
+    document.body.style.overflow='hidden';
+    document.body.appendChild(ov);
+    selfTestSizes(function(tests){pre.textContent=photoReportText(tests);},
+                  function(tests){pre.textContent=photoReportText(tests);});
   }
   document.addEventListener('paste',function(e){
     if(state.view!=='paint')return;
@@ -2142,7 +2349,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var cv=document.createElement('canvas');
         cv.width=Math.max(1,Math.round(ww*scale)); cv.height=Math.max(1,Math.round(hh*scale));
         cv.getContext('2d').drawImage(img2,Math.round(l*scale),Math.round(t*scale),cv.width,cv.height,0,0,cv.width,cv.height);
-        photo.d=cv.toDataURL('image/jpeg',0.85);
+        /* a cut-out photo is a PNG with see-through edges: saving it as JPEG would
+           turn all of that black, so PNGs stay PNGs and everything else lands on white */
+        photo.d=/^data:image\/png/i.test(photo.d)?cv.toDataURL('image/png'):flattenToJpeg(cv,0.85);
         ov.remove(); cb(true);
       };
       img2.onerror=function(){ov.remove();cb(false);};
@@ -2483,22 +2692,15 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     return {matched:matched,unknown:unknown,fixes:fixes,ignored:ignored};
   }
   function setChartImage(file){
-    if(!file||!/^image\//.test(file.type))return;
-    var rd=new FileReader();
-    rd.onload=function(){
-      var img=new Image();
-      img.onload=function(){
-        var max=1100,w=img.width,h=img.height;
-        if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
-        var cv=document.createElement('canvas');cv.width=w;cv.height=h;
-        cv.getContext('2d').drawImage(img,0,0,w,h);
-        chartImg=cv.toDataURL('image/jpeg',0.85);   /* kept in memory only, never saved */
-        fillPasteBox();
-        toast('Chart added for reference ✓',1200);
-      };
-      img.src=rd.result;
-    };
-    rd.readAsDataURL(file);
+    if(!file)return;
+    if(file.type&&!/^image\//.test(file.type)&&!/\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i.test(file.name||''))return;
+    /* same careful path as photos — a chart that reads as black is useless */
+    importImage(file,1100,0.85,function(d){
+      if(!d){toast('That chart came out blank on this device — tap 🩺 Photo check',3800);return;}
+      chartImg=d;   /* kept in memory only, never saved */
+      fillPasteBox();
+      toast('Chart added for reference ✓',1200);
+    });
   }
   function pasteReviewHtml(){
     var m=pasteReview.matched;
@@ -2741,7 +2943,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     ph+='</div>';
     ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
-      (p.photos.length?('<button class="pbtn'+(arrangeMode?' on':'')+'" id="arrEnter" type="button">'+(arrangeMode?'✓ Done arranging':'⇱ Arrange &amp; edit')+'</button>'):'')+'</div>';
+      (p.photos.length?('<button class="pbtn'+(arrangeMode?' on':'')+'" id="arrEnter" type="button">'+(arrangeMode?'✓ Done arranging':'⇱ Arrange &amp; edit')+'</button>'):'')+
+      '<button class="pbtn" id="phCheck" type="button" title="Why did a photo come out black or refuse to load?">🩺 Photo check</button></div>';
     ph+='<div class="photo-hint">'+(p.photos.length
       ? ('Tap a photo for its tools in the bar at the top, or its <b>✕</b> to remove it. '+
          (kindOf(p)==='drawing'
@@ -3038,6 +3241,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
     /* photos events */
     if($('phAdd'))$('phAdd').addEventListener('click',function(){$('fileInput').click();});
+    if($('phCheck'))$('phCheck').addEventListener('click',openPhotoCheck);
     if($('arrEnter'))$('arrEnter').addEventListener('click',function(){if(arrangeMode)exitArrange();else enterArrange();});
     if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){if(arrangeMode)exitArrange();else enterArrange();});
     if($('modeToggle'))$('modeToggle').addEventListener('click',function(){

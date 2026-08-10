@@ -65,7 +65,7 @@ After that it opens full-screen from its own icon and works offline.
 
 ### Tips
 
-- **Photos:** tap a photo to open its tools (crop to card, flip, reorder). Use **⇱ Arrange & edit** to drag photos anywhere on the page, resize, tilt, crop, or cut out the background. On PC you can paste a copied image with Ctrl+V.
+- **Photos:** tap a photo to open its tools (crop to card, flip, reorder). Use **⇱ Arrange & edit** to drag photos anywhere on the page, resize, tilt, crop, or cut out the background. On PC you can paste a copied image with Ctrl+V. If a photo ever refuses to load on a phone, **🩺 Photo check** explains what went wrong on that device.
 - **Tags, sizes, sellers** are shared lists — add one once, reuse it everywhere. Tap **edit list** next to a group to remove entries you no longer want.
 - **Backups:** Overview → *Backup & restore*. "Show backup code" gives you a text code you can save anywhere (notes app, email to yourself), and "⬇ Download as file" saves the same thing as a file — sturdier than the clipboard when photos make the code huge. You can also keep up to 20 snapshots on the device and turn on automatic daily/weekly backups.
 
