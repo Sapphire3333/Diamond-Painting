@@ -387,7 +387,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var state={
     paintings:[{id:'p1',name:'Project 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true,kind:'diamond',media:{},palette:[],notes:''}],
     active:'p1', onlySel:false, view:'paintings',
-    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), stash:{}, ovSort:'added', pGroup:'none', pSearchField:'all',
+    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), stash:{}, gone:{}, ovSort:'added', pGroup:'none', pSearchField:'all',
     autoBackup:'off', dark:false, density:'full', accent:'violet',
     media:DEFAULT_MEDIA.slice(), pKind:'all', lastKind:'diamond'
   };
@@ -533,18 +533,53 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var STORE=null;   /* cloud-mirroring store used by the app */
   var LOCAL=null;   /* raw local store (no cloud mirror) */
   function photoKey(pid){return 'dpPhotos_'+pid;}
+  function paintKey(pid){return 'dpPaint_'+pid;}
+  /* backup format: the whole state with paintings inline (minus photos), the
+     same shape backups have always had — old backup codes keep working */
   function strippedState(){
     var s=JSON.parse(JSON.stringify(state));
     s.paintings.forEach(function(p){delete p.photos;});
     return s;
   }
-  var saveT=null;
+  /* storage format: each project's body lives under its own key, so two devices
+     editing different projects at the same time can never overwrite each other.
+     The main blob keeps only settings, shared lists, the project order, and
+     tombstones of deleted ids (so a delete on one device wins over the other
+     device's stale copy of the list, but a fresh add is never wiped out). */
+  function paintBody(p){
+    var c={}; for(var k in p){if(k!=='photos')c[k]=p[k];}
+    return JSON.stringify(c);
+  }
+  function mainBlob(){
+    var s={}; for(var k in state){if(k!=='paintings')s[k]=state[k];}
+    s=JSON.parse(JSON.stringify(s));
+    s.fmt=2;
+    s.order=state.paintings.map(function(p){return p.id;});
+    var g=s.gone||{}, ids=Object.keys(g);
+    if(ids.length>300){ /* tombstones may not grow forever */
+      ids.sort(function(a,b){return g[b]-g[a];});
+      var keep={}; ids.slice(0,300).forEach(function(i){keep[i]=g[i];});
+      s.gone=keep; state.gone=keep;
+    }
+    return s;
+  }
+  var saveT=null, lastSavedBody={};
   function save(){
     clearTimeout(saveT);
     saveT=setTimeout(function(){
       if(!STORE){warnOnce();return;}
       try{
-        STORE.set(KEY, JSON.stringify(strippedState()))
+        /* a project that exists can't stay tombstoned (restores and undo re-add ids) */
+        if(!state.gone)state.gone={};
+        state.paintings.forEach(function(p){if(state.gone[p.id])delete state.gone[p.id];});
+        /* write only the project bodies that actually changed */
+        state.paintings.forEach(function(p){
+          var body=paintBody(p);
+          if(lastSavedBody[p.id]===body)return;
+          lastSavedBody[p.id]=body;
+          STORE.set(paintKey(p.id),body).catch(function(){warnOnce();});
+        });
+        STORE.set(KEY, JSON.stringify(mainBlob()))
           .then(function(){toast('Saved ✓',650);}).catch(function(){warnOnce();});
       }catch(e){warnOnce();}
     },450);
@@ -566,6 +601,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function deletePhotosKey(pid){
     if(STORE)try{STORE.del(photoKey(pid));}catch(e){}
+  }
+  /* removing a project: drop its body key and leave a tombstone so the other
+     device's copy of the list can't resurrect it */
+  function deletePaintKey(pid){
+    delete lastSavedBody[pid];
+    if(!state.gone)state.gone={};
+    state.gone[pid]=nowTs();
+    if(STORE)try{STORE.del(paintKey(pid));}catch(e){}
   }
   function nowTs(){try{return Date.now();}catch(e){return 0;}}
   function todayStr(){try{var d=new Date();function p2(n){return (n<10?'0':'')+n;}return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}catch(e){return '';}}
@@ -661,7 +704,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     cachePhotos();
     var d;try{d=JSON.parse(json);}catch(e){return;}
     var keepView=state.view, keepActive=state.active;
+    var oldIds=state.paintings.map(function(p){return p.id;});
     state.paintings=d.paintings.map(function(p){p.photos=photoCache[p.id]||[];return p;});
+    /* an id the snapshot doesn't have was deleted (or its add undone) — clear its
+       body key; photos stay cached so redo can bring everything straight back */
+    var nowIds={}; state.paintings.forEach(function(p){nowIds[p.id]=1;});
+    oldIds.forEach(function(id){if(!nowIds[id])deletePaintKey(id);});
     state.specials=d.specials||{}; state.sellers=d.sellers||[]; state.tags=d.tags||[]; state.sizes=d.sizes||[]; state.media=d.media||[]; state.stash=d.stash||{};
     normalize(state);
     var stillThere=state.paintings.some(function(p){return p.id===keepActive;});
@@ -696,6 +744,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(!s.accent||!ACCENTMAP[s.accent])s.accent='violet';
     if(!s.specials)s.specials={};
     if(!s.stash)s.stash={};
+    if(!s.gone)s.gone={};
     if(!s.sellers)s.sellers=[];
     if(!s.tags||!s.tags.length)s.tags=DEFAULT_TAGS.slice();
     if(!s.sizes||!s.sizes.length)s.sizes=DEFAULT_SIZES.slice();
@@ -743,7 +792,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      pull down and apply any key the other device changed more recently
      (last-write-wins per key). If the cloud is unreachable the app keeps working
      exactly as before. */
-  var pulling=false, syncTimer=null;
+  var pulling=false, syncTimer=null, pullReplace=false;
   var AUTH={token:'',refresh:'',email:'',expires:0};
   function loadAuth(){try{var a=JSON.parse(localStorage.getItem('dpAuth')||'null');if(a&&a.token)AUTH=a;}catch(e){}}
   function saveAuth(){try{localStorage.setItem('dpAuth',JSON.stringify(AUTH));}catch(e){}}
@@ -849,6 +898,44 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     apiCall('DELETE','kv?k=eq.'+encodeURIComponent(k),null,{'Prefer':'return=minimal'})
       .then(function(r){if(r.ok){var m=getMeta();delete m[k];setMeta(m);clearDirty(k);}}).catch(function(){});
   }
+  /* Reconcile an incoming main blob with the local one. Project bodies live in
+     their own keys, so this only merges the LIST: the union of both sides'
+     project ids (a fresh add on either device survives), minus anything either
+     side has tombstoned (a delete wins over a stale list). Settings and shared
+     lists stay last-write-wins. A legacy blob from a not-yet-updated device is
+     converted on the fly: its inline bodies are returned to be written out.
+     `replace` skips the union — used for "Use cloud data (replace this device)". */
+  function mergeMainBlobs(localStr,incStr,replace){
+    var inc=null; try{inc=JSON.parse(incStr);}catch(e){}
+    if(!inc||typeof inc!=='object')return {json:incStr,bodies:[],pushBack:false};
+    var bodies=[];
+    if(inc.paintings&&inc.paintings.length){
+      inc.order=inc.paintings.map(function(p){return p.id;});
+      inc.paintings.forEach(function(p){
+        var c={}; for(var k in p){if(k!=='photos')c[k]=p[k];}
+        bodies.push({id:p.id,json:JSON.stringify(c)});
+      });
+      delete inc.paintings;
+      inc.fmt=2;
+    }
+    if(replace)return {json:JSON.stringify(inc),bodies:bodies,pushBack:false};
+    var loc=null; try{loc=JSON.parse(localStr);}catch(e){}
+    var locOrder=(loc&&(loc.order||(loc.paintings&&loc.paintings.map(function(p){return p.id;}))))||[];
+    var incOrder=inc.order||[];
+    var gone={};
+    [(loc&&loc.gone)||{},inc.gone||{}].forEach(function(g){
+      Object.keys(g).forEach(function(id){if(!gone[id]||g[id]>gone[id])gone[id]=g[id];});
+    });
+    var seen={}, order=[];
+    incOrder.concat(locOrder).forEach(function(id){
+      if(seen[id]||gone[id])return; seen[id]=1; order.push(id);
+    });
+    var pushBack=order.length!==incOrder.length||
+      order.some(function(id,i){return incOrder[i]!==id;})||
+      Object.keys(gone).length!==Object.keys(inc.gone||{}).length;
+    inc.order=order; inc.gone=gone;
+    return {json:JSON.stringify(inc),bodies:bodies,pushBack:pushBack};
+  }
   /* pull cloud -> local; cb(changed).
      Two steps: first ask only for keys + timestamps (a few hundred bytes), then
      download values just for the keys another device actually changed. This runs
@@ -857,7 +944,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function cloudPull(cb){
     if(!cloudOn()||pulling){cb&&cb(false);return;}
     pulling=true;
-    function done(changed){pulling=false;cb&&cb(changed);}
+    function done(changed){pulling=false;pullReplace=false;cb&&cb(changed);}
     apiCall('GET','kv?select=k,ts',null).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.json();}).then(function(rows){
       rows=rows||[];var m=getMeta();var keys=[];
       rows.forEach(function(row){if((Number(row.ts)||0)>(m[row.k]||0))keys.push(row.k);});
@@ -870,6 +957,19 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var pend=fetched.length;
         fetched.forEach(function(row){
           var fin=function(){m[row.k]=Number(row.ts)||m[row.k];if(--pend===0){setMeta(m);done(true);}};
+          /* the main blob is merged, not blindly replaced */
+          if(row.k===KEY&&row.v!=null){
+            LOCAL.get(KEY).then(function(cur){
+              var merged=mergeMainBlobs(cur&&cur.value,row.v,pullReplace);
+              var writes=[LOCAL.set(KEY,merged.json)];
+              merged.bodies.forEach(function(b){writes.push(LOCAL.set(paintKey(b.id),b.json));});
+              Promise.all(writes).then(function(){
+                if(merged.pushBack)cloudPush(KEY,merged.json);
+                fin();
+              },fin);
+            },fin);
+            return;
+          }
           try{(row.v==null?LOCAL.del(row.k):LOCAL.set(row.k,row.v)).then(fin,fin);}catch(e){fin();}
         });
       }
@@ -887,16 +987,20 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   /* push every local key up (first sync / manual upload) */
   function cloudPushAll(cb){
     if(!cloudOn()){cb&&cb();return;}
-    var keys=[KEY];state.paintings.forEach(function(p){keys.push(photoKey(p.id));});
-    var pend=keys.length,m=getMeta();
+    var items=[{k:KEY,fb:function(){return JSON.stringify(mainBlob());}}];
+    state.paintings.forEach(function(p){
+      items.push({k:paintKey(p.id),fb:function(){return paintBody(p);}});
+      items.push({k:photoKey(p.id),fb:function(){return null;}});
+    });
+    var pend=items.length,m=getMeta();
     function fin(){if(--pend===0){setMeta(m);cb&&cb();}}
-    keys.forEach(function(k){
-      LOCAL.get(k).then(function(r){
-        var v=(r&&r.value!=null)?r.value:(k===KEY?JSON.stringify(strippedState()):null);
+    items.forEach(function(it){
+      LOCAL.get(it.k).then(function(r){
+        var v=(r&&r.value!=null)?r.value:it.fb();
         if(v==null){fin();return;}
-        apiCall('POST','kv',[{k:k,v:v}],{'Prefer':'resolution=merge-duplicates,return=representation'})
+        apiCall('POST','kv',[{k:it.k,v:v}],{'Prefer':'resolution=merge-duplicates,return=representation'})
           .then(function(rr){if(!rr.ok)return null;return rr.json();}).then(function(rows){
-            if(rows&&rows.length){m[k]=Number(rows[0].ts)||m[k];clearDirty(k);}fin();
+            if(rows&&rows.length){m[it.k]=Number(rows[0].ts)||m[it.k];clearDirty(it.k);}fin();
           }).catch(function(){fin();});
       }).catch(function(){fin();});
     });
@@ -951,34 +1055,71 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       cb();
     });
   }
-  /* read main state + per-painting photos from local into `state` */
+  /* load per-painting photos; migrate any photos still stored inline (old format) */
+  function loadPhotosInto(cb){
+    var migrated=false;
+    var pend=state.paintings.length;
+    if(!pend){cb();return;}
+    state.paintings.forEach(function(p){
+      var inline=(p.photos&&p.photos.length)?p.photos:null;
+      STORE.get(photoKey(p.id)).then(function(pr){
+        try{
+          if(pr&&pr.value){var arr=JSON.parse(pr.value);if(arr&&arr.length)p.photos=arr;}
+          else if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
+        }catch(e){if(inline)p.photos=inline;}
+        if(--pend===0){if(migrated)save();cb();}
+      }).catch(function(){
+        if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
+        if(--pend===0){if(migrated)save();cb();}
+      });
+    });
+  }
+  function ensureOnePainting(){
+    if(!state.paintings.length)state.paintings=[newPainting('Project 1')];
+    if(!state.paintings.some(function(p){return p.id===state.active;}))state.active=state.paintings[0].id;
+  }
+  /* read main state + per-project bodies + per-project photos into `state` */
   function hydrate(cb){
     if(!STORE){normalize(state);cb();return;}
     STORE.get(KEY).then(function(r){
-      var migrated=false;
-      try{
-        if(r&&r.value){var s=JSON.parse(r.value);
-          if(s&&s.paintings&&s.paintings.length){state=normalize(s);}}
-      }catch(e){}
-      /* also covers a first run with nothing stored, where `state` is still the
-         built-in starting object and would otherwise miss newer fields */
-      normalize(state);
-      /* load per-painting photos; migrate any photos still stored inline (old format) */
-      var pend=state.paintings.length;
-      if(!pend){cb();return;}
-      state.paintings.forEach(function(p){
-        var inline=(p.photos&&p.photos.length)?p.photos:null;
-        STORE.get(photoKey(p.id)).then(function(pr){
-          try{
-            if(pr&&pr.value){var arr=JSON.parse(pr.value);if(arr&&arr.length)p.photos=arr;}
-            else if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
-          }catch(e){if(inline)p.photos=inline;}
-          if(--pend===0){if(migrated)save();cb();}
-        }).catch(function(){
-          if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
-          if(--pend===0){if(migrated)save();cb();}
+      var s=null;
+      try{if(r&&r.value)s=JSON.parse(r.value);}catch(e){}
+      if(s&&s.paintings&&s.paintings.length){
+        /* legacy single-blob format: adopt it, then split each project into its
+           own key right now (not debounced) so nothing can race the new layout */
+        state=normalize(s);
+        var wp=[];
+        state.paintings.forEach(function(p){
+          var body=paintBody(p); lastSavedBody[p.id]=body;
+          wp.push(STORE.set(paintKey(p.id),body).catch(function(){}));
         });
-      });
+        wp.push(STORE.set(KEY,JSON.stringify(mainBlob())).catch(function(){}));
+        Promise.all(wp).then(function(){loadPhotosInto(cb);},function(){loadPhotosInto(cb);});
+        return;
+      }
+      if(s&&s.order){
+        /* split format: the main blob lists ids, bodies live in their own keys */
+        var ids=s.order.slice();
+        s.paintings=[];
+        if(!ids.length){state=normalize(s);ensureOnePainting();loadPhotosInto(cb);return;}
+        var slots=new Array(ids.length), pend=ids.length;
+        function fin(){
+          s.paintings=slots.filter(Boolean);
+          state=normalize(s);
+          ensureOnePainting();
+          loadPhotosInto(cb);
+        }
+        ids.forEach(function(id,i){
+          STORE.get(paintKey(id)).then(function(pr){
+            try{if(pr&&pr.value)slots[i]=JSON.parse(pr.value);}catch(e){}
+            if(--pend===0)fin();
+          }).catch(function(){if(--pend===0)fin();});
+        });
+        return;
+      }
+      /* first run (nothing stored) or unreadable: keep the built-in state */
+      normalize(state);
+      loadPhotosInto(cb);
     }).catch(function(){cb();});
   }
   /* re-read stored photos for paintings whose photos aren't in memory
@@ -1264,7 +1405,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var oldIds=state.paintings.map(function(p){return p.id;});
     state=normalize(s);
     var keep={}; state.paintings.forEach(function(p){keep[p.id]=1;});
-    oldIds.forEach(function(id){if(!keep[id])deletePhotosKey(id);});
+    oldIds.forEach(function(id){if(!keep[id]){deletePhotosKey(id);deletePaintKey(id);}});
     trash=[]; selectedIds={}; resetTransient();
     render(); save();
     state.paintings.forEach(function(p){if(p.photos&&p.photos.length)savePhotos(p.id);});
@@ -1573,7 +1714,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function deleteSelected(){
     var sel=selectedList();
     if(!sel.length){toast('Tick some projects first',1500);return;}
-    sel.forEach(function(p){trash.unshift({p:p,idx:state.paintings.indexOf(p)});deletePhotosKey(p.id);});
+    sel.forEach(function(p){trash.unshift({p:p,idx:state.paintings.indexOf(p)});deletePhotosKey(p.id);deletePaintKey(p.id);});
     if(trash.length>20)trash.length=20;
     state.paintings=state.paintings.filter(function(p){return !selectedIds[p.id];});
     if(!state.paintings.length)state.paintings=[newPainting('Project 1')];
@@ -1771,6 +1912,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('syPass'))$('syPass').addEventListener('keydown',function(e){if(e.key==='Enter')doAuth('login');});
     if($('syUseCloud'))$('syUseCloud').addEventListener('click',function(){
       markSynced();
+      pullReplace=true;   /* "replace this device": take the cloud list as-is, no union */
       cloudPull(function(){hydrate(function(){syncPhase='';render();toast('Synced from cloud ✓',1400);startSyncLoop();});});
     });
     if($('syUploadThis'))$('syUploadThis').addEventListener('click',function(){
@@ -3218,7 +3360,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!twoTap('delpaint',$('del'),'Tap again to delete'))return;
       var doomed=active();
       var doomedIdx=state.paintings.indexOf(doomed);
-      deletePhotosKey(doomed.id);
+      deletePhotosKey(doomed.id); deletePaintKey(doomed.id);
       state.paintings=state.paintings.filter(function(x){return x.id!==doomed.id;});
       if(!state.paintings.length)state.paintings=[newPainting('Project 1')];
       state.active=state.paintings[0].id; state.view='paintings';
