@@ -387,11 +387,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var state={
     paintings:[{id:'p1',name:'Project 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true,kind:'diamond',media:{},palette:[],notes:''}],
     active:'p1', onlySel:false, view:'paintings',
-    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added', pGroup:'none', pSearchField:'all',
+    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), stash:{}, ovSort:'added', pGroup:'none', pSearchField:'all',
     autoBackup:'off', dark:false, density:'full', accent:'violet',
     media:DEFAULT_MEDIA.slice(), pKind:'all', lastKind:'diamond'
   };
-  var query='', findQuery='', findType='any', pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null, expandedMedia=null;
+  var query='', findQuery='', findType='any', findStash=false, pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null, expandedMedia=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, editLists={}, armed={};
   var collapsedGroups={}, colorFamily='', showPaste=false, undoData=null, undoTimer=null;
   var pasteReview=null, pasteTextVal='', chartImg=null, chartPick=false;
@@ -628,7 +628,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function dataSnapshot(){
     return JSON.stringify({
       paintings:state.paintings.map(function(p){var c={};for(var k in p){if(k!=='photos')c[k]=p[k];}return c;}),
-      specials:state.specials, sellers:state.sellers, tags:state.tags, sizes:state.sizes, media:state.media
+      specials:state.specials, sellers:state.sellers, tags:state.tags, sizes:state.sizes, media:state.media, stash:state.stash
     });
   }
   function cachePhotos(){state.paintings.forEach(function(p){if(p.photos)photoCache[p.id]=p.photos;});}
@@ -661,7 +661,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var d;try{d=JSON.parse(json);}catch(e){return;}
     var keepView=state.view, keepActive=state.active;
     state.paintings=d.paintings.map(function(p){p.photos=photoCache[p.id]||[];return p;});
-    state.specials=d.specials||{}; state.sellers=d.sellers||[]; state.tags=d.tags||[]; state.sizes=d.sizes||[]; state.media=d.media||[];
+    state.specials=d.specials||{}; state.sellers=d.sellers||[]; state.tags=d.tags||[]; state.sizes=d.sizes||[]; state.media=d.media||[]; state.stash=d.stash||{};
     normalize(state);
     var stillThere=state.paintings.some(function(p){return p.id===keepActive;});
     state.active=stillThere?keepActive:(state.paintings[0]?state.paintings[0].id:'');
@@ -694,6 +694,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(!s.density)s.density='full';
     if(!s.accent||!ACCENTMAP[s.accent])s.accent='violet';
     if(!s.specials)s.specials={};
+    if(!s.stash)s.stash={};
     if(!s.sellers)s.sellers=[];
     if(!s.tags||!s.tags.length)s.tags=DEFAULT_TAGS.slice();
     if(!s.sizes||!s.sizes.length)s.sizes=DEFAULT_SIZES.slice();
@@ -3211,7 +3212,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       shown++;
       html+='<div class="card'+(sel?' sel':'')+'" data-code="'+code+'">'+
         '<div class="drill" style="background-color:'+hex+'"></div>'+
-        '<div class="ctext"><div class="code">'+code+'</div><div class="cname">'+esc(name)+'</div></div>'+
+        '<div class="ctext"><div class="code">'+code+(state.stash[code]?' <span title="You have leftovers of this colour">🧺</span>':'')+'</div><div class="cname">'+esc(name)+'</div></div>'+
         '<div class="tick">✓</div></div>';
     });
     g.innerHTML=html;
@@ -3289,6 +3290,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="tbtn sq'+(findType==='square'?' on':'')+'" data-t="square" type="button">■ Square</button>'+
         '<button class="tbtn rd'+(findType==='round'?' on':'')+'" data-t="round" type="button">● Round</button>'+
         '<button class="tbtn od'+(findType==='odd'?' on':'')+'" data-t="odd" type="button">✦ Odd</button>'+
+        '<button class="chipbtn'+(findStash?' on':'')+'" id="fStash" type="button" title="Show only colours you have leftovers of">🧺 Leftovers only</button>'+
       '</div>'+
       '<div class="toolbar"><label class="search">🔎<input id="fq" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(findQuery)+'"></label></div>'+
       '<div class="meta"><span id="fmeta"></span><span>Tap anything to see which paintings have it</span></div>'+
@@ -3299,6 +3301,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     pg.querySelectorAll('.tbtn').forEach(function(b){
       b.addEventListener('click',function(){findType=b.getAttribute('data-t');renderFind();});
     });
+    $('fStash').addEventListener('click',function(){findStash=!findStash;renderFind();});
     $('fq').addEventListener('input',function(e){findQuery=e.target.value;renderFindLists();});
     renderFindLists();
   }
@@ -3307,8 +3310,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var q=findQuery.toLowerCase();
     var fs=$('fspecials'); fs.innerHTML='';
 
-    /* sizes section */
-    var sizesShown=state.sizes.filter(function(sz){
+    /* "Leftovers only" is about colours, so the other sections step aside */
+    var sizesShown=findStash?[]:state.sizes.filter(function(sz){
       return !q||sz.toLowerCase().indexOf(q)!==-1;
     });
     if(sizesShown.length){
@@ -3341,7 +3344,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
     /* media & tools — spans paint-by-number and drawings, so the diamond-type
        filter above doesn't apply to it */
-    var mediaShown=state.media.filter(function(m){return !q||m.toLowerCase().indexOf(q)!==-1;})
+    var mediaShown=findStash?[]:state.media.filter(function(m){return !q||m.toLowerCase().indexOf(q)!==-1;})
       .filter(function(m){return state.paintings.some(function(p){return p.media&&p.media[m];});});
     if(mediaShown.length){
       var mlbl=document.createElement('div');
@@ -3370,7 +3373,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
     /* specials sections */
     FINISHES.forEach(function(f){
-      var lib=(state.specials[f.id]||[]).filter(function(en){
+      var lib=findStash?[]:(state.specials[f.id]||[]).filter(function(en){
         return !q||en.text.toLowerCase().indexOf(q)!==-1;
       });
       if(!lib.length)return;
@@ -3413,13 +3416,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     DMC.forEach(function(row){
       var code=row[0], name=row[1], hex=row[2];
       if(q&&code.toLowerCase().indexOf(q)===-1&&name.toLowerCase().indexOf(q)===-1)return;
+      if(findStash&&!state.stash[code])return;
       shown++;
       var owners=ownersByCode[code]||[];
       var c=document.createElement('div');
       c.className='card'+(expandedColor===code?' open':'');
       c.setAttribute('data-code',code);
       c.innerHTML='<div class="drill" style="background-color:'+hex+'"></div>'+
-        '<div class="ctext"><div class="code">'+code+'</div><div class="cname">'+esc(name)+'</div></div>'+
+        '<div class="ctext"><div class="code">'+code+(state.stash[code]?' <span title="You have leftovers of this colour">🧺</span>':'')+'</div><div class="cname">'+esc(name)+'</div></div>'+
         '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
       frag.appendChild(c);
       if(expandedColor===code){
@@ -3427,7 +3431,19 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var head=owners.length
           ? code+' '+esc(name)+' is in '+owners.length+' painting'+(owners.length===1?'':'s')+typeTxt+':'
           : code+' '+esc(name)+' isn’t in any of your paintings'+typeTxt+'.';
-        frag.appendChild(expanderEl(head,owners));
+        var ex=expanderEl(head,owners);
+        var sb=document.createElement('button');
+        sb.type='button';
+        sb.className='chipbtn'+(state.stash[code]?' on':'');
+        sb.style.marginTop='8px';
+        sb.textContent=state.stash[code]?'🧺 In your leftovers — tap if used up':'🧺 I have leftovers of this';
+        sb.addEventListener('click',function(ev){
+          ev.stopPropagation();
+          if(state.stash[code])delete state.stash[code]; else state.stash[code]=1;
+          save(); pushHistory(); renderFindLists();
+        });
+        ex.appendChild(sb);
+        frag.appendChild(ex);
       }
     });
     g.appendChild(frag);
@@ -3441,10 +3457,18 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     };
     var inAny=0;
     Object.keys(ownersByCode).forEach(function(k){if(DMCMAP[k])inAny++;});
+    var inStash=0;
+    Object.keys(state.stash||{}).forEach(function(k){if(DMCMAP[k])inStash++;});
     $('fmeta').textContent='Showing '+shown+' of '+DMC.length+' colors · '+inAny+' are in your paintings'+
-      (findType!=='any'?' ('+TYPES[findType].label.toLowerCase()+')':'');
+      (findType!=='any'?' ('+TYPES[findType].label.toLowerCase()+')':'')+
+      (inStash?' · 🧺 '+inStash+' in your leftovers':'');
     var e=$('femptyMsg');
-    if(shown===0&&!$('fspecials').children.length){e.style.display='block';e.textContent='Nothing matches that search.';}
+    if(shown===0&&(findStash||!$('fspecials').children.length)){
+      e.style.display='block';
+      e.textContent=findStash
+        ? (inStash?'No leftover colours match that search.':'No leftovers marked yet — tap a colour, then “🧺 I have leftovers of this”.')
+        : 'Nothing matches that search.';
+    }
     else e.style.display='none';
   }
 

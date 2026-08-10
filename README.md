@@ -29,7 +29,7 @@ For every diamond painting you can track:
 
 ## Why you'll like it
 
-**"Do I already have this color?"** — the Find page answers the question every diamond painter asks. Tap any DMC number and instantly see which of your paintings use it (filtered by square/round if you want). Great for using up leftover drills or checking a new kit against your stash.
+**"Do I already have this color?"** — the Find page answers the question every diamond painter asks. Tap any DMC number and instantly see which of your paintings use it (filtered by square/round if you want) — and mark the colours you have leftover drills of 🧺, so "do I own this?" gets a direct answer. A "Leftovers only" filter shows your whole stash at a glance.
 
 **It works everywhere.** It's a website, so it runs on any phone, tablet, or PC. Add it to your home screen and it installs like a real app and works offline.
 
