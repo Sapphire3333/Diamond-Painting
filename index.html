@@ -2051,11 +2051,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      after a moment we go ahead and draw anyway — a blank result is caught and
      retried below regardless. */
   function loadImg(dataUrl,cb){
-    var img=new Image(), settled=false, timer=null;
-    function ok(){if(settled)return;settled=true;clearTimeout(timer);cb(img,'');}
-    function bad(){if(settled)return;settled=true;clearTimeout(timer);cb(null,'the browser could not decode these bytes');}
+    var img=new Image(), settled=false, timer=null, late=false;
+    function ok(){if(settled)return;settled=true;clearTimeout(timer);cb(img,'',late);}
+    function bad(){if(settled)return;settled=true;clearTimeout(timer);cb(null,'the browser could not decode these bytes',late);}
     img.onload=function(){
-      if(img.decode){timer=setTimeout(ok,1200);img.decode().then(ok,ok);}
+      if(img.decode){timer=setTimeout(function(){late=true;ok();},1500);img.decode().then(ok,ok);}
       else ok();
     };
     img.onerror=bad;
@@ -2079,11 +2079,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   /* shrink on a transparent canvas: halving first, because one giant drawImage is
      exactly what phones give up on. Transparency is kept so far, so a draw that
      did nothing is still detectable afterwards. */
-  function scaleTransparent(src,sw,sh,max){
+  function scaleTransparent(src,sw,sh,max,direct){
     var w=sw,h=sh;
     if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.max(1,Math.round(w*k));h=Math.max(1,Math.round(h*k));}
     var cur=src,cw=sw,ch=sh;
-    while(cw>=w*2&&ch>=h*2&&cw>2&&ch>2){
+    while(!direct&&cw>=w*2&&ch>=h*2&&cw>2&&ch>2){
       var hw=Math.max(w,Math.round(cw/2)),hh=Math.max(h,Math.round(ch/2));
       var tmp=document.createElement('canvas');tmp.width=hw;tmp.height=hh;
       try{tmp.getContext('2d').drawImage(cur,0,0,hw,hh);}catch(e){break;}
@@ -2093,13 +2093,26 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     try{cv.getContext('2d').drawImage(cur,0,0,w,h);}catch(e){}
     return cv;
   }
-  /* nothing was drawn: every sampled pixel is still fully transparent */
-  function canvasEmpty(cv){
+  /* A draw that quietly failed leaves the canvas in one of three states: never
+     touched (transparent), or filled flat with white or black. A photograph is
+     never one single colour edge to edge, so uniformity is the tell. Checking
+     only for transparency was not enough — once see-through areas started
+     landing on white, a failed draw sailed through as a white picture.
+     Returns a description of the blankness, or '' when there is a real image. */
+  function canvasBlank(cv){
     var d;
-    try{d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data;}catch(e){return false;}
-    var n=cv.width*cv.height, step=Math.max(1,Math.floor(n/5000));
-    for(var i=0;i<n;i+=step){if(d[i*4+3]!==0)return false;}
-    return true;
+    try{d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data;}catch(e){return '';}
+    var n=cv.width*cv.height; if(!n)return 'empty';
+    var step=Math.max(1,Math.floor(n/5000));
+    var r0=d[0],g0=d[1],b0=d[2],a0=d[3];
+    for(var i=0;i<n;i+=step){
+      var o=i*4;
+      if(d[o]!==r0||d[o+1]!==g0||d[o+2]!==b0||d[o+3]!==a0)return '';   /* real picture */
+    }
+    if(a0===0)return 'transparent';
+    if(r0>=250&&g0>=250&&b0>=250)return 'solid white';
+    if(r0<=5&&g0<=5&&b0<=5)return 'solid black';
+    return '';   /* a genuinely flat-coloured picture is left alone */
   }
   /* JPEG has no transparency, so anything see-through must land on white rather
      than on the black it would otherwise become */
@@ -2114,7 +2127,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      cb(dataUrl or null). Everything that happens is recorded for 🩺 Photo check.
      A phone can draw the very same picture blank once and perfectly the next
      time, so a blank result is retried rather than believed. */
-  var IMPORT_TRIES=4;
+  /* two goes on the ordinary route, then hand over to the rescue decoder rather
+     than keep asking the same thing of a device that has already said no twice */
+  var IMPORT_TRIES=2;
   function importImage(file,max,quality,cb){
     var rec={name:file.name||'photo',type:file.type||'(none)',bytes:file.size||0,path:'image'};
     function note(t){rec.note=(rec.note?rec.note+'; ':'')+t;}
@@ -2142,15 +2157,17 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           if(!bm){give(why||'the rescue decoder could not read it either');return;}
           var bw=bm.width||0,bh=bm.height||0;
           var cv2=scaleTransparent(bm,bw,bh,max);
-          if(canvasEmpty(cv2)){give('blank again after the rescue decoder ('+bw+'×'+bh+')',bm);return;}
+          var b2=canvasBlank(cv2);
+          if(b2){give('still '+b2+' after the rescue decoder ('+bw+'×'+bh+')',bm);return;}
           note('rescued at '+bw+'×'+bh);
           done(cv2,bm);
         });
       }
-      var tries=0;
+      var tries=0, sawLate=false;
       function attempt(){
         tries++;
-        loadImg(dataUrl,function(img,err){
+        loadImg(dataUrl,function(img,err,late){
+          if(late&&!sawLate){sawLate=true;note('decode() timed out — drew without waiting');}
           if(!img){
             if(tries<IMPORT_TRIES){setTimeout(attempt,90*tries);return;}
             note(err||'could not be decoded'); rescue(0,0); return;
@@ -2161,14 +2178,18 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
             if(tries<IMPORT_TRIES){setTimeout(attempt,90*tries);return;}
             note('the image reported no size'); rescue(0,0); return;
           }
-          var cv=scaleTransparent(img,sw,sh,max);
-          if(canvasEmpty(cv)){
-            /* the phone drew nothing — give it another go before believing it */
-            if(tries<IMPORT_TRIES){setTimeout(attempt,120*tries);return;}
-            note('drew blank '+tries+' times at '+cv.width+'×'+cv.height);
+          /* three genuinely different mechanisms rather than one tried three
+             times: shrink in halving steps, shrink in a single step, and finally
+             decode straight to size without a big canvas at all */
+          var direct=(tries>1);
+          var cv=scaleTransparent(img,sw,sh,max,direct);
+          var blank=canvasBlank(cv);
+          if(blank){
+            if(tries<IMPORT_TRIES){note('drew '+blank+' shrinking in steps');setTimeout(attempt,140*tries);return;}
+            note('drew '+blank+' shrinking in one step too, at '+cv.width+'×'+cv.height);
             rescue(sw,sh); return;
           }
-          if(tries>1)note('drew blank '+(tries-1)+'×, then worked on try '+tries);
+          if(tries>1)note('came out by shrinking in one step');
           done(cv,null);
         });
       }
@@ -2237,7 +2258,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var im=new Image();
         im.onload=function(){
           var cv=scaleTransparent(im,im.naturalWidth,im.naturalHeight,520);
-          out.push(label+': '+(canvasEmpty(cv)?'BLANK — this size fails on this device':'ok'));
+          var b=canvasBlank(cv);
+          out.push(label+': '+(b?('came out '+b+' — this size fails on this device'):'ok'));
           onStep&&onStep(out); next();
         };
         im.onerror=function(){out.push(label+': could not decode it back'); onStep&&onStep(out); next();};
