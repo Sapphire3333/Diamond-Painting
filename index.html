@@ -2022,15 +2022,45 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      something in it, and never save a blank. */
   var photoDiag=[];
   function noteDiag(rec){rec.when=nowTs();photoDiag.unshift(rec);if(photoDiag.length>8)photoDiag.pop();}
+  /* A timeline that outlives the page. The detailed records above live in memory
+     only, so if the phone throws the page away while the photo picker is open —
+     which looks exactly like "nothing happened" — they vanish with it and the
+     report comes back empty. These few lines are written to disk as each step
+     happens, so a picked photo that never arrives still leaves its footprints,
+     and an "app started" line appearing in the middle of an import says plainly
+     that the page was reloaded underneath it. */
+  var PLOG='dpPhotoLog';
+  function plog(kind,text){
+    try{
+      var a=JSON.parse(localStorage.getItem(PLOG)||'[]');
+      a.push({t:nowTs(),k:String(kind),x:String(text||'').slice(0,120)});
+      if(a.length>24)a=a.slice(a.length-24);
+      localStorage.setItem(PLOG,JSON.stringify(a));
+    }catch(e){}
+  }
+  function plogLines(){
+    var a=[]; try{a=JSON.parse(localStorage.getItem(PLOG)||'[]');}catch(e){}
+    return a.map(function(e){
+      var s='';
+      try{var d=new Date(e.t);function p2(n){return (n<10?'0':'')+n;}
+        s=p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds());}catch(_){s='?';}
+      return s+'  '+e.k+(e.x?(' — '+e.x):'');
+    });
+  }
   /* The picked file is read ONCE. Phone pickers hand over files backed by a
      one-shot stream, so anything that re-reads the file later (a retry, the
      rescue decoder) gets "could not be decoded" even though the bytes were fine
      the first time. Everything below works from these bytes instead. */
   function readFileAsDataUrl(file,cb){
-    var rd=new FileReader();
-    rd.onload=function(){cb(String(rd.result||''),'');};
-    rd.onerror=function(){cb('','the file could not be read');};
-    try{rd.readAsDataURL(file);}catch(e){cb('','the file could not be read');}
+    var rd=new FileReader(), settled=false, hard=null;
+    function fin(v,err){if(settled)return;settled=true;clearTimeout(hard);cb(v,err);}
+    /* a file handed over by a phone picker can stall for ever rather than fail —
+       reading it must not be able to swallow the import without a word */
+    hard=setTimeout(function(){try{rd.abort();}catch(e){}fin('','reading the file stalled — gave up after 20 seconds');},20000);
+    rd.onload=function(){fin(String(rd.result||''),'');};
+    rd.onerror=function(){fin('','the file could not be read');};
+    rd.onabort=function(){fin('','reading the file was interrupted');};
+    try{rd.readAsDataURL(file);}catch(e){fin('','the file could not be read');}
   }
   function dataUrlToBlob(u){
     try{
@@ -2051,14 +2081,19 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      after a moment we go ahead and draw anyway — a blank result is caught and
      retried below regardless. */
   function loadImg(dataUrl,cb){
-    var img=new Image(), settled=false, timer=null, late=false;
-    function ok(){if(settled)return;settled=true;clearTimeout(timer);cb(img,'',late);}
-    function bad(){if(settled)return;settled=true;clearTimeout(timer);cb(null,'the browser could not decode these bytes',late);}
+    var img=new Image(), settled=false, timer=null, hard=null, late=false;
+    function stop(){clearTimeout(timer);clearTimeout(hard);}
+    function ok(){if(settled)return;settled=true;stop();cb(img,'',late);}
+    function bad(msg){if(settled)return;settled=true;stop();cb(null,msg||'the browser could not decode these bytes',late);}
+    /* nothing here is guaranteed to fire: a picture the phone cannot face may
+       produce neither success nor error, and without this the whole import would
+       sit there for ever with no photo and nothing said */
+    hard=setTimeout(function(){bad('gave up waiting after 10 seconds');},10000);
     img.onload=function(){
       if(img.decode){timer=setTimeout(function(){late=true;ok();},1500);img.decode().then(ok,ok);}
       else ok();
     };
-    img.onerror=bad;
+    img.onerror=function(){bad();};
     img.src=dataUrl;
   }
   function closeBitmap(s){if(s&&s.close)try{s.close();}catch(e){}}
@@ -2176,6 +2211,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function importImage(file,max,quality,cb){
     var rec={name:file.name||'photo',type:file.type||'(none)',bytes:file.size||0,path:'image'};
     function note(t){rec.note=(rec.note?rec.note+'; ':'')+t;}
+    plog('reading photo',rec.name+' '+fmtBytes(rec.bytes));
     /* Every way of reading the picture is offered here, and the best result any
        of them managed is kept. A half-drawn photo is a poor result but a real
        one, so it is never thrown away just because a later, cleverer attempt
@@ -2199,10 +2235,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(best.partial)note('nothing better came back, so kept the half-drawn one from '+best.how);
       var pl=plainness(best.cv);
       if(pl>0.85)note(Math.round(pl*100)+'% of it is a single shade — check the picture looks right');
-      noteDiag(rec); cb(d,rec);
+      noteDiag(rec);
+      plog('photo ready',rec.out+' '+fmtBytes(rec.outBytes)+(rec.partial?' (only half drew)':''));
+      cb(d,rec);
       return true;
     }
-    function give(msg){rec.ok=false;note(msg);noteDiag(rec);cb(null,rec);}
+    function give(msg){rec.ok=false;note(msg);noteDiag(rec);plog('photo refused',msg);cb(null,rec);}
     readFileAsDataUrl(file,function(dataUrl,readErr){
       if(!dataUrl){give(readErr||'the file could not be read');return;}
       rec.bytes=rec.bytes||Math.round(dataUrl.length*0.75);
@@ -2347,6 +2385,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         (r.out?(' → saved '+r.out+' '+fmtBytes(r.outBytes||0)):'')+
         (r.note?(' · '+r.note):''));
     });
+    L.push('');
+    L.push('What happened, step by step (survives the app restarting):');
+    var tl=plogLines();
+    if(!tl.length)L.push('  nothing recorded yet');
+    else tl.forEach(function(t){L.push('  '+t);});
     L.push('');
     L.push('Can this device shrink an image of each size?');
     if(!tests||!tests.length)L.push('  testing…');
@@ -3424,7 +3467,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
 
     /* photos events */
-    if($('phAdd'))$('phAdd').addEventListener('click',function(){$('fileInput').click();});
+    if($('phAdd'))$('phAdd').addEventListener('click',function(){plog('opened the photo picker','');$('fileInput').click();});
     if($('phCheck'))$('phCheck').addEventListener('click',openPhotoCheck);
     if($('arrEnter'))$('arrEnter').addEventListener('click',function(){if(arrangeMode)exitArrange();else enterArrange();});
     if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){if(arrangeMode)exitArrange();else enterArrange();});
@@ -4154,6 +4197,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
   $('fileInput').addEventListener('change',function(e){
     var files=e.target.files||[];
+    plog('picker returned '+files.length+' file'+(files.length===1?'':'s'),
+      files[0]?((files[0].name||'?')+' · '+(files[0].type||'no type')+' · '+fmtBytes(files[0].size||0)):'');
     if(chartPick){chartPick=false;if(files[0])setChartImage(files[0]);e.target.value='';return;}
     var pid=active().id;
     for(var i=0;i<files.length;i++)addImageFile(files[i],pid);
@@ -4188,6 +4233,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     },200);
   });
 
+  plog('app started','');
   load(function(){render();replaceNav();});
 })();
 </script>
