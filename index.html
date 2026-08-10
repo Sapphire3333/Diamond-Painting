@@ -2114,6 +2114,24 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(r0<=5&&g0<=5&&b0<=5)return 'solid black';
     return '';   /* a genuinely flat-coloured picture is left alone */
   }
+  /* How much of the picture is one single shade. A photo that half-drew is mostly
+     one colour without being perfectly uniform, so this can't refuse anything on
+     its own — it just flags the result as worth a look. */
+  function plainness(cv){
+    var d;
+    try{d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data;}catch(e){return 0;}
+    var n=cv.width*cv.height; if(!n)return 0;
+    var step=Math.max(1,Math.floor(n/2000)), counts={}, total=0, best=0;
+    for(var i=0;i<n;i+=step){
+      var o=i*4, r=d[o],g=d[o+1],b=d[o+2];
+      if(d[o+3]===0){r=g=b=255;}
+      var key=((r>>4)<<8)|((g>>4)<<4)|(b>>4);
+      var c=(counts[key]=(counts[key]||0)+1);
+      if(c>best)best=c;
+      total++;
+    }
+    return total?best/total:0;
+  }
   /* JPEG has no transparency, so anything see-through must land on white rather
      than on the black it would otherwise become */
   function flattenToJpeg(cv,q){
@@ -2135,7 +2153,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     function note(t){rec.note=(rec.note?rec.note+'; ':'')+t;}
     function done(cv,src){
       var d=flattenToJpeg(cv,quality);
-      rec.ok=true; rec.out=cv.width+'×'+cv.height; rec.outBytes=d.length;
+      rec.ok=true; rec.out=cv.width+'×'+cv.height; rec.outBytes=d.length; rec.thumb=d;
+      var pl=plainness(cv);
+      if(pl>0.85)note(Math.round(pl*100)+'% of it is a single shade — check the picture looks right');
       noteDiag(rec); closeBitmap(src); cb(d,rec);
     }
     function give(msg,src){rec.ok=false;note(msg);noteDiag(rec);closeBitmap(src);cb(null,rec);}
@@ -2293,17 +2313,35 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var ttl=document.createElement('div');
     ttl.style.cssText='font-weight:800;font-size:16px;margin-bottom:6px;'; ttl.textContent='🩺 Photo check';
     var intro=document.createElement('div'); intro.className='bk-note';
-    intro.textContent='If a photo came out black or wasn’t added on this device, this says why. Tap “Copy report” and paste it into a message — that’s all I need to fix it.';
+    intro.textContent='If a photo came out black, white or wasn’t added on this device, this says why. The pictures below are exactly what got saved — if one looks blank, it went wrong. Tap “Copy report” and paste it into a message.';
     var pre=document.createElement('pre');
     pre.style.cssText='white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;'+
       'font-size:11.5px;line-height:1.45;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px;margin:10px 0;';
     pre.textContent=photoReportText(null);
+    /* what actually got saved, on a checkerboard so a white picture can't hide
+       against a white panel */
+    var shots=document.createElement('div');
+    shots.style.cssText='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;';
+    photoDiag.forEach(function(r){
+      if(!r.thumb)return;
+      var box=document.createElement('div'); box.style.cssText='text-align:center;font-size:10.5px;color:var(--muted);max-width:96px;';
+      var im=document.createElement('img'); im.src=r.thumb; im.alt='';
+      im.style.cssText='width:88px;height:88px;object-fit:contain;border:1.5px solid var(--line);border-radius:8px;'+
+        'background-image:linear-gradient(45deg,#bbb 25%,transparent 25%,transparent 75%,#bbb 75%),'+
+        'linear-gradient(45deg,#bbb 25%,#eee 25%,#eee 75%,#bbb 75%);background-size:12px 12px;background-position:0 0,6px 6px;';
+      var cap=document.createElement('div');
+      cap.textContent=(r.name||'photo').slice(0,16)+' · '+fmtBytes(r.outBytes||0);
+      cap.style.cssText='margin-top:3px;overflow-wrap:anywhere;';
+      box.appendChild(im); box.appendChild(cap); shots.appendChild(box);
+    });
     var bar=document.createElement('div'); bar.className='bk-btns';
     var copy=document.createElement('button'); copy.className='chipbtn'; copy.type='button'; copy.textContent='Copy report';
     copy.style.cssText='background:var(--accent);border-color:var(--accent);color:#fff;';
     var close=document.createElement('button'); close.className='chipbtn'; close.type='button'; close.textContent='Close';
     bar.appendChild(copy); bar.appendChild(close);
-    panel.appendChild(ttl); panel.appendChild(intro); panel.appendChild(pre); panel.appendChild(bar);
+    panel.appendChild(ttl); panel.appendChild(intro); panel.appendChild(pre);
+    if(shots.childNodes.length)panel.appendChild(shots);
+    panel.appendChild(bar);
     ov.appendChild(panel);
     function destroy(){ov.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';}
     function onKey(e){if(e.key==='Escape')destroy();}
