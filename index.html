@@ -1996,16 +1996,44 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      something in it, and never save a blank. */
   var photoDiag=[];
   function noteDiag(rec){rec.when=nowTs();photoDiag.unshift(rec);if(photoDiag.length>8)photoDiag.pop();}
-  function decodeViaImg(file,cb,why){
+  /* The picked file is read ONCE. Phone pickers hand over files backed by a
+     one-shot stream, so anything that re-reads the file later (a retry, the
+     rescue decoder) gets "could not be decoded" even though the bytes were fine
+     the first time. Everything below works from these bytes instead. */
+  function readFileAsDataUrl(file,cb){
     var rd=new FileReader();
-    rd.onload=function(){
-      var img=new Image();
-      img.onload=function(){cb(img,'image',why);};
-      img.onerror=function(){cb(null,'image',(why?why+'; ':'')+'the browser could not decode this file');};
-      img.src=rd.result;
+    rd.onload=function(){cb(String(rd.result||''),'');};
+    rd.onerror=function(){cb('','the file could not be read');};
+    try{rd.readAsDataURL(file);}catch(e){cb('','the file could not be read');}
+  }
+  function dataUrlToBlob(u){
+    try{
+      var i=u.indexOf(','); if(i<0)return null;
+      var meta=u.slice(0,i), data=u.slice(i+1);
+      var type=(meta.match(/^data:([^;,]+)/)||[])[1]||'image/jpeg';
+      var bin=/;base64/i.test(meta)?atob(data):decodeURIComponent(data);
+      var bytes=new Uint8Array(bin.length);
+      for(var j=0;j<bin.length;j++)bytes[j]=bin.charCodeAt(j);
+      return new Blob([bytes],{type:type});
+    }catch(e){return null;}
+  }
+  /* load(): `onload` only promises the bytes arrived — the picture may not be
+     ready to paint yet, and drawing it then quietly produces nothing. decode()
+     promises it really is ready, which is the whole difference on a phone.
+     It gets a deadline as well: decode() never resolves at all while the page
+     isn't being painted (switch apps mid-import and it would hang forever), so
+     after a moment we go ahead and draw anyway — a blank result is caught and
+     retried below regardless. */
+  function loadImg(dataUrl,cb){
+    var img=new Image(), settled=false, timer=null;
+    function ok(){if(settled)return;settled=true;clearTimeout(timer);cb(img,'');}
+    function bad(){if(settled)return;settled=true;clearTimeout(timer);cb(null,'the browser could not decode these bytes');}
+    img.onload=function(){
+      if(img.decode){timer=setTimeout(ok,1200);img.decode().then(ok,ok);}
+      else ok();
     };
-    rd.onerror=function(){cb(null,'file',(why?why+'; ':'')+'the file could not be read');};
-    try{rd.readAsDataURL(file);}catch(e){cb(null,'file','the file could not be read');}
+    img.onerror=bad;
+    img.src=dataUrl;
   }
   function closeBitmap(s){if(s&&s.close)try{s.close();}catch(e){}}
   /* The rescue decoder. createImageBitmap can decode straight to the small size,
@@ -2057,7 +2085,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     return out.toDataURL('image/jpeg',q||0.72);
   }
   /* Shrink a picked file down to `max`, however hard this device makes it.
-     cb(dataUrl or null). Everything that happens is recorded for 🩺 Photo check. */
+     cb(dataUrl or null). Everything that happens is recorded for 🩺 Photo check.
+     A phone can draw the very same picture blank once and perfectly the next
+     time, so a blank result is retried rather than believed. */
+  var IMPORT_TRIES=4;
   function importImage(file,max,quality,cb){
     var rec={name:file.name||'photo',type:file.type||'(none)',bytes:file.size||0,path:'image'};
     function note(t){rec.note=(rec.note?rec.note+'; ':'')+t;}
@@ -2067,37 +2098,56 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       noteDiag(rec); closeBitmap(src); cb(d,rec);
     }
     function give(msg,src){rec.ok=false;note(msg);noteDiag(rec);closeBitmap(src);cb(null,rec);}
-    /* second pass: decode straight to the wanted size, bypassing the big canvas */
-    function rescue(sw,sh){
-      rec.path='image→bitmap';
-      var tw=0,th=0;
-      if(sw&&sh){
-        var k=Math.min(1,Math.min(max/sw,max/sh));
-        tw=Math.max(1,Math.round(sw*k)); th=Math.max(1,Math.round(sh*k));
+    readFileAsDataUrl(file,function(dataUrl,readErr){
+      if(!dataUrl){give(readErr||'the file could not be read');return;}
+      rec.bytes=rec.bytes||Math.round(dataUrl.length*0.75);
+      /* last resort: decode straight to the wanted size from the bytes we already
+         hold, so the big canvas is never allocated and the file is never re-read */
+      function rescue(sw,sh){
+        rec.path=rec.path+'→bitmap';
+        var tw=0,th=0;
+        if(sw&&sh){
+          var k=Math.min(1,Math.min(max/sw,max/sh));
+          tw=Math.max(1,Math.round(sw*k)); th=Math.max(1,Math.round(sh*k));
+        }
+        var blob=dataUrlToBlob(dataUrl);
+        if(!blob){give('could not re-read the image bytes');return;}
+        decodeViaBitmap(blob,tw,th,function(bm,p2,why){
+          if(!bm){give(why||'the rescue decoder could not read it either');return;}
+          var bw=bm.width||0,bh=bm.height||0;
+          var cv2=scaleTransparent(bm,bw,bh,max);
+          if(canvasEmpty(cv2)){give('blank again after the rescue decoder ('+bw+'×'+bh+')',bm);return;}
+          note('rescued at '+bw+'×'+bh);
+          done(cv2,bm);
+        });
       }
-      decodeViaBitmap(file,tw,th,function(bm,p2,why){
-        if(!bm){give(why||'the rescue decoder could not read it either');return;}
-        var bw=bm.width||0,bh=bm.height||0;
-        var cv2=scaleTransparent(bm,bw,bh,max);
-        if(canvasEmpty(cv2)){give('blank again after the rescue decoder ('+bw+'×'+bh+')',bm);return;}
-        rec.size=(rec.size||(sw+'×'+sh))+' → rescued at '+bw+'×'+bh;
-        done(cv2,bm);
-      });
-    }
-    decodeViaImg(file,function(img,path,why){
-      if(why)note(why);
-      if(!img){rescue(0,0);return;}
-      var sw=img.naturalWidth||img.width||0, sh=img.naturalHeight||img.height||0;
-      rec.size=sw+'×'+sh;
-      if(!sw||!sh){note('the image reported no size');rescue(0,0);return;}
-      var cv=scaleTransparent(img,sw,sh,max);
-      if(canvasEmpty(cv)){
-        /* the classic phone failure: it loaded, but drawing it produced nothing */
-        note('drew blank at '+cv.width+'×'+cv.height);
-        rescue(sw,sh); return;
+      var tries=0;
+      function attempt(){
+        tries++;
+        loadImg(dataUrl,function(img,err){
+          if(!img){
+            if(tries<IMPORT_TRIES){setTimeout(attempt,90*tries);return;}
+            note(err||'could not be decoded'); rescue(0,0); return;
+          }
+          var sw=img.naturalWidth||img.width||0, sh=img.naturalHeight||img.height||0;
+          if(!rec.size)rec.size=sw+'×'+sh;
+          if(!sw||!sh){
+            if(tries<IMPORT_TRIES){setTimeout(attempt,90*tries);return;}
+            note('the image reported no size'); rescue(0,0); return;
+          }
+          var cv=scaleTransparent(img,sw,sh,max);
+          if(canvasEmpty(cv)){
+            /* the phone drew nothing — give it another go before believing it */
+            if(tries<IMPORT_TRIES){setTimeout(attempt,120*tries);return;}
+            note('drew blank '+tries+' times at '+cv.width+'×'+cv.height);
+            rescue(sw,sh); return;
+          }
+          if(tries>1)note('drew blank '+(tries-1)+'×, then worked on try '+tries);
+          done(cv,null);
+        });
       }
-      done(cv,null);
-    },'');
+      attempt();
+    });
   }
   /* pid is captured at pick/paste time so a slow load (or a cloud sync that
      switches paintings meanwhile) can never attach the photo to the wrong one */
