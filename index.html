@@ -2216,7 +2216,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
        of them managed is kept. A half-drawn photo is a poor result but a real
        one, so it is never thrown away just because a later, cleverer attempt
        failed outright — losing the photo entirely is the worst outcome of all. */
-    var best=null, offers=0;
+    var best=null, offers=0, strictRefused=false;
     function offer(cv,how){
       offers++;
       var blank=canvasBlank(cv);
@@ -2233,6 +2233,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       rec.ok=true; rec.out=best.cv.width+'×'+best.cv.height; rec.outBytes=d.length;
       rec.thumb=d; rec.partial=!!best.partial;
       if(best.partial)note('nothing better came back, so kept the half-drawn one from '+best.how);
+      /* half a picture plus a strict refusal means the file is short of data,
+         not that the device struggled with it */
+      if(best.partial&&strictRefused){rec.damaged=true;note('the strict decoder refused the file outright — the rest of the picture isn’t in the file');}
       var pl=plainness(best.cv);
       if(pl>0.85)note(Math.round(pl*100)+'% of it is a single shade — check the picture looks right');
       noteDiag(rec);
@@ -2240,7 +2243,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       cb(d,rec);
       return true;
     }
-    function give(msg){rec.ok=false;note(msg);noteDiag(rec);plog('photo refused',msg);cb(null,rec);}
+    function give(msg){
+      rec.ok=false;
+      if(strictRefused){rec.damaged=true;msg='the picture data isn’t all in the file';}
+      note(msg);noteDiag(rec);plog('photo refused',msg);cb(null,rec);
+    }
     readFileAsDataUrl(file,function(dataUrl,readErr){
       if(!dataUrl){give(readErr||'the file could not be read');return;}
       rec.bytes=rec.bytes||Math.round(dataUrl.length*0.75);
@@ -2259,7 +2266,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var blob=dataUrlToBlob(dataUrl);
         if(!blob){note('could not rebuild the image bytes');after();return;}
         decodeViaBitmap(blob,tw,th,function(bm,p2,why){
-          if(!bm){note(label+' failed — '+(why||'refused'));after();return;}
+          if(!bm){
+            /* the strict decoder refuses a file whose picture data is incomplete,
+               where the lenient one draws the few rows that are actually there */
+            if(window.createImageBitmap&&/could not be decoded|decode/i.test(why||''))strictRefused=true;
+            note(label+' failed — '+(why||'refused'));after();return;
+          }
           if(rec.path.indexOf('bitmap')===-1)rec.path=rec.path+'→bitmap';
           var cv=scaleTransparent(bm,bm.width||0,bm.height||0,max);
           closeBitmap(bm);
@@ -2308,7 +2320,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
        the decoder is the real judge */
     if(file.type&&!/^image\//.test(file.type)&&!/\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i.test(file.name||''))return;
     importImage(file,520,0.72,function(d,rec){
-      if(!d){toast('That photo came out blank on this device, so it wasn’t added — tap 🩺 Photo check',4200);return;}
+      if(!d){
+        toast((rec&&rec.damaged)
+          ? 'That picture file is damaged — the picture isn’t all in it. Open it in your gallery and save or crop it again, then retry.'
+          : 'That photo came out blank on this device, so it wasn’t added — tap 🩺 Photo check',5200);
+        return;
+      }
       var p=findPainting(pid);
       if(!p){toast('That project is gone — photo not added',1800);return;}
       var np={d:d,s:1};
@@ -2321,9 +2338,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(isActive){if(arrangeMode)arrSel=p.photos.length-1; else selPhoto=p.photos.length-1;}
       if(isActive&&state.view==='paint')renderPainting();
       savePhotos(pid); pushHistory();
-      toast((rec&&rec.partial)
-        ? 'Only part of that photo came through — tap 🩺 Photo check'
-        : 'Photo added ✓', (rec&&rec.partial)?4000:900);
+      toast((rec&&rec.damaged)
+        ? 'Only the top of that picture is in the file — the file itself is damaged. Saved what there was; re-save the photo in your gallery for the whole thing.'
+        : ((rec&&rec.partial)
+          ? 'Only part of that photo came through — tap 🩺 Photo check'
+          : 'Photo added ✓'),
+        (rec&&(rec.damaged||rec.partial))?5200:900);
     });
   }
 
