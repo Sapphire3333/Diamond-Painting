@@ -102,7 +102,8 @@
     color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center;padding:0 5px;pointer-events:none;}
   .pcount.zero{background:var(--unk-soft);color:var(--unk);}
   .delx{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:#A8324B;color:#fff;
-    border:2px solid var(--panel);font-size:12px;font-weight:800;line-height:18px;text-align:center;cursor:pointer;}
+    border:2px solid var(--panel);font-size:12px;font-weight:800;line-height:18px;text-align:center;cursor:pointer;z-index:3;}
+  .photo-grid .delx{width:24px;height:24px;line-height:20px;top:-8px;right:-8px;}
   .expander{grid-column:1/-1;background:var(--panel);border:1.5px solid var(--ink);border-radius:12px;padding:10px;}
   .exp-head{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px;}
   .exp-list{display:flex;flex-direction:column;gap:6px;}
@@ -291,6 +292,10 @@
     .vw-stage{flex-wrap:wrap;}
     .vw-side{flex:1 1 calc(50% - 6px);}
     .vw-card{flex:1 1 100%;order:1;}
+    /* edit mode: photo strip gets the full width instead of a 42% column, so
+       both covers are visible side by side rather than squeezed into a sliver */
+    .phead{flex-wrap:wrap;}
+    .photos{flex:1 1 100%;}
   }
 
 </style>
@@ -366,7 +371,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var COLOR_FAMILIES=['Red','Orange','Yellow','Green','Teal','Blue','Purple','Pink','Brown','Neutral'];
 
   var state={
-    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true}],
+    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true,kind:'diamond',media:{},palette:[],notes:''}],
     active:'p1', onlySel:false, view:'paintings',
     specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added', pGroup:'none', pSearchField:'all',
     autoBackup:'off', dark:false, density:'full', accent:'violet',
@@ -424,6 +429,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var k=KINDMAP[kindOf(p)];
     return '<span class="badge unk">'+k.sym+' '+k.label+'</span>';
   }
+  function coverLabels(p){return kindOf(p)==='drawing'?['Main','']:['Sold','Result'];}
   function ratingBadge(p){
     if(p.rating===null||p.rating===undefined||p.rating==='')return '';
     return '<span class="badge star">★ '+Number(p.rating).toFixed(1)+'</span>';
@@ -874,13 +880,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   /* read main state + per-painting photos from local into `state` */
   function hydrate(cb){
-    if(!STORE){cb();return;}
+    if(!STORE){normalize(state);cb();return;}
     STORE.get(KEY).then(function(r){
       var migrated=false;
       try{
         if(r&&r.value){var s=JSON.parse(r.value);
           if(s&&s.paintings&&s.paintings.length){state=normalize(s);}}
       }catch(e){}
+      /* also covers a first run with nothing stored, where `state` is still the
+         built-in starting object and would otherwise miss newer fields */
+      normalize(state);
       /* load per-painting photos; migrate any photos still stored inline (old format) */
       var pend=state.paintings.length;
       if(!pend){cb();return;}
@@ -1238,7 +1247,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var tagHtml=tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag">'+esc(t)+'</span>';}).join('')+'</div>'):'';
     var photoHtml='';
     if(p.photos&&p.photos.length){
-      var labels=['Sold','Result'];
+      var labels=coverLabels(p);
       photoHtml='<div class="ovphotos frame-'+(p.frame||'landscape')+'">';
       p.photos.slice(0,2).forEach(function(ph,i){
         photoHtml+='<div class="ovphoto"><img class="lb-img" data-src="'+ph.d+'" src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'"><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
@@ -1887,8 +1896,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     /* a drawing shows every photo in its gallery, so nothing floats there */
     if(viewMode&&kindOf(p)==='drawing')return;
     if(viewMode){if(p.photos.length<=startIdx)return;}
-    /* the free layout stays visible once you've arranged, not only while arranging */
-    else if(!(arrangeMode||p.arranged))return;
+    /* edit mode floats photos only while arranging — otherwise every photo is in
+       the thumbnail strip, and showing both would duplicate each one */
+    else if(!arrangeMode)return;
     /* anchor to the page BODY (not #page) so the sticky top bar growing or shrinking
        never shifts the photos relative to the content they were placed against */
     var host=document.getElementById('pageBody')||pg;
@@ -1902,13 +1912,20 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
        so wait for the next render/resize when the real width is known */
     if(!hostW)return;
     var slot=0;
+    var hostLeft=host.getBoundingClientRect().left;
+    var vw=document.documentElement.clientWidth||hostW;
     p.photos.forEach(function(photo,i){
       if(i<startIdx)return;
       arrLayout(photo,slot++,hostW,viewMode);
       var im=document.createElement('img');
       im.className='arr-img'+(arrangeMode&&i===arrSel?' sel':'')+(arrangeMode?'':(' locked'+(i===selPhoto?' sel':'')));
       im.setAttribute('data-i',i); im.src=photo.d; im.alt='';
-      im.style.left=photo.ax+'%'; im.style.top=(photo.ay/100*hostW)+'px';
+      /* a photo placed against the edge of a wide monitor would sit entirely
+         off-screen on a phone, so keep a strip of it visible — display only,
+         the stored position is untouched */
+      var wpx=photo.aw/100*hostW, lpx=photo.ax/100*hostW;
+      lpx=Math.max(40-hostLeft-wpx,Math.min(vw-40-hostLeft,lpx));
+      im.style.left=lpx+'px'; im.style.top=(photo.ay/100*hostW)+'px';
       im.style.width=photo.aw+'%'; im.style.transform='rotate('+photo.arot+'deg)';
       layer.appendChild(im);
     });
@@ -1939,11 +1956,17 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var im=selImg(); var hs=layer.querySelectorAll('.arr-handle');
       if(!im||!hs.length)return;
       var L=im.offsetLeft,T=im.offsetTop,W=im.offsetWidth,H=im.offsetHeight;
+      /* a handle hanging past a photo that sits flush against the window edge
+         would push a horizontal scrollbar onto the page, so keep handles inside
+         the window — the photo itself is free to reach the edge */
+      var lr=layer.getBoundingClientRect();
+      var vw=document.documentElement.clientWidth||lr.width;
+      function clampX(x){return Math.max(-lr.left,Math.min(vw-lr.left-26,x));}
       hs.forEach(function(hh){
         var k=hh.getAttribute('data-k');
-        if(k==='rot'){hh.style.left=(L+W/2-13)+'px';hh.style.top=(T-34)+'px';return;}
+        if(k==='rot'){hh.style.left=clampX(L+W/2-13)+'px';hh.style.top=(T-34)+'px';return;}
         var c=CORNERS.filter(function(x){return x[0]===k;})[0]; if(!c)return;
-        hh.style.left=(L+c[1]*W-13)+'px'; hh.style.top=(T+c[2]*H-13)+'px';
+        hh.style.left=clampX(L+c[1]*W-13)+'px'; hh.style.top=(T+c[2]*H-13)+'px';
       });
     }
     function placeHandles(){
@@ -2011,9 +2034,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           if(!r.width)return;
           var dx=(ev.clientX-startX)/r.width*100, dy=(ev.clientY-startY)/r.width*100;
           if(Math.abs(dx)>0.4||Math.abs(dy)>0.4)moved=true;
-          photo.ax=Math.max(-30,Math.min(102,ax0+dx));
-          photo.ay=Math.max(-8,ay0+dy);
-          im.style.left=photo.ax+'%'; im.style.top=(photo.ay/100*r.width)+'px';
+          /* limits follow the window, not the 900px content column, so a photo can
+             be dragged right out to either screen edge — and no further, which is
+             what would otherwise add a horizontal scrollbar */
+          var vw=document.documentElement.clientWidth||r.width;
+          var minAx=-(r.left/r.width*100);
+          var maxAx=((vw-r.left)/r.width*100)-(photo.aw||28);
+          if(maxAx<minAx)maxAx=minAx;
+          photo.ax=Math.max(minAx,Math.min(maxAx,ax0+dx));
+          photo.ay=Math.max(-30,ay0+dy);
+          im.style.left=(photo.ax/100*r.width)+'px'; im.style.top=(photo.ay/100*r.width)+'px';
           syncHandles();
         }
         function up(ev){
@@ -2398,24 +2428,38 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   /* ---------- painting page ---------- */
   function renderPainting(){
     var p=active();
+    /* belt and braces: a record arriving from an old backup or an older device
+       mustn't be able to blank the page on a missing field */
+    if(!p.media)p.media={};
+    if(!p.palette)p.palette=[];
     if(p.edit===false){renderPaintingView(p);return;}
     var pg=$('page');
 
-    /* photos block */
-    /* NOTE: the flow of this block must be identical in both modes, otherwise the
-       page content shifts underneath the absolutely-placed photos. */
-    var ph='';
-    if(!p.arranged){
-      ph+='<div class="photo-grid"'+(arrangeMode?' style="visibility:hidden"':'')+'>';
-      p.photos.forEach(function(photo,i){
-        var lbl=(i===0?'<span class="pg-lbl">Sold</span>':(i===1?'<span class="pg-lbl">Result</span>':''));
-        ph+='<div class="pg-item">'+lbl+'<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" style="'+photoStyle(photo)+'"></div>';
-      });
-      ph+='</div>';
-    }
+    /* Photos block. Edit mode ALWAYS shows every photo as a thumbnail, even for an
+       arranged project — otherwise the only way to reach a photo is to tap it on
+       the floating layer, which is undiscoverable and can be off-screen on a phone.
+       Each thumbnail carries its own ✕ so removing one doesn't depend on finding
+       the tools bar. The free layout is shown while arranging and in view mode. */
+    var lbls=coverLabels(p);
+    var ph='<div class="photo-grid"'+(arrangeMode?' style="visibility:hidden"':'')+'>';
+    p.photos.forEach(function(photo,i){
+      var lbl=(lbls[i]?'<span class="pg-lbl">'+lbls[i]+'</span>':'');
+      ph+='<div class="pg-item">'+lbl+
+        '<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" style="'+photoStyle(photo)+'">'+
+        '<div class="delx" data-photox="'+i+'" title="Remove this photo">✕</div></div>';
+    });
+    ph+='</div>';
     ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
       (p.photos.length?('<button class="pbtn'+(arrangeMode?' on':'')+'" id="arrEnter" type="button">'+(arrangeMode?'✓ Done arranging':'⇱ Arrange &amp; edit')+'</button>'):'')+'</div>';
-    ph+='<div class="photo-hint">'+(p.photos.length?'Tap a photo to open its tools in the bar at the top. The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Use ⇱ Arrange &amp; edit to place photos freely anywhere on this page.':'Add photos of this painting — on PC you can also paste (Ctrl+V) a copied image. The first two become the “Sold” and “Result” pictures on cards.')+'</div>';
+    ph+='<div class="photo-hint">'+(p.photos.length
+      ? ('Tap a photo for its tools in the bar at the top, or its <b>✕</b> to remove it. '+
+         (kindOf(p)==='drawing'
+           ? 'The 1st photo is the big one on the project page; the rest become its gallery.'
+           : 'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards.')+
+         ' Use ⇱ Arrange &amp; edit to place photos freely anywhere on this page.')
+      : 'Add photos — on PC you can also paste (Ctrl+V) a copied image.'+(kindOf(p)==='drawing'
+           ? ' The first becomes the big picture, the rest a gallery.'
+           : ' The first two become the “Sold” and “Result” pictures on cards.'))+'</div>';
     if(arrangeMode)ph+=arrangeUiHtml(p); /* fixed bottom bar — takes no space in the flow */
 
     /* Photo tools + card frame live in the sticky top bar, so photos placed on the
@@ -2715,6 +2759,17 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var i=parseInt(im.getAttribute('data-i'),10);
         selPhoto=(selPhoto===i)?-1:i;
         renderPainting();
+      });
+    });
+    pg.querySelectorAll('[data-photox]').forEach(function(x){
+      x.addEventListener('click',function(e){
+        e.stopPropagation();
+        var i=parseInt(x.getAttribute('data-photox'),10);
+        if(!twoTap('photox'+i,x,'✕?'))return;
+        var removed=p.photos.splice(i,1)[0];
+        if(selPhoto===i)selPhoto=-1; else if(selPhoto>i)selPhoto--;
+        renderPainting(); savePhotos(p.id);
+        showPhotoUndo(p.id,removed,i,'Photo removed');
       });
     });
     if(selPhoto>=0&&selPhoto<p.photos.length){
