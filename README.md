@@ -58,7 +58,7 @@ After that it opens full-screen from its own icon and works offline.
 
 | Tab | What it does |
 |---|---|
-| **⌂ Overview** | Stats about your collection, dark mode & accent color, storage meter, cloud sync, backups |
+| **⌂ Overview** | Stats about your collection, CSV export for Excel, dark mode & accent color, storage meter, cloud sync, backups |
 | **🖼 Projects** | Everything you've made — filter by kind, search, sort, group, multi-select, copy/paste, delete/restore |
 | **🔎 Find** | Look up any DMC color, size, special diamond or medium and see which projects use it |
 | **+ New project** | Adds a project (same kind as the last one you made) |

@@ -1203,6 +1203,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     if($('darkToggle'))$('darkToggle').addEventListener('click',function(){state.dark=!state.dark;applyTheme();renderOverview();save();});
     if($('densToggle'))$('densToggle').addEventListener('click',function(){state.density=(state.density==='compact')?'full':'compact';renderOverview();save();});
+    if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
     pg.querySelectorAll('[data-accent]').forEach(function(b){b.addEventListener('click',function(){state.accent=b.getAttribute('data-accent');applyTheme();renderOverview();save();});});
     pg.querySelectorAll('[data-auto]').forEach(function(b){b.addEventListener('click',function(){
       state.autoBackup=b.getAttribute('data-auto');save();maybeAutoBackup(function(){renderOverview();});
@@ -1310,7 +1311,43 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         KINDS.map(function(k){return k.sym+' '+k.label+' '+byKind[k.id];}).join(' · ')+
       '</div>'+
       '<div class="bk-note" style="margin-top:4px;">Avg rating '+avg+' · diamond types: ■ '+byType.square+'  ● '+byType.round+'  ✦ '+byType.odd+' · '+colors+' colours selected in total'+(spendN?(' · total spend '+spendStr):'')+'</div>'+
+      '<div class="bk-btns" style="margin-top:10px;"><button class="chipbtn" id="csvExport" type="button" title="One row per project — opens in Excel or Google Sheets">⬇ Export list as CSV (Excel)</button></div>'+
       '</div>';
+  }
+  /* one row per project, semicolon-separated with a UTF-8 marker, which is what
+     Excel in European locales opens straight into columns */
+  function csvField(v){
+    v=String(v==null?'':v);
+    if(/[;"\r\n]/.test(v))v='"'+v.replace(/"/g,'""')+'"';
+    return v;
+  }
+  function exportCsv(){
+    var head=['Name','Kind','Status','Progress %','Rating','Price','Size (cm)','Seller','Kit code','Diamond type','Started','Finished','Tags','Media','Colours','Colour numbers','Notes'];
+    var lines=[head.join(';')];
+    state.paintings.forEach(function(p){
+      var codes=Object.keys(p.colors||{});
+      lines.push([
+        p.name||'', KINDMAP[kindOf(p)].label,
+        (p.status&&STATUSMAP[p.status])?STATUSMAP[p.status].label:'',
+        p.progress||0,
+        (p.rating===null||p.rating===undefined||p.rating==='')?'':p.rating,
+        p.price||'', p.size||'', p.seller||'', p.code||'',
+        (p.type&&TYPES[p.type])?TYPES[p.type].label:'',
+        p.started||'', p.finished||'',
+        Object.keys(p.tags||{}).join(', '),
+        Object.keys(p.media||{}).join(', '),
+        codes.length, codes.join(' '),
+        p.notes||''
+      ].map(csvField).join(';'));
+    });
+    var bom=String.fromCharCode(0xFEFF);   /* UTF-8 marker so Excel reads accents correctly */
+    var blob=new Blob([bom+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='diamond-painting-projects-'+(todayStr()||'today')+'.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+    toast('CSV saved ✓ — opens in Excel or Google Sheets',1800);
   }
   function renderBackupList(){
     var el=$('bkList'); if(!el)return;
