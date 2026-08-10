@@ -402,6 +402,32 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var syncPhase='';   /* '' normal, 'choose' after enabling when cloud already has data */
   var DMCMAP={}; DMC.forEach(function(r){DMCMAP[r[0]]=r;});
   var DMCLOWER={}; DMC.forEach(function(r){DMCLOWER[r[0].toLowerCase()]=r[0];});
+  /* ---------- leftovers ----------
+     Leftovers come from kits you have actually done, so a colour used in any
+     project counts as one you have — that is the default, not something to tick.
+     state.stash only records the exceptions: 1 for "I have some" on a colour no
+     project uses, 0 for "used up" on one that is in a project. */
+  function usedColorSet(){
+    var m={};
+    state.paintings.forEach(function(p){
+      var cs=p.colors||{};
+      for(var c in cs)if(cs[c])m[c]=1;
+    });
+    return m;
+  }
+  function hasLeftovers(code,used){
+    var s=state.stash?state.stash[code]:undefined;
+    if(s===1)return true;
+    if(s===0)return false;
+    return !!(used||usedColorSet())[code];
+  }
+  function toggleLeftovers(code){
+    if(!state.stash)state.stash={};
+    var used=usedColorSet();
+    var want=!hasLeftovers(code,used);
+    if(want===!!used[code])delete state.stash[code];   /* the default already says this */
+    else state.stash[code]=want?1:0;
+  }
   function famOf(hex){
     hex=String(hex).replace('#','');
     var r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
@@ -3642,6 +3668,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function renderGrid(){
     var g=$('grid'); if(!g)return;
     var p=active(); var q=query.toLowerCase();
+    var usedSet=usedColorSet();
     var shown=0, html='';
     DMC.forEach(function(row){
       var code=row[0], name=row[1], hex=row[2];
@@ -3650,9 +3677,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(q&&code.toLowerCase().indexOf(q)===-1&&name.toLowerCase().indexOf(q)===-1)return;
       if(colorFamily&&FAMOF[code]!==colorFamily)return;
       shown++;
+      /* the basket only says something new on colours this project doesn't use —
+         on the ones it does it would be on every single selected card */
+      var basket=(!sel&&hasLeftovers(code,usedSet))?' <span title="You have leftovers of this colour">🧺</span>':'';
       html+='<div class="card'+(sel?' sel':'')+'" data-code="'+code+'">'+
         '<div class="drill" style="background-color:'+hex+'"></div>'+
-        '<div class="ctext"><div class="code">'+code+(state.stash[code]?' <span title="You have leftovers of this colour">🧺</span>':'')+'</div><div class="cname">'+esc(name)+'</div></div>'+
+        '<div class="ctext"><div class="code">'+code+basket+'</div><div class="cname">'+esc(name)+'</div></div>'+
         '<div class="tick">✓</div></div>';
     });
     g.innerHTML=html;
@@ -3767,11 +3797,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="chipbtn" id="fPasteClose" type="button">Close</button></div>';
     if(findPasteReview){
       var m=findPasteReview.matched;
+      var usedSet=usedColorSet();
       var groups={fresh:[],stash:[],owned:[]};
       m.forEach(function(x){
         var owners=paintingsWith(x.code);
         var it={x:x,owners:owners.length};
-        if(state.stash[x.code])groups.stash.push(it);
+        if(hasLeftovers(x.code,usedSet))groups.stash.push(it);
         else if(owners.length)groups.owned.push(it);
         else groups.fresh.push(it);
       });
@@ -3790,7 +3821,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           var sub=it.x.from?('⚠ read “'+esc(it.x.from)+'”'):esc(row[1]);
           return '<div class="card ro" style="'+(it.x.from?'border-color:var(--star);':'')+'">'+
             '<div class="drill" style="background-color:'+row[2]+'"></div>'+
-            '<div class="ctext"><div class="code">'+row[0]+(state.stash[row[0]]?' 🧺':'')+'</div><div class="cname"'+
+            '<div class="ctext"><div class="code">'+row[0]+(hasLeftovers(row[0],usedSet)?' 🧺':'')+'</div><div class="cname"'+
               (it.x.from?' style="color:var(--star);font-weight:700;"':'')+'>'+sub+'</div></div>'+
             '<div class="pcount'+(it.owners?'':' zero')+'">'+it.owners+'</div></div>';
         }).join('')+'</div>';
@@ -3799,7 +3830,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         h+='<div class="bk-note" style="margin-top:4px;">Painting counts respect the '+TYPES[findType].sym+' '+TYPES[findType].label.toLowerCase()+' filter above — switch it to All to count every painting.</div>';
       if(groups.fresh.length)h+='<div class="section-lbl">🆕 New to you ('+groups.fresh.length+')</div>'+cardsHtml(groups.fresh);
       if(groups.stash.length)h+='<div class="section-lbl">🧺 In your leftovers ('+groups.stash.length+')</div>'+cardsHtml(groups.stash);
-      if(groups.owned.length)h+='<div class="section-lbl">In your paintings, no leftovers marked ('+groups.owned.length+')</div>'+cardsHtml(groups.owned);
+      if(groups.owned.length)h+='<div class="section-lbl">In your projects, but you marked them used up ('+groups.owned.length+')</div>'+cardsHtml(groups.owned);
       if(!m.length)h+='<div class="vw-empty" style="margin-top:8px;">No DMC numbers found in that text.</div>';
       if(findPasteReview.unknown.length)
         h+='<div class="bk-note" style="margin-top:8px;">Not recognised: '+findPasteReview.unknown.map(esc).join(', ')+'</div>';
@@ -3923,18 +3954,20 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!typeOk(p))return;
       Object.keys(p.colors||{}).forEach(function(c){(ownersByCode[c]=ownersByCode[c]||[]).push(p);});
     });
+    var usedSet=usedColorSet();
     var shown=0; var frag=document.createDocumentFragment();
     DMC.forEach(function(row){
       var code=row[0], name=row[1], hex=row[2];
       if(q&&code.toLowerCase().indexOf(q)===-1&&name.toLowerCase().indexOf(q)===-1)return;
-      if(findStash&&!state.stash[code])return;
+      var got=hasLeftovers(code,usedSet);
+      if(findStash&&!got)return;
       shown++;
       var owners=ownersByCode[code]||[];
       var c=document.createElement('div');
       c.className='card'+(expandedColor===code?' open':'');
       c.setAttribute('data-code',code);
       c.innerHTML='<div class="drill" style="background-color:'+hex+'"></div>'+
-        '<div class="ctext"><div class="code">'+code+(state.stash[code]?' <span title="You have leftovers of this colour">🧺</span>':'')+'</div><div class="cname">'+esc(name)+'</div></div>'+
+        '<div class="ctext"><div class="code">'+code+(got?' <span title="You have leftovers of this colour">🧺</span>':'')+'</div><div class="cname">'+esc(name)+'</div></div>'+
         '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
       frag.appendChild(c);
       if(expandedColor===code){
@@ -3945,12 +3978,15 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var ex=expanderEl(head,owners);
         var sb=document.createElement('button');
         sb.type='button';
-        sb.className='chipbtn'+(state.stash[code]?' on':'');
+        sb.className='chipbtn'+(got?' on':'');
         sb.style.marginTop='8px';
-        sb.textContent=state.stash[code]?'🧺 In your leftovers — tap if used up':'🧺 I have leftovers of this';
+        var byDefault=(state.stash[code]===undefined);
+        sb.textContent=got
+          ? (byDefault?'🧺 In your leftovers (it’s in your projects) — tap if used up':'🧺 In your leftovers — tap if used up')
+          : (byDefault?'🧺 I have leftovers of this':'🧺 Marked used up — tap if you have some again');
         sb.addEventListener('click',function(ev){
           ev.stopPropagation();
-          if(state.stash[code])delete state.stash[code]; else state.stash[code]=1;
+          toggleLeftovers(code);
           save(); pushHistory(); renderFindLists();
         });
         ex.appendChild(sb);
@@ -3969,7 +4005,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var inAny=0;
     Object.keys(ownersByCode).forEach(function(k){if(DMCMAP[k])inAny++;});
     var inStash=0;
-    Object.keys(state.stash||{}).forEach(function(k){if(DMCMAP[k])inStash++;});
+    DMC.forEach(function(r){if(hasLeftovers(r[0],usedSet))inStash++;});
     $('fmeta').textContent='Showing '+shown+' of '+DMC.length+' colors · '+inAny+' are in your paintings'+
       (findType!=='any'?' ('+TYPES[findType].label.toLowerCase()+')':'')+
       (inStash?' · 🧺 '+inStash+' in your leftovers':'');
@@ -3977,7 +4013,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(shown===0&&(findStash||!$('fspecials').children.length)){
       e.style.display='block';
       e.textContent=findStash
-        ? (inStash?'No leftover colours match that search.':'No leftovers marked yet — tap a colour, then “🧺 I have leftovers of this”.')
+        ? (inStash?'No leftover colours match that search.':'No leftovers yet — colours used in your projects count automatically, or tap a colour and say you have some.')
         : 'Nothing matches that search.';
     }
     else e.style.display='none';
