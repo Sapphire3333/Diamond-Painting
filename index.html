@@ -2114,6 +2114,31 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(r0<=5&&g0<=5&&b0<=5)return 'solid black';
     return '';   /* a genuinely flat-coloured picture is left alone */
   }
+  /* The half-drawn photo: a band of real picture across the top and flat nothing
+     below it, because the browser painted only the rows it had decoded so far.
+     It slips past the all-or-nothing blank check — there IS content — so it gets
+     its own test: a bottom quarter that is one flat colour under a top quarter
+     that isn't. A picture whose lower quarter is genuinely plain trips this too,
+     which costs only a retry with another decoder and the same image back. */
+  function partiallyDrawn(cv){
+    var d;
+    try{d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data;}catch(e){return false;}
+    var w=cv.width,h=cv.height;
+    if(h<8||w<2)return false;
+    function bandFlat(y0,y1,blankOnly){
+      var o0=y0*w*4, r=d[o0],g=d[o0+1],b=d[o0+2],a=d[o0+3];
+      /* what a draw leaves behind is untouched or white — a flat band of any
+         other colour is somebody's actual photograph, so it doesn't count */
+      if(blankOnly&&!(a===0||(r>=250&&g>=250&&b>=250)))return false;
+      var from=y0*w, to=y1*w, step=Math.max(1,Math.floor((to-from)/1500));
+      for(var i=from;i<to;i+=step){
+        var o=i*4;
+        if(d[o]!==r||d[o+1]!==g||d[o+2]!==b||d[o+3]!==a)return false;
+      }
+      return true;
+    }
+    return bandFlat(Math.floor(h*0.75),h,true)&&!bandFlat(0,Math.max(1,Math.floor(h*0.25)),false);
+  }
   /* How much of the picture is one single shade. A photo that half-drew is mostly
      one colour without being perfectly uniform, so this can't refuse anything on
      its own — it just flags the result as worth a look. */
@@ -2179,7 +2204,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           var cv2=scaleTransparent(bm,bw,bh,max);
           var b2=canvasBlank(cv2);
           if(b2){give('still '+b2+' after the rescue decoder ('+bw+'×'+bh+')',bm);return;}
-          note('rescued at '+bw+'×'+bh);
+          /* a partial picture is still worth keeping — better than nothing, as
+             long as it says so instead of pretending it worked */
+          if(partiallyDrawn(cv2)){rec.partial=true;note('still only partly drawn after the rescue decoder');}
+          else note('rescued at '+bw+'×'+bh);
           done(cv2,bm);
         });
       }
@@ -2209,6 +2237,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
             note('drew '+blank+' shrinking in one step too, at '+cv.width+'×'+cv.height);
             rescue(sw,sh); return;
           }
+          /* only the top of the picture arrived — the browser drew the rows it
+             had decoded and left the rest flat */
+          if(partiallyDrawn(cv)){
+            if(tries<IMPORT_TRIES){note('only the top of it drew, shrinking in steps');setTimeout(attempt,140*tries);return;}
+            note('only the top of it drew on both tries');
+            rescue(sw,sh); return;
+          }
           if(tries>1)note('came out by shrinking in one step');
           done(cv,null);
         });
@@ -2223,7 +2258,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     /* some phone pickers hand over a blank type, so the name gets a say too and
        the decoder is the real judge */
     if(file.type&&!/^image\//.test(file.type)&&!/\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i.test(file.name||''))return;
-    importImage(file,520,0.72,function(d){
+    importImage(file,520,0.72,function(d,rec){
       if(!d){toast('That photo came out blank on this device, so it wasn’t added — tap 🩺 Photo check',4200);return;}
       var p=findPainting(pid);
       if(!p){toast('That project is gone — photo not added',1800);return;}
@@ -2237,7 +2272,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(isActive){if(arrangeMode)arrSel=p.photos.length-1; else selPhoto=p.photos.length-1;}
       if(isActive&&state.view==='paint')renderPainting();
       savePhotos(pid); pushHistory();
-      toast('Photo added ✓',900);
+      toast((rec&&rec.partial)
+        ? 'Only part of that photo came through — tap 🩺 Photo check'
+        : 'Photo added ✓', (rec&&rec.partial)?4000:900);
     });
   }
 
