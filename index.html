@@ -395,6 +395,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, editLists={}, armed={};
   var collapsedGroups={}, colorFamily='', showPaste=false, undoData=null, undoTimer=null;
   var pasteReview=null, pasteTextVal='', chartImg=null, chartPick=false;
+  var findPaste=false, findPasteText='', findPasteReview=null;
   var history=[], histIdx=-1, histT=null, photoCache={}, clipboard=[], trash=[];
   var selectMode=false, selectedIds={};
   var arrangeMode=false, arrSel=-1, cropOn=false, cropRect=null, lastPastePt=null;
@@ -1045,7 +1046,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     },false);
   }
   function resetTransient(){renaming=false;expandedColor=null;expandedSpec=null;expandedSize=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
-    showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;chartPick=false;}
+    showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;chartPick=false;
+    findPaste=false;findPasteText='';findPasteReview=null;}
 
   /* ---------- back-button navigation ----------
      Each view change adds a browser history entry, so the phone's back gesture
@@ -3292,7 +3294,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="tbtn od'+(findType==='odd'?' on':'')+'" data-t="odd" type="button">✦ Odd</button>'+
         '<button class="chipbtn'+(findStash?' on':'')+'" id="fStash" type="button" title="Show only colours you have leftovers of">🧺 Leftovers only</button>'+
       '</div>'+
-      '<div class="toolbar"><label class="search">🔎<input id="fq" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(findQuery)+'"></label></div>'+
+      '<div class="toolbar"><label class="search">🔎<input id="fq" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(findQuery)+'"></label>'+
+        '<button class="chipbtn'+(findPaste?' on':'')+'" id="fPaste" type="button" title="Paste a kit’s colour list and see what you already have">🧾 Check a kit list</button>'+
+      '</div>'+
+      (findPaste?'<div class="backup" id="fPasteBox" style="margin-bottom:10px;"></div>':'')+
       '<div class="meta"><span id="fmeta"></span><span>Tap anything to see which paintings have it</span></div>'+
       '<div id="fspecials"></div>'+
       '<div class="section-lbl">All colors</div>'+
@@ -3302,8 +3307,76 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       b.addEventListener('click',function(){findType=b.getAttribute('data-t');renderFind();});
     });
     $('fStash').addEventListener('click',function(){findStash=!findStash;renderFind();});
+    $('fPaste').addEventListener('click',function(){
+      findPaste=!findPaste;
+      if(!findPaste){findPasteReview=null;findPasteText='';}
+      renderFind();
+    });
     $('fq').addEventListener('input',function(e){findQuery=e.target.value;renderFindLists();});
+    if(findPaste)fillFindPasteBox();
     renderFindLists();
+  }
+
+  /* "Check a kit list": paste a kit's colour numbers and see, before buying,
+     what you already own — nothing is added anywhere, it's just a report */
+  function fillFindPasteBox(){
+    var box=$('fPasteBox'); if(!box)return;
+    var h='<div class="bk-note">Paste a kit’s colour numbers — commas, spaces or whole chart rows all work. '+
+      'Nothing is added anywhere; you just get a report of what you already have.</div>'+
+      '<textarea id="fPasteText" rows="3" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13px;background:var(--panel);color:var(--ink);" placeholder="e.g. 321, 310 700 3801 White — or a whole chart: 1 V 168  2 B 310 …">'+esc(findPasteText)+'</textarea>'+
+      '<div class="bk-btns" style="margin-top:8px;">'+
+        '<button class="chipbtn" id="fPasteCheck" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">Check this kit</button>'+
+        '<button class="chipbtn" id="fPasteClose" type="button">Close</button></div>';
+    if(findPasteReview){
+      var m=findPasteReview.matched;
+      var groups={fresh:[],stash:[],owned:[]};
+      m.forEach(function(x){
+        var owners=paintingsWith(x.code);
+        var it={x:x,owners:owners.length};
+        if(state.stash[x.code])groups.stash.push(it);
+        else if(owners.length)groups.owned.push(it);
+        else groups.fresh.push(it);
+      });
+      var fixed=findPasteReview.fixes||[];
+      h+='<div class="bk-note" style="margin-top:10px;"><b>'+m.length+'</b> DMC number'+(m.length===1?'':'s')+' recognised · '+
+        '🧺 '+groups.stash.length+' in your leftovers · '+groups.owned.length+' in your paintings · '+
+        groups.fresh.length+' new to you'+
+        (fixed.length?(' · '+fixed.length+' repaired'):'')+
+        (findPasteReview.ignored?(' · '+findPasteReview.ignored+' row number'+(findPasteReview.ignored===1?'':'s')+'/symbol'+(findPasteReview.ignored===1?'':'s')+' skipped'):'')+'</div>';
+      if(fixed.length)
+        h+='<div class="bk-note" style="margin-top:6px;color:var(--star);font-weight:700;">⚠ Repaired misreads: '+
+          fixed.map(esc).join(' · ')+' — check these against the kit’s chart.</div>';
+      function cardsHtml(list){
+        return '<div class="grid compact" style="margin-top:6px;">'+list.map(function(it){
+          var row=DMCMAP[it.x.code];
+          var sub=it.x.from?('⚠ read “'+esc(it.x.from)+'”'):esc(row[1]);
+          return '<div class="card ro" style="'+(it.x.from?'border-color:var(--star);':'')+'">'+
+            '<div class="drill" style="background-color:'+row[2]+'"></div>'+
+            '<div class="ctext"><div class="code">'+row[0]+(state.stash[row[0]]?' 🧺':'')+'</div><div class="cname"'+
+              (it.x.from?' style="color:var(--star);font-weight:700;"':'')+'>'+sub+'</div></div>'+
+            '<div class="pcount'+(it.owners?'':' zero')+'">'+it.owners+'</div></div>';
+        }).join('')+'</div>';
+      }
+      if(findType!=='any')
+        h+='<div class="bk-note" style="margin-top:4px;">Painting counts respect the '+TYPES[findType].sym+' '+TYPES[findType].label.toLowerCase()+' filter above — switch it to All to count every painting.</div>';
+      if(groups.fresh.length)h+='<div class="section-lbl">🆕 New to you ('+groups.fresh.length+')</div>'+cardsHtml(groups.fresh);
+      if(groups.stash.length)h+='<div class="section-lbl">🧺 In your leftovers ('+groups.stash.length+')</div>'+cardsHtml(groups.stash);
+      if(groups.owned.length)h+='<div class="section-lbl">In your paintings, no leftovers marked ('+groups.owned.length+')</div>'+cardsHtml(groups.owned);
+      if(!m.length)h+='<div class="vw-empty" style="margin-top:8px;">No DMC numbers found in that text.</div>';
+      if(findPasteReview.unknown.length)
+        h+='<div class="bk-note" style="margin-top:8px;">Not recognised: '+findPasteReview.unknown.map(esc).join(', ')+'</div>';
+    }
+    box.innerHTML=h;
+    var ta=$('fPasteText');
+    if(ta)ta.addEventListener('input',function(e){findPasteText=e.target.value;});
+    $('fPasteCheck').addEventListener('click',function(){
+      findPasteReview=parsePasteText(findPasteText,{colors:{}});
+      fillFindPasteBox();
+    });
+    $('fPasteClose').addEventListener('click',function(){
+      findPaste=false; findPasteReview=null; findPasteText='';
+      renderFind();
+    });
   }
 
   function renderFindLists(){
