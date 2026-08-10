@@ -2176,79 +2176,90 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function importImage(file,max,quality,cb){
     var rec={name:file.name||'photo',type:file.type||'(none)',bytes:file.size||0,path:'image'};
     function note(t){rec.note=(rec.note?rec.note+'; ':'')+t;}
-    function done(cv,src){
-      var d=flattenToJpeg(cv,quality);
-      rec.ok=true; rec.out=cv.width+'×'+cv.height; rec.outBytes=d.length; rec.thumb=d;
-      var pl=plainness(cv);
-      if(pl>0.85)note(Math.round(pl*100)+'% of it is a single shade — check the picture looks right');
-      noteDiag(rec); closeBitmap(src); cb(d,rec);
+    /* Every way of reading the picture is offered here, and the best result any
+       of them managed is kept. A half-drawn photo is a poor result but a real
+       one, so it is never thrown away just because a later, cleverer attempt
+       failed outright — losing the photo entirely is the worst outcome of all. */
+    var best=null, offers=0;
+    function offer(cv,how){
+      offers++;
+      var blank=canvasBlank(cv);
+      if(blank){note(how+' came out '+blank);return false;}
+      var part=partiallyDrawn(cv);
+      if(!best||(best.partial&&!part))best={cv:cv,how:how,partial:part};
+      if(part){note(how+' drew only the top of it');return false;}
+      if(offers>1)note(how+' worked');
+      return true;
     }
-    function give(msg,src){rec.ok=false;note(msg);noteDiag(rec);closeBitmap(src);cb(null,rec);}
+    function finish(){
+      if(!best)return false;
+      var d=flattenToJpeg(best.cv,quality);
+      rec.ok=true; rec.out=best.cv.width+'×'+best.cv.height; rec.outBytes=d.length;
+      rec.thumb=d; rec.partial=!!best.partial;
+      if(best.partial)note('nothing better came back, so kept the half-drawn one from '+best.how);
+      var pl=plainness(best.cv);
+      if(pl>0.85)note(Math.round(pl*100)+'% of it is a single shade — check the picture looks right');
+      noteDiag(rec); cb(d,rec);
+      return true;
+    }
+    function give(msg){rec.ok=false;note(msg);noteDiag(rec);cb(null,rec);}
     readFileAsDataUrl(file,function(dataUrl,readErr){
       if(!dataUrl){give(readErr||'the file could not be read');return;}
       rec.bytes=rec.bytes||Math.round(dataUrl.length*0.75);
-      /* last resort: decode straight to the wanted size from the bytes we already
-         hold, so the big canvas is never allocated and the file is never re-read */
-      function rescue(sw,sh){
-        rec.path=rec.path+'→bitmap';
+      var srcW=0,srcH=0;
+      /* decode from the bytes we already hold — never the picked file, which a
+         phone may only let us read once. With a target size the decoder shrinks
+         as it goes and no large canvas is ever needed; without one it is simply
+         a different route to the same picture, worth a try when the first fails. */
+      function bitmapRound(toSize,after){
         var tw=0,th=0;
-        if(sw&&sh){
-          var k=Math.min(1,Math.min(max/sw,max/sh));
-          tw=Math.max(1,Math.round(sw*k)); th=Math.max(1,Math.round(sh*k));
+        if(toSize&&srcW&&srcH){
+          var k=Math.min(1,Math.min(max/srcW,max/srcH));
+          tw=Math.max(1,Math.round(srcW*k)); th=Math.max(1,Math.round(srcH*k));
         }
+        var label=toSize?'decoding straight to size':'decoding at full size';
         var blob=dataUrlToBlob(dataUrl);
-        if(!blob){give('could not re-read the image bytes');return;}
+        if(!blob){note('could not rebuild the image bytes');after();return;}
         decodeViaBitmap(blob,tw,th,function(bm,p2,why){
-          if(!bm){give(why||'the rescue decoder could not read it either');return;}
-          var bw=bm.width||0,bh=bm.height||0;
-          var cv2=scaleTransparent(bm,bw,bh,max);
-          var b2=canvasBlank(cv2);
-          if(b2){give('still '+b2+' after the rescue decoder ('+bw+'×'+bh+')',bm);return;}
-          /* a partial picture is still worth keeping — better than nothing, as
-             long as it says so instead of pretending it worked */
-          if(partiallyDrawn(cv2)){rec.partial=true;note('still only partly drawn after the rescue decoder');}
-          else note('rescued at '+bw+'×'+bh);
-          done(cv2,bm);
+          if(!bm){note(label+' failed — '+(why||'refused'));after();return;}
+          if(rec.path.indexOf('bitmap')===-1)rec.path=rec.path+'→bitmap';
+          var cv=scaleTransparent(bm,bm.width||0,bm.height||0,max);
+          closeBitmap(bm);
+          if(offer(cv,label)){finish();return;}
+          after();
         });
       }
+      function lastResorts(){bitmapRound(true,function(){bitmapRound(false,endOfRoad);});}
+      function endOfRoad(){
+        if(finish())return;
+        give('every way of reading it came back blank');
+      }
       var tries=0, sawLate=false;
-      function attempt(){
+      function imgRound(){
         tries++;
         loadImg(dataUrl,function(img,err,late){
           if(late&&!sawLate){sawLate=true;note('decode() timed out — drew without waiting');}
           if(!img){
-            if(tries<IMPORT_TRIES){setTimeout(attempt,90*tries);return;}
-            note(err||'could not be decoded'); rescue(0,0); return;
+            if(tries<IMPORT_TRIES){setTimeout(imgRound,90*tries);return;}
+            note(err||'could not be decoded'); lastResorts(); return;
           }
-          var sw=img.naturalWidth||img.width||0, sh=img.naturalHeight||img.height||0;
-          if(!rec.size)rec.size=sw+'×'+sh;
-          if(!sw||!sh){
-            if(tries<IMPORT_TRIES){setTimeout(attempt,90*tries);return;}
-            note('the image reported no size'); rescue(0,0); return;
+          srcW=img.naturalWidth||img.width||0; srcH=img.naturalHeight||img.height||0;
+          if(!rec.size)rec.size=srcW+'×'+srcH;
+          if(!srcW||!srcH){
+            if(tries<IMPORT_TRIES){setTimeout(imgRound,90*tries);return;}
+            note('the image reported no size'); lastResorts(); return;
           }
-          /* three genuinely different mechanisms rather than one tried three
-             times: shrink in halving steps, shrink in a single step, and finally
-             decode straight to size without a big canvas at all */
+          /* genuinely different mechanisms rather than one tried repeatedly:
+             shrink in halving steps, then in a single step, then hand over to
+             the decoder that needs no large canvas at all */
           var direct=(tries>1);
-          var cv=scaleTransparent(img,sw,sh,max,direct);
-          var blank=canvasBlank(cv);
-          if(blank){
-            if(tries<IMPORT_TRIES){note('drew '+blank+' shrinking in steps');setTimeout(attempt,140*tries);return;}
-            note('drew '+blank+' shrinking in one step too, at '+cv.width+'×'+cv.height);
-            rescue(sw,sh); return;
-          }
-          /* only the top of the picture arrived — the browser drew the rows it
-             had decoded and left the rest flat */
-          if(partiallyDrawn(cv)){
-            if(tries<IMPORT_TRIES){note('only the top of it drew, shrinking in steps');setTimeout(attempt,140*tries);return;}
-            note('only the top of it drew on both tries');
-            rescue(sw,sh); return;
-          }
-          if(tries>1)note('came out by shrinking in one step');
-          done(cv,null);
+          var cv=scaleTransparent(img,srcW,srcH,max,direct);
+          if(offer(cv,direct?'shrinking in one step':'shrinking in steps')){finish();return;}
+          if(tries<IMPORT_TRIES){setTimeout(imgRound,140*tries);return;}
+          lastResorts();
         });
       }
-      attempt();
+      imgRound();
     });
   }
   /* pid is captured at pick/paste time so a slow load (or a cloud sync that
