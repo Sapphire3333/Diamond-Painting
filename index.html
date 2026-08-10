@@ -246,7 +246,7 @@
   .rating-row input{border:1.5px solid var(--line);border-radius:9px;padding:6px 9px;font-size:15px;font-weight:800;
     width:74px;outline:none;text-align:center;}
   .rating-row input:focus{border-color:var(--accent);}
-  .ovsort{display:flex;gap:8px;align-items:center;margin-bottom:9px;}
+  .ovsort{display:flex;gap:8px;align-items:center;margin-bottom:9px;flex-wrap:wrap;}
   .sm-row{margin-bottom:9px;}
   .sm-lbl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-bottom:4px;}
   .sm-lbl span:last-child{color:var(--muted);font-weight:600;white-space:nowrap;}
@@ -371,7 +371,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var COLOR_FAMILIES=['Red','Orange','Yellow','Green','Teal','Blue','Purple','Pink','Brown','Neutral'];
 
   var state={
-    paintings:[{id:'p1',name:'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true,kind:'diamond',media:{},palette:[],notes:''}],
+    paintings:[{id:'p1',name:'Project 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true,kind:'diamond',media:{},palette:[],notes:''}],
     active:'p1', onlySel:false, view:'paintings',
     specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), ovSort:'added', pGroup:'none', pSearchField:'all',
     autoBackup:'off', dark:false, density:'full', accent:'violet',
@@ -545,7 +545,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       for(var i=0;i<state.paintings.length;i++)if(state.paintings[i].id===pid)p=state.paintings[i];
       if(!p)return;
       var json=JSON.stringify(p.photos||[]);
-      if(json.length>4600000&&STORE.kind!=='idb')toast('This painting’s photos are nearly at their 5MB limit — remove one or two',2600);
+      if(json.length>4600000&&STORE.kind!=='idb')toast('This project’s photos are nearly at their 5MB limit — remove one or two',2600);
       try{STORE.set(photoKey(pid), json).catch(function(){warnOnce();});}catch(e){warnOnce();}
     },450);
   }
@@ -554,6 +554,17 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function nowTs(){try{return Date.now();}catch(e){return 0;}}
   function todayStr(){try{var d=new Date();function p2(n){return (n<10?'0':'')+n;}return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}catch(e){return '';}}
+  /* prices arrive in many shapes — €25, 25.99, 25,99 (European decimal comma),
+     1,299 — so a lone comma followed by 1–2 digits is a decimal point and any
+     other comma is a thousands separator to drop */
+  function parsePrice(s){
+    var t=String(s||'').replace(/[^0-9.,]/g,'');
+    if(!t)return NaN;
+    var lc=t.lastIndexOf(','), ld=t.lastIndexOf('.');
+    if(lc>-1&&ld>-1){ if(lc>ld)t=t.replace(/\./g,'').replace(/,/g,'.'); else t=t.replace(/,/g,''); }
+    else if(lc>-1){ if(t.indexOf(',')===lc&&t.length-lc-1<=2)t=t.replace(',','.'); else t=t.replace(/,/g,''); }
+    return parseFloat(t);
+  }
   function showUndoBar(msg,onUndo){
     if(undoTimer)clearTimeout(undoTimer);
     var old=document.querySelector('.undobar'); if(old)old.remove();
@@ -580,7 +591,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function showPhotoUndo(pid,photo,idx,msg){
     showUndoBar(msg,function(){
-      var p=findPainting(pid); if(!p){toast('That painting is gone',1400);return;}
+      var p=findPainting(pid); if(!p){toast('That project is gone',1400);return;}
       var at=Math.min(idx,p.photos.length);
       p.photos.splice(at,0,photo);
       savePhotos(pid);
@@ -603,7 +614,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function dataSnapshot(){
     return JSON.stringify({
       paintings:state.paintings.map(function(p){var c={};for(var k in p){if(k!=='photos')c[k]=p[k];}return c;}),
-      specials:state.specials, sellers:state.sellers, tags:state.tags, sizes:state.sizes
+      specials:state.specials, sellers:state.sellers, tags:state.tags, sizes:state.sizes, media:state.media
     });
   }
   function cachePhotos(){state.paintings.forEach(function(p){if(p.photos)photoCache[p.id]=p.photos;});}
@@ -636,7 +647,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var d;try{d=JSON.parse(json);}catch(e){return;}
     var keepView=state.view, keepActive=state.active;
     state.paintings=d.paintings.map(function(p){p.photos=photoCache[p.id]||[];return p;});
-    state.specials=d.specials||{}; state.sellers=d.sellers||[]; state.tags=d.tags||[]; state.sizes=d.sizes||[];
+    state.specials=d.specials||{}; state.sellers=d.sellers||[]; state.tags=d.tags||[]; state.sizes=d.sizes||[]; state.media=d.media||[];
     normalize(state);
     var stillThere=state.paintings.some(function(p){return p.id===keepActive;});
     state.active=stillThere?keepActive:(state.paintings[0]?state.paintings[0].id:'');
@@ -1019,7 +1030,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   /* ---------- overview ---------- */
   function renderOverview(){
     var pg=$('page');
-    var html='<div class="ovsub" style="margin:2px 2px 12px;">Your paintings live in the <b>🖼 Paintings</b> tab. This page holds your summary, display, sync, storage and backups.</div>';
+    var html='<div class="ovsub" style="margin:2px 2px 12px;">Your projects live in the <b>🖼 Projects</b> tab. This page holds your summary, display, sync, storage and backups.</div>';
     html+='<div class="section-lbl">Summary</div>'+statsHtml();
     html+='<div class="section-lbl">Display</div>'+
       '<div class="backup">'+
@@ -1164,7 +1175,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     render(); save();
     state.paintings.forEach(function(p){if(p.photos&&p.photos.length)savePhotos(p.id);});
     reloadMissingPhotos(function(changed){if(changed)render();historyInit();});
-    toast('Restored ✓ — '+state.paintings.length+' painting'+(state.paintings.length===1?'':'s'),1600);
+    toast('Restored ✓ — '+state.paintings.length+' project'+(state.paintings.length===1?'':'s'),1600);
   }
   function restoreBackup(id,cb){
     var st=bkStore(); if(!st){cb&&cb();return;}
@@ -1190,7 +1201,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(p.type&&byType.hasOwnProperty(p.type))byType[p.type]++;
       if(p.rating!==null&&p.rating!==undefined&&p.rating!==''){rsum+=Number(p.rating);rn++;}
       colors+=Object.keys(p.colors||{}).length;
-      var pr=parseFloat(String(p.price||'').replace(/[^0-9.]/g,''));
+      var pr=parsePrice(p.price);
       if(!isNaN(pr)){spend+=pr;spendN++;}
     });
     var avg=rn?(rsum/rn).toFixed(1):'—';
@@ -1198,7 +1209,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     function stat(num,label){return '<div style="text-align:center;min-width:60px;flex:1 1 60px;"><div style="font-size:22px;font-weight:800;color:var(--accent);">'+num+'</div><div style="font-size:11px;color:var(--muted);">'+label+'</div></div>';}
     return '<div class="backup">'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
-        stat(n,'paintings')+stat(byStatus.done,'finished')+stat(byStatus.progress,'in progress')+stat(byStatus.wishlist,'wishlist')+
+        stat(n,'projects')+stat(byStatus.done,'finished')+stat(byStatus.progress,'in progress')+stat(byStatus.wishlist,'wishlist')+
       '</div>'+
       '<div class="bk-note" style="margin-top:8px;">'+
         KINDS.map(function(k){return k.sym+' '+k.label+' '+byKind[k.id];}).join(' · ')+
@@ -1215,7 +1226,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         html+='<div class="bk-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px;">'+
           '<div style="margin-right:auto;min-width:0;">'+
             '<div style="font-weight:700;font-size:13px;">'+fmtDate(e.ts)+(e.auto?' <span style="color:var(--muted);font-weight:600;font-size:11px;">(auto)</span>':'')+'</div>'+
-            '<div style="font-size:11.5px;color:var(--muted);">'+(e.count||0)+' painting'+((e.count===1)?'':'s')+' · '+fmtBytes(e.size||0)+(e.photos?' · 📷 photos':' · no photos')+'</div>'+
+            '<div style="font-size:11.5px;color:var(--muted);">'+(e.count||0)+' project'+((e.count===1)?'':'s')+' · '+fmtBytes(e.size||0)+(e.photos?' · 📷 photos':' · no photos')+'</div>'+
           '</div>'+
           '<button class="chipbtn" data-restore="'+e.id+'" type="button" style="color:var(--accent);border-color:var(--accent);">Restore</button>'+
           '<button class="chipbtn danger" data-delbk="'+e.id+'" type="button">Delete</button>'+
@@ -1250,7 +1261,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var labels=coverLabels(p);
       photoHtml='<div class="ovphotos frame-'+(p.frame||'landscape')+'">';
       p.photos.slice(0,2).forEach(function(ph,i){
-        photoHtml+='<div class="ovphoto"><img class="lb-img" data-src="'+ph.d+'" src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'"><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
+        photoHtml+='<div class="ovphoto"><img class="lb-img" src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'"><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
       });
       photoHtml+='</div>';
     }
@@ -1321,7 +1332,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     } else if(state.ovSort==='name'){
       list.sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
     } else if(state.ovSort==='price'){
-      var pn=function(p){var n=parseFloat(String(p.price||'').replace(/[^0-9.]/g,''));return isNaN(n)?-1:n;};
+      var pn=function(p){var n=parsePrice(p.price);return isNaN(n)?-1:n;};
       list.sort(function(a,b){return pn(b)-pn(a);});
     }
     return list;
@@ -1397,16 +1408,22 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     return count+groupedHtml(list);
   }
   function newPainting(name,kind){
-    return {id:uid(),name:name||'Painting 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,
+    return {id:uid(),name:name||'Project 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,
       tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:nowTs(),edit:true,
       kind:kind||state.lastKind||'diamond',media:{},palette:[],notes:''};
+  }
+  /* "X" -> "X (copy)", but "X (copy)" -> "X (copy 2)" instead of "X (copy) (copy)" */
+  function copyName(name){
+    var m=String(name||'Project').match(/^(.*) \(copy(?: (\d+))?\)$/);
+    if(m)return m[1]+' (copy '+((parseInt(m[2],10)||1)+1)+')';
+    return (name||'Project')+' (copy)';
   }
   function selectedList(){return state.paintings.filter(function(p){return selectedIds[p.id];});}
   function copySelected(){
     var sel=selectedList();
-    if(!sel.length){toast('Tick some paintings first',1500);return;}
+    if(!sel.length){toast('Tick some projects first',1500);return;}
     clipboard=sel.map(function(p){return JSON.parse(JSON.stringify(p));});
-    toast('Copied '+clipboard.length+' painting'+(clipboard.length===1?'':'s')+' ✓',1400);
+    toast('Copied '+clipboard.length+' project'+(clipboard.length===1?'':'s')+' ✓',1400);
     renderPaintings();
   }
   function pasteClipboard(){
@@ -1414,20 +1431,20 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var added=[];
     clipboard.forEach(function(src){
       var c=JSON.parse(JSON.stringify(src));
-      c.id=uid(); c.name=(src.name||'Painting')+' (copy)'; c.updatedAt=nowTs();
+      c.id=uid(); c.name=copyName(src.name); c.updatedAt=nowTs();
       state.paintings.push(c); added.push(c);
     });
     render(); save(); pushHistory();
     added.forEach(function(c){if(c.photos&&c.photos.length)savePhotos(c.id);});
-    toast('Pasted '+added.length+' painting'+(added.length===1?'':'s')+' ✓',1400);
+    toast('Pasted '+added.length+' project'+(added.length===1?'':'s')+' ✓',1400);
   }
   function deleteSelected(){
     var sel=selectedList();
-    if(!sel.length){toast('Tick some paintings first',1500);return;}
+    if(!sel.length){toast('Tick some projects first',1500);return;}
     sel.forEach(function(p){trash.unshift({p:p,idx:state.paintings.indexOf(p)});deletePhotosKey(p.id);});
     if(trash.length>20)trash.length=20;
     state.paintings=state.paintings.filter(function(p){return !selectedIds[p.id];});
-    if(!state.paintings.length)state.paintings=[newPainting('Painting 1')];
+    if(!state.paintings.length)state.paintings=[newPainting('Project 1')];
     if(!state.paintings.some(function(p){return p.id===state.active;}))state.active=state.paintings[0].id;
     selectedIds={};
     render(); save(); pushHistory();
@@ -1470,7 +1487,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       });
     });
     $('page').querySelectorAll('.lb-img').forEach(function(im){
-      im.addEventListener('click',function(e){e.stopPropagation();openLightbox(im.getAttribute('data-src'));});
+      im.addEventListener('click',function(e){e.stopPropagation();openLightbox(im.src);});
     });
   }
   function renderPaintingsList(){
@@ -1491,7 +1508,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<button class="chipbtn" id="undoBtn" type="button">↶ Undo</button>'+
       '<button class="chipbtn" id="redoBtn" type="button">↷ Redo</button>'+
       '<button class="chipbtn'+(selectMode?' on':'')+'" id="selBtn" type="button">☑ Select</button>'+
-      '<button class="chipbtn" id="modeAll" type="button" title="Switch every painting between edit and view mode">'+
+      '<button class="chipbtn" id="modeAll" type="button" title="Switch every project between edit and view mode">'+
         (state.paintings.some(function(x){return x.edit!==false;})?'👁 View all':'📖🖋 Edit all')+'</button>'+
       (selectMode?('<button class="chipbtn" id="copyBtn" type="button">⧉ Copy</button>'+
                    '<button class="chipbtn danger" id="delBtn" type="button">🗑 Delete</button>'):'')+
@@ -1533,7 +1550,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var anyEdit=state.paintings.some(function(x){return x.edit!==false;});
       state.paintings.forEach(function(x){x.edit=!anyEdit;});
       renderPaintings(); save();
-      toast(anyEdit?'Every painting is now in view mode 👁':'Every painting is now in edit mode 📖🖋',1800);
+      toast(anyEdit?'Every project is now in view mode 👁':'Every project is now in edit mode 📖🖋',1800);
     });
     if($('copyBtn'))$('copyBtn').addEventListener('click',copySelected);
     if($('delBtn'))$('delBtn').addEventListener('click',function(){
@@ -1704,7 +1721,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var img=new Image();
       img.onload=function(){
         var p=findPainting(pid);
-        if(!p){toast('That painting is gone — photo not added',1800);return;}
+        if(!p){toast('That project is gone — photo not added',1800);return;}
         var max=520, w=img.width, h=img.height;
         if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
         var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
@@ -2634,7 +2651,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
             '<input class="codeinput" id="kitCode" type="text" maxlength="60" placeholder="e.g. DP-4471, seller\u2019s article nr\u2026" value="'+esc(p.code||'')+'"></div>'):'')+
           '<div class="pd-row"><div class="pd-lbl">Size (cm)'+listEditBtn('size',state.sizes.length)+'</div><div class="selchips">'+sizeChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Rating (0–10, e.g. 5.6)</div>'+
-            '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="'+(p.rating===null?'':p.rating)+'">'+ratingBadge(p)+'</div></div>'+
+            '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="'+(p.rating===null?'':p.rating)+'"><span id="ratingBadge">'+ratingBadge(p)+'</span></div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input id="progRange" type="range" min="0" max="100" step="5" value="'+(p.progress||0)+'" style="flex:1;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
           (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Price</div><input class="codeinput" id="priceInput" type="text" maxlength="20" placeholder="e.g. €25 or 25" value="'+esc(p.price||'')+'"></div>'):'')+
           '<div class="pd-row"><div class="pd-lbl">Dates</div><div class="selchips" style="gap:10px;">'+dateInputs+'</div></div>'+
@@ -2656,7 +2673,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="chipbtn danger" id="del" type="button">Delete</button>'+
       '</div>'+
       '<div class="renamer'+(renaming?' show':'')+'" id="renamer">'+
-        '<input id="renameInput" type="text" maxlength="60" placeholder="Painting name">'+
+        '<input id="renameInput" type="text" maxlength="60" placeholder="Project name">'+
         '<button class="chipbtn" id="renameSave" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">Save name</button>'+
         '<button class="chipbtn" id="renameCancel" type="button">Cancel</button>'+
       '</div>'+
@@ -2737,7 +2754,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     $('dupe').addEventListener('click',function(){
       var src=active();
       var copy=JSON.parse(JSON.stringify(src));
-      copy.id=uid(); copy.name=(src.name||'Painting')+' (copy)'; copy.updatedAt=nowTs();
+      copy.id=uid(); copy.name=copyName(src.name); copy.updatedAt=nowTs();
       var idx=state.paintings.indexOf(src);
       state.paintings.splice(idx+1,0,copy);
       state.active=copy.id;
@@ -2828,6 +2845,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         p.rating=Math.round(n*10)/10;
         if(Number(v)>10||Number(v)<0)e.target.value=String(p.rating);
       }
+      var rb=$('ratingBadge'); if(rb)rb.innerHTML=ratingBadge(p);
       saveEdit(); renderTabsOnly();
     });
     $('rating').addEventListener('blur',function(){renderPainting();});
@@ -3070,7 +3088,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var doomedIdx=state.paintings.indexOf(doomed);
       deletePhotosKey(doomed.id);
       state.paintings=state.paintings.filter(function(x){return x.id!==doomed.id;});
-      if(!state.paintings.length)state.paintings=[newPainting('Painting 1')];
+      if(!state.paintings.length)state.paintings=[newPainting('Project 1')];
       state.active=state.paintings[0].id; state.view='paintings';
       resetTransient(); render(); save(); pushHistory(); replaceNav();
       trash.unshift({p:doomed,idx:doomedIdx}); if(trash.length>20)trash.pop();
@@ -3226,8 +3244,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         if(expandedSize===sz){
           var typeTxt=(findType!=='any')?(' ('+TYPES[findType].sym+' '+TYPES[findType].label.toLowerCase()+' only)'):'';
           var head=owners.length
-            ? esc(sz)+' cm: '+owners.length+' painting'+(owners.length===1?'':'s')+typeTxt+':'
-            : 'No paintings are '+esc(sz)+' cm'+typeTxt+'.';
+            ? esc(sz)+' cm: '+owners.length+' project'+(owners.length===1?'':'s')+typeTxt+':'
+            : 'No projects are '+esc(sz)+' cm'+typeTxt+'.';
           sgrid.appendChild(expanderEl(head,owners));
         }
       });
