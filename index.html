@@ -12,6 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="DP Colors">
 <style>html,body{margin:0;background:#F3F2F5;}</style>
+<script src="version.js"></script>
 <script>
 /* The chosen theme lives in the app's database, which loads a moment after the
    page appears — so a dark-mode page used to flash light on every start. This
@@ -1999,6 +2000,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     } else {
       html+='<div class="bk-note">Saving is unavailable here — use Backup below so nothing is lost.</div>';
     }
+    /* which build this device is actually running — so a "nothing changed"
+       report can carry the build's name instead of a guess about caches */
+    html+='<div class="bk-note" style="opacity:.7">Build '+esc(window.APP_VERSION||'unknown')+'</div>';
     el.innerHTML=html;
     if(kind==='idb'&&navigator.storage&&navigator.storage.estimate){
       navigator.storage.estimate().then(function(est){
@@ -4260,9 +4264,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
 <script>
   /* installable + offline app (PWA) */
+  /* the build stamp rides along in the worker's address: a new build is a new
+     address, so the browser must fetch the new worker — and the worker names
+     its cache after the stamp, so a new build can never serve stale files */
   if('serviceWorker' in navigator){
     window.addEventListener('load',function(){
-      navigator.serviceWorker.register('sw.js').catch(function(){});
+      navigator.serviceWorker.register('sw.js?v='+encodeURIComponent(window.APP_VERSION||'dev')).catch(function(){});
     });
   }
 </script>

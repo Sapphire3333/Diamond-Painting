@@ -1,6 +1,10 @@
 /* Diamond Painting Colors - offline service worker */
-var CACHE = 'dp-colors-v3';
-var ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
+/* The build stamp arrives in this worker's own address (sw.js?v=…), put there
+   by index.html from version.js. Naming the cache after it means every build
+   gets a fresh cache and the old one is deleted on activate — stale files
+   can't outlive the build they belonged to. */
+var CACHE = 'dp-colors-' + (new URL(self.location.href).searchParams.get('v') || 'v3');
+var ASSETS = ['./', './index.html', './version.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
