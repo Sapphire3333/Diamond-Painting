@@ -58,10 +58,14 @@ After that it opens full-screen from its own icon and works offline.
 
 | Tab | What it does |
 |---|---|
-| **⌂ Overview** | Stats about your collection, CSV export for Excel, dark mode & accent color, storage meter, cloud sync, backups |
+| **⌂ Overview** | Stats about your collection, CSV export for Excel, dark mode, text size & accent color, storage meter, cloud sync, backups |
 | **🖼 Projects** | Everything you've made — filter by kind, search, sort, group, multi-select, copy/paste, delete/restore |
 | **🔎 Find** | Look up any DMC color, size, special diamond or medium and see which projects use it |
 | **+ New project** | Adds a project (same kind as the last one you made) |
+
+### Too small to read?
+
+Every page has **A− 115% A+** in the top-right corner. It grows the whole app — words, buttons and photos together — from 80% to 220%, and the layout re-checks how much room is really left as you go, so nothing overlaps or slides off the side. The button beside it switches between the narrow **📱 phone** shape and the wide **🖥 full** one, whatever screen you're on. Both settings belong to the device you set them on, so a big-text phone doesn't drag your PC along with it.
 
 ### Tips
 

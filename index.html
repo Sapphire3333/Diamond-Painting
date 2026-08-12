@@ -14,9 +14,10 @@
 <style>html,body{margin:0;background:#F3F2F5;}</style>
 <script src="version.js"></script>
 <script>
-/* The chosen theme lives in the app's database, which loads a moment after the
-   page appears — so a dark-mode page used to flash light on every start. This
-   hint is written on every theme change and read here, before first paint. */
+/* The chosen theme and text size live in the app's database, which loads a moment
+   after the page appears — so a dark page used to flash light on every start, and
+   a page set to 140% would appear small and then jump. These hints are written on
+   every change and read here, before first paint. */
 try{
   if(localStorage.getItem('dpTheme')==='dark'){
     var _st=document.createElement('style'); _st.id='themeBoot';
@@ -24,6 +25,12 @@ try{
     document.head.appendChild(_st);
     var _mt=document.querySelector('meta[name="theme-color"]');
     if(_mt)_mt.setAttribute('content','#16141B');
+  }
+  var _sz=parseInt(localStorage.getItem('dpSize')||'',10);
+  if(_sz>=80&&_sz<=220&&_sz!==100){
+    var _zs=document.createElement('style'); _zs.id='sizeBoot';
+    _zs.textContent='.dp-app{zoom:'+(_sz/100)+';}';
+    document.head.appendChild(_zs);
   }
 }catch(e){}
 </script>
@@ -53,7 +60,7 @@ try{
     color:var(--ink); background:var(--bg); min-height:100vh; padding:14px 12px 60px;}
   .dp-app *{box-sizing:border-box;}
   .wrap{max-width:900px;margin:0 auto;}
-  .dp-title{font-size:20px;font-weight:800;letter-spacing:.2px;margin:2px 2px 10px;display:flex;align-items:center;gap:8px;}
+  .dp-title{font-size:20px;font-weight:800;letter-spacing:.2px;margin:2px 2px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .dp-title .gem{width:16px;height:16px;background:linear-gradient(135deg,#8f6fe0 0%,#5B3FA8 55%,#3c2a75 100%);
     transform:rotate(45deg);border-radius:4px;
     box-shadow:inset -2px -2px 0 rgba(0,0,0,.18), inset 2px 2px 0 rgba(255,255,255,.35);}
@@ -167,7 +174,9 @@ try{
   .undobar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:9px 12px;display:flex;gap:12px;align-items:center;z-index:90;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:92%;}
   .undobar button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer;font-size:13px;}
   .paint-sticky{position:sticky;top:0;z-index:50;background:var(--bg);padding-bottom:6px;box-shadow:0 6px 10px -8px rgba(0,0,0,.35);}
-  .paint-head{padding:6px 0 4px;display:flex;align-items:center;gap:8px;}
+  /* wraps only when there isn't room, which at big text sizes there isn't —
+     a row that can't wrap pushes the whole page sideways */
+  .paint-head{padding:6px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .photo-tools{border-top:1px solid var(--line);padding-top:6px;}
   .pt-row{display:flex;gap:10px;align-items:flex-start;}
   .pt-btns{flex:1 1 auto;min-width:0;}
@@ -316,22 +325,51 @@ try{
   .vw-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px;}
   .vw-gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);
     background:var(--unk-soft);cursor:zoom-in;display:block;}
-  /* phones: the two covers share the top row at a usable size, details below */
-  @media (max-width:640px){
-    .vw-stage{flex-wrap:wrap;}
-    .vw-side{flex:1 1 calc(50% - 6px);}
-    .vw-card{flex:1 1 100%;order:1;}
-    /* edit mode: photo strip gets the full width instead of a 42% column, so
-       both covers are visible side by side rather than squeezed into a sliver */
-    .phead{flex-wrap:wrap;}
-    .photos{flex:1 1 100%;}
-  }
+  /* ---- text size cluster, in the title row of every tab ---- */
+  .dp-title .ttl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  .sizectl{display:flex;align-items:center;gap:4px;margin-left:auto;flex:0 0 auto;}
+  .szbtn{border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;
+    padding:3px 8px;font-size:13px;font-weight:800;cursor:pointer;line-height:1.35;}
+  .szbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .sznow{font-size:12px;font-weight:700;color:var(--muted);min-width:36px;text-align:center;}
+  .dp-app[data-vw="micro"] .dp-title{font-size:17px;}
+  .dp-app[data-vw="micro"] .sznow{min-width:32px;font-size:11px;}
+  /* Nothing may be wider than the screen it's on: a fixed-width box that was
+     comfortable at 100% is half the phone at 200%, and the whole page ends up
+     sliding sideways. These give the few fixed widths permission to shrink. */
+  .dp-app input,.dp-app textarea,.dp-app select{max-width:100%;}
+  /* a text box refuses to shrink below the width its browser thinks it deserves
+     unless it is told it may — this is what pushed the search bar off the screen */
+  .search{min-width:0;}
+  .search input{min-width:0;}
+  .dp-app:not([data-vw="wide"]) .addinline{flex:1 1 150px;min-width:0;}
+  .dp-app:not([data-vw="wide"]) .addinline input{width:auto;flex:1 1 70px;min-width:0;}
+  .dp-app:not([data-vw="wide"]) .codeinput,.dp-app:not([data-vw="wide"]) .photo-preview{max-width:100%;}
+  .dp-app[data-vw="micro"] .selchips{gap:5px;}
+  /* a date box has a stubborn minimum width of its own, so on the narrowest
+     screens the word moves above it instead of fighting it for the same line */
+  .datefield{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:5px;max-width:100%;}
+  .datefield input{border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;
+    background:var(--panel);color:var(--ink);min-width:0;}
+  .dp-app[data-vw="micro"] .datefield{flex-direction:column;align-items:flex-start;gap:2px;}
+  .dp-app[data-vw="micro"] .datefield input{font-size:12px;padding:5px 6px;}
+  .dp-app[data-vw="micro"] .szbtn{padding:3px 6px;}
+  /* Narrow screens: the two covers share the top row at a usable size, details
+     below. Keyed off the measured width rather than @media, so turning the text
+     up switches the layout at the point the screen ACTUALLY runs out of room. */
+  .dp-app:not([data-vw="wide"]) .vw-stage{flex-wrap:wrap;}
+  .dp-app:not([data-vw="wide"]) .vw-side{flex:1 1 calc(50% - 6px);}
+  .dp-app:not([data-vw="wide"]) .vw-card{flex:1 1 100%;order:1;}
+  /* edit mode: photo strip gets the full width instead of a 42% column, so
+     both covers are visible side by side rather than squeezed into a sliver */
+  .dp-app:not([data-vw="wide"]) .phead{flex-wrap:wrap;}
+  .dp-app:not([data-vw="wide"]) .photos{flex:1 1 100%;}
 
 </style>
 
 <div class="dp-app" id="app">
   <div class="wrap">
-    <div class="dp-title"><span class="gem"></span>Diamond Painting Colors</div>
+    <div class="dp-title"><span class="gem"></span><span class="ttl">Diamond Painting Colors</span><span class="sizectl" id="sizeCtl"></span></div>
     <div class="tabs" id="tabs"></div>
     <div id="page"></div>
   </div>
@@ -406,6 +444,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     autoBackup:'off', dark:false, density:'full', accent:'violet',
     media:DEFAULT_MEDIA.slice(), pKind:'all', lastKind:'diamond'
   };
+  /* Text size and phone/full layout belong to the DEVICE, not to the collection:
+     a phone wants 140% where the monitor wants 100%, and these two would fight
+     each other forever if they travelled through cloud sync like the rest of the
+     settings do. So they live in this browser's own small storage instead. */
+  var SIZE={scale:null,layout:'auto'};
   var query='', findQuery='', findType='any', findStash=false, pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null, expandedMedia=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, editLists={}, armed={};
   /* the name as it stood when the box was opened (so Cancel has something to put
@@ -1288,6 +1331,15 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           '<button class="chipbtn'+(state.dark?' on':'')+'" id="darkToggle" type="button">🌙 Dark mode: '+(state.dark?'On':'Off')+'</button>'+
           '<button class="chipbtn'+(state.density==='compact'?' on':'')+'" id="densToggle" type="button">▤ Compact cards: '+(state.density==='compact'?'On':'Off')+'</button>'+
         '</div>'+
+        '<div class="sm-row" style="margin-top:10px;">'+
+          '<div class="sm-lbl"><span>Text &amp; button size</span><span id="fsVal">'+fontScale()+'%</span></div>'+
+          '<div class="rating-row" style="gap:10px;">'+
+            '<input class="prog-range" id="fsRange" type="range" min="80" max="220" step="5" value="'+fontScale()+
+              '" style="flex:1;--fill:'+((fontScale()-80)/140*100)+'%;">'+
+            '<button class="chipbtn" id="fsReset" type="button">Reset</button>'+
+          '</div>'+
+          '<div class="bk-note">Everything grows together — words, buttons and photos — and the layout re-checks how much room is really left, so nothing overlaps at the big sizes. The same A− / A+ buttons sit at the top of every page.</div>'+
+        '</div>'+
         '<div class="bk-btns" style="margin-top:8px;align-items:center;">'+
           '<span class="pd-lbl" style="margin:0;align-self:center;">Accent:</span>'+
           ACCENTS.map(function(a){return '<button class="acc-sw'+(state.accent===a.id?' on':'')+'" data-accent="'+a.id+'" type="button" title="'+a.name+'" style="background:'+a.accent+'"></button>';}).join('')+
@@ -1388,6 +1440,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     $('bkSave').addEventListener('click',function(){
       saveBackup($('bkSavePhotos').checked,function(){renderBackupList();});
     });
+    if($('fsRange'))$('fsRange').addEventListener('input',function(e){setFontScale(parseInt(e.target.value,10)||100);});
+    if($('fsReset'))$('fsReset').addEventListener('click',function(){setFontScale(100);renderSizeCtl();});
     if($('darkToggle'))$('darkToggle').addEventListener('click',function(){state.dark=!state.dark;applyTheme();renderOverview();save();});
     if($('densToggle'))$('densToggle').addEventListener('click',function(){state.density=(state.density==='compact')?'full':'compact';renderOverview();save();});
     if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
@@ -2682,8 +2736,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
        so wait for the next render/resize when the real width is known */
     if(!hostW)return;
     var slot=0;
-    var hostLeft=host.getBoundingClientRect().left;
-    var vw=document.documentElement.clientWidth||hostW;
+    /* hostW comes from the element's own box, which the zoom leaves alone, while
+       a screen rectangle and the window width are both zoomed — so those two are
+       brought back into the same units before they're compared with it */
+    var z=appZoom();
+    var hostLeft=host.getBoundingClientRect().left/z;
+    var vw=(document.documentElement.clientWidth||hostW)/z;
     p.photos.forEach(function(photo,i){
       if(i<startIdx)return;
       arrLayout(photo,slot++,hostW,viewMode);
@@ -2729,9 +2787,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       /* a handle hanging past a photo that sits flush against the window edge
          would push a horizontal scrollbar onto the page, so keep handles inside
          the window — the photo itself is free to reach the edge */
-      var lr=layer.getBoundingClientRect();
-      var vw=document.documentElement.clientWidth||lr.width;
-      function clampX(x){return Math.max(-lr.left,Math.min(vw-lr.left-26,x));}
+      var z=appZoom();
+      var lrLeft=layer.getBoundingClientRect().left/z;
+      var vw=(document.documentElement.clientWidth||layer.offsetWidth)/z;
+      function clampX(x){return Math.max(-lrLeft,Math.min(vw-lrLeft-26,x));}
       hs.forEach(function(hh){
         var k=hh.getAttribute('data-k');
         if(k==='rot'){hh.style.left=clampX(L+W/2-13)+'px';hh.style.top=(T-34)+'px';return;}
@@ -2763,8 +2822,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         e.preventDefault(); e.stopPropagation();
         var photo=p.photos[arrSel]; if(!photo)return;
         var im=selImg(); if(!im)return;
-        var r=layer.getBoundingClientRect();
-        var cx=r.left+im.offsetLeft+im.offsetWidth/2, cy=r.top+im.offsetTop+im.offsetHeight/2;
+        var r=layer.getBoundingClientRect(), z=appZoom();
+        /* the finger reports screen coordinates, so the photo's own box has to be
+           scaled up to meet it — otherwise dragging at 150% misses by a third */
+        var cx=r.left+(im.offsetLeft+im.offsetWidth/2)*z, cy=r.top+(im.offsetTop+im.offsetHeight/2)*z;
         var aw0=photo.aw, rot0=photo.arot;
         var d0=Math.max(8,Math.hypot(e.clientX-cx,e.clientY-cy));
         var startAng=Math.atan2(e.clientY-cy,e.clientX-cx)*180/Math.PI;
@@ -2813,7 +2874,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           if(maxAx<minAx)maxAx=minAx;
           photo.ax=Math.max(minAx,Math.min(maxAx,ax0+dx));
           photo.ay=Math.max(-30,ay0+dy);
-          im.style.left=(photo.ax/100*r.width)+'px'; im.style.top=(photo.ay/100*r.width)+'px';
+          /* r.width is a screen measurement; a photo's left/top are its own box's
+             units, so the zoom has to come back out on the way in */
+          var zz=appZoom();
+          im.style.left=(photo.ax/100*r.width/zz)+'px'; im.style.top=(photo.ay/100*r.width/zz)+'px';
           syncHandles();
         }
         function up(ev){
@@ -3338,9 +3402,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var on=(p.status===s.id);
       statusChips+='<button class="selchip'+(on?' on':'')+'" data-status="'+s.id+'" type="button" style="'+(on?('background:'+s.fg+';border-color:'+s.fg+';color:#fff;'):('color:'+s.fg+';'))+'">'+s.label+'</button>';
     });
-    var _dfs='border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:var(--panel);color:var(--ink);';
-    var dateInputs='<label style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:5px;">Started <input id="startedDate" type="date" value="'+esc(p.started||'')+'" style="'+_dfs+'"></label>'+
-      '<label style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:5px;">Finished <input id="finishedDate" type="date" value="'+esc(p.finished||'')+'" style="'+_dfs+'"></label>';
+    var dateInputs='<label class="datefield">Started <input id="startedDate" type="date" value="'+esc(p.started||'')+'"></label>'+
+      '<label class="datefield">Finished <input id="finishedDate" type="date" value="'+esc(p.finished||'')+'"></label>';
 
     /* finish chips */
     var finChips='';
@@ -4241,6 +4304,89 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     else e.style.display='none';
   }
 
+  /* ---------- text size & phone/full view ----------
+     Bigger text is done by zooming the whole app, so buttons, photos and spacing
+     grow with the words instead of the words outgrowing their boxes.
+     The catch: zoom scales the page but NOT the width the CSS thinks it has. At
+     150% on a 412px phone the layout still believes it has 412px when it really
+     has 275, and columns meant for a monitor come back and overlap. So the width
+     is worked out here, after the zoom, and the phone rules key off this
+     attribute rather than off a plain @media width. */
+  /* clientWidth first: it leaves out a desktop scrollbar, which innerWidth counts
+     as usable room it isn't */
+  function screenW(){try{return document.documentElement.clientWidth||window.innerWidth||900;}catch(e){return 900;}}
+  function fontScale(){return SIZE.scale||100;}
+  function loadSizePref(){
+    try{
+      var s=parseInt(localStorage.getItem('dpSize')||'',10);
+      if(s>=80&&s<=220)SIZE.scale=Math.round(s/5)*5;
+      var l=localStorage.getItem('dpLayout');
+      if(l==='phone'||l==='full')SIZE.layout=l;
+    }catch(e){}
+    /* never chosen on this device? A phone starts a step up, a monitor at 100 —
+       and the number is on screen either way, so it can be dragged from there */
+    if(SIZE.scale==null)SIZE.scale=(screenW()<700?115:100);
+    saveSizePref(); /* so the very next start can apply it before the first paint */
+  }
+  function saveSizePref(){
+    try{localStorage.setItem('dpSize',String(SIZE.scale));localStorage.setItem('dpLayout',SIZE.layout);}catch(e){}
+  }
+  /* measured, not assumed: an element's own box is in unzoomed units while the
+     rectangle it draws on screen is zoomed, and the ratio between them is the
+     zoom actually in force. The photo-arranging maths needs it to convert. */
+  function appZoom(){
+    try{
+      var a=$('app'); if(!a||!a.offsetWidth)return 1;
+      var z=a.getBoundingClientRect().width/a.offsetWidth;
+      return (z>0.05&&z<20)?z:1;
+    }catch(e){return 1;}
+  }
+  function widthClass(){
+    if(SIZE.layout==='phone')return 'tiny';
+    if(SIZE.layout==='full')return 'wide';
+    var eff=screenW()/(fontScale()/100);
+    return eff<380?'micro':eff<560?'tiny':eff<780?'narrow':'wide';
+  }
+  function applySize(){
+    var app=$('app'); if(!app)return;
+    var f=fontScale();
+    app.style.zoom=(f===100?'':String(f/100));
+    app.setAttribute('data-vw',widthClass());
+    /* the boot hint has done its job — the real setting is on the element now */
+    var b=document.getElementById('sizeBoot'); if(b)b.remove();
+  }
+  function setFontScale(v){
+    SIZE.scale=Math.max(80,Math.min(220,Math.round(v/5)*5));
+    applySize(); saveSizePref();
+    var n=$('szNow'); if(n)n.textContent=SIZE.scale+'%';
+    /* turning the text up can itself push the layout into the narrow shape, so the
+       phone/full button is refreshed in place — rebuilding it would yank the very
+       button being held down out from under the finger */
+    var m=$('szMode');
+    if(m){var ph=(widthClass()!=='wide');m.classList.toggle('on',ph);m.textContent=ph?'📱':'🖥';}
+    var s=$('fsRange'); if(s){s.value=SIZE.scale;s.style.setProperty('--fill',((SIZE.scale-80)/140*100)+'%');}
+    var sv=$('fsVal'); if(sv)sv.textContent=SIZE.scale+'%';
+  }
+  /* the same little cluster on every tab, so it is never hunted for */
+  function renderSizeCtl(){
+    var el=$('sizeCtl'); if(!el)return;
+    var phone=(widthClass()!=='wide');
+    el.innerHTML='<button class="szbtn" id="szDown" type="button" title="Smaller text">A−</button>'+
+      '<span class="sznow" id="szNow">'+fontScale()+'%</span>'+
+      '<button class="szbtn" id="szUp" type="button" title="Bigger text">A+</button>'+
+      '<button class="szbtn'+(phone?' on':'')+'" id="szMode" type="button" title="'+
+        (phone?'Switch to the full, wide layout':'Switch to the narrow phone layout')+'">'+(phone?'📱':'🖥')+'</button>';
+    $('szDown').addEventListener('click',function(){setFontScale(fontScale()-10);});
+    $('szUp').addEventListener('click',function(){setFontScale(fontScale()+10);});
+    $('szMode').addEventListener('click',function(){
+      var nowPhone=(widthClass()!=='wide');
+      SIZE.layout=nowPhone?'full':'phone';
+      applySize(); saveSizePref(); render();
+      toast(nowPhone?'Full, wide layout 🖥':'Narrow phone layout 📱',1500);
+    });
+  }
+  window.addEventListener('resize',function(){if(SIZE.layout==='auto')applySize();});
+
   /* ---------- root ---------- */
   function applyTheme(){
     var app=$('app'); if(app)app.classList.toggle('dark',!!state.dark);
@@ -4258,6 +4404,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function render(){
     applyTheme();
+    applySize();
+    renderSizeCtl();
     var pgEl=$('page'); if(pgEl)pgEl.style.paddingBottom='';
     renderTabs();
     if(state.view==='overview')renderOverview();
@@ -4305,6 +4453,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   });
 
   plog('app started','');
+  loadSizePref();
   load(function(){render();replaceNav();});
 })();
 </script>
