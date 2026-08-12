@@ -261,6 +261,20 @@ try{
   .rating-row input{border:1.5px solid var(--line);border-radius:9px;padding:6px 9px;font-size:15px;font-weight:800;
     width:74px;outline:none;text-align:center;}
   .rating-row input:focus{border-color:var(--accent);}
+  /* The browser's own slider draws its filled part only as far as the middle of
+     the knob, so a bar set to 100% still ends a knob's width short of the end and
+     reads as "about 95%". Drawing the fill ourselves — a hard stop at the value,
+     across the whole track — makes 100% look like 100%. */
+  .prog-range{-webkit-appearance:none;appearance:none;height:22px;background:transparent;
+    outline:none;margin:0;padding:0;cursor:pointer;}
+  .prog-range::-webkit-slider-runnable-track{height:8px;border-radius:999px;
+    background:linear-gradient(to right,var(--accent) 0,var(--accent) var(--fill,0%),var(--unk-soft) var(--fill,0%),var(--unk-soft) 100%);}
+  .prog-range::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;margin-top:-6px;
+    border-radius:50%;background:var(--accent);border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.35);}
+  .prog-range::-moz-range-track{height:8px;border-radius:999px;
+    background:linear-gradient(to right,var(--accent) 0,var(--accent) var(--fill,0%),var(--unk-soft) var(--fill,0%),var(--unk-soft) 100%);}
+  .prog-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);
+    border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.35);}
   .ovsort{display:flex;gap:8px;align-items:center;margin-bottom:9px;flex-wrap:wrap;}
   .sm-row{margin-bottom:9px;}
   .sm-lbl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-bottom:4px;}
@@ -394,6 +408,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   };
   var query='', findQuery='', findType='any', findStash=false, pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null, expandedMedia=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, editLists={}, armed={};
+  /* the name as it stood when the box was opened (so Cancel has something to put
+     back), and a one-shot flag so the box is focused when it opens and never
+     again — a re-render used to snatch the keyboard back mid-tap */
+  var renameOrig=null, renameFocus=false;
   var collapsedGroups={}, colorFamily='', showPaste=false, undoData=null, undoTimer=null;
   var pasteReview=null, pasteTextVal='', chartImg=null, chartPick=false;
   var findPaste=false, findPasteText='', findPasteReview=null;
@@ -1210,10 +1228,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     mk('add','+ New project',function(){
       var p=newPainting('Project '+(state.paintings.length+1));
       state.paintings.push(p); state.active=p.id; state.view='paint';
-      resetTransient(); renaming=true; render(); save(); pushHistory(); pushNav();
+      resetTransient(); renaming=true; renameOrig=p.name; renameFocus=true;
+      render(); save(); pushHistory(); pushNav();
     },false);
   }
-  function resetTransient(){renaming=false;expandedColor=null;expandedSpec=null;expandedSize=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
+  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
     showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;chartPick=false;
     findPaste=false;findPasteText='';findPasteReview=null;}
 
@@ -3380,7 +3399,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           '<div class="pd-row"><div class="pd-lbl">Size (cm)'+listEditBtn('size',state.sizes.length)+'</div><div class="selchips">'+sizeChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Rating (0–10, e.g. 5.6)</div>'+
             '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="'+(p.rating===null?'':p.rating)+'"><span id="ratingBadge">'+ratingBadge(p)+'</span></div></div>'+
-          '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input id="progRange" type="range" min="0" max="100" step="5" value="'+(p.progress||0)+'" style="flex:1;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input class="prog-range" id="progRange" type="range" min="0" max="100" step="5" value="'+(p.progress||0)+'" style="flex:1;--fill:'+(p.progress||0)+'%;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
           (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Price</div><input class="codeinput" id="priceInput" type="text" maxlength="20" placeholder="e.g. €25 or 25" value="'+esc(p.price||'')+'"></div>'):'')+
           '<div class="pd-row"><div class="pd-lbl">Dates</div><div class="selchips" style="gap:10px;">'+dateInputs+'</div></div>'+
           (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Seller'+listEditBtn('seller',state.sellers.length)+'</div><div class="selchips">'+sellerChips+'</div></div>'):'')+
@@ -3437,7 +3456,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
 
     /* progress + price */
-    if($('progRange'))$('progRange').addEventListener('input',function(e){p.progress=parseInt(e.target.value,10)||0;var pv=$('progVal');if(pv)pv.textContent=p.progress+'%';saveEdit();});
+    if($('progRange'))$('progRange').addEventListener('input',function(e){
+      p.progress=parseInt(e.target.value,10)||0;
+      var pv=$('progVal');if(pv)pv.textContent=p.progress+'%';
+      e.target.style.setProperty('--fill',p.progress+'%');
+      saveEdit();
+    });
     if($('priceInput'))$('priceInput').addEventListener('input',function(e){p.price=e.target.value;saveEdit();});
     /* reorder in list */
     if($('moveUp'))$('moveUp').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i>0){state.paintings.splice(i,1);state.paintings.splice(i-1,0,p);save();pushHistory();toast('Moved earlier ✓',900);}else toast('Already first',900);});
@@ -3716,18 +3740,41 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     /* base controls */
     $('q').addEventListener('input',function(e){query=e.target.value;renderGrid();});
     if($('onlySel'))$('onlySel').addEventListener('click',function(){state.onlySel=!state.onlySel;renderPainting();save();});
-    $('rename').addEventListener('click',function(){renaming=!renaming;renderPainting();});
+    $('rename').addEventListener('click',function(){
+      renaming=!renaming;
+      if(renaming){renameOrig=p.name;renameFocus=true;}
+      renderPainting();
+    });
+    function cancelRename(){
+      if(renameOrig!==null)active().name=renameOrig;
+      renaming=false; renameFocus=false; renameOrig=null;
+      renderPainting(); saveEdit();
+    }
     $('renameSave').addEventListener('click',function(){
       var v=$('renameInput').value.trim();
       if(v)active().name=v;
-      renaming=false; render(); saveEdit();
+      renaming=false; renameFocus=false; renameOrig=null;
+      render(); saveEdit();
     });
-    $('renameCancel').addEventListener('click',function(){renaming=false;renderPainting();});
+    $('renameCancel').addEventListener('click',cancelRename);
     $('renameInput').value=p.name;
-    if(renaming){$('renameInput').focus();$('renameInput').select();}
+    /* focus once, when the box opens. Every tap elsewhere in the project redraws
+       this page, and focusing on each redraw meant the keyboard kept springing
+       back to the name and the page jumped to the top. */
+    if(renaming&&renameFocus){renameFocus=false;$('renameInput').focus();$('renameInput').select();}
+    /* The name is applied as it's typed, so leaving the page — or tapping any
+       other field, which redraws and used to reset this box — can no longer
+       throw the typed name away. Cancel puts back the name it started with. */
+    $('renameInput').addEventListener('input',function(e){
+      var v=e.target.value.trim();
+      if(!v)return; /* an empty box is not a name; the old one stands until you type one */
+      active().name=v;
+      var nm=pg.querySelector('.pd-name'); if(nm)nm.textContent=v;
+      saveEdit();
+    });
     $('renameInput').addEventListener('keydown',function(e){
       if(e.key==='Enter')$('renameSave').click();
-      if(e.key==='Escape'){renaming=false;renderPainting();}
+      if(e.key==='Escape')cancelRename();
     });
     pg.querySelectorAll('.tbtn').forEach(function(b){
       b.addEventListener('click',function(){
