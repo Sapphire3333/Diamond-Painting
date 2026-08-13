@@ -428,6 +428,10 @@ try{
     padding:3px 8px;font-size:13px;font-weight:800;cursor:pointer;line-height:1.35;}
   .szbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
   .sznow{font-size:12px;font-weight:700;color:var(--muted);min-width:36px;text-align:center;}
+  /* a tab that has scrolled off the side of the row is a tab you don't know is
+     there — so on a narrow screen the row wraps onto a second line instead,
+     which at big text sizes it will, and nothing is ever out of reach */
+  .dp-app:not([data-vw="wide"]) .tabs{flex-wrap:wrap;overflow-x:visible;}
   .dp-app[data-vw="micro"] .dp-title{font-size:17px;}
   .dp-app[data-vw="micro"] .sznow{min-width:32px;font-size:11px;}
   /* Nothing may be wider than the screen it's on: a fixed-width box that was
@@ -1446,11 +1450,20 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       b.className='tab '+cls+(isActive?' active':''); b.innerHTML=html;
       b.addEventListener('click',fn); t.appendChild(b);
     }
-    mk('home','⌂ Overview',function(){navTo('overview');},state.view==='overview');
-    mk('paints','🖼 Projects<span class="cnt">'+state.paintings.length+'</span>',function(){navTo('paintings');},state.view==='paintings'||state.view==='paint');
-    mk('find','🔎 Find',function(){navTo('find');},state.view==='find');
-    mk('set','⚙ Settings',function(){navTo('settings');},state.view==='settings');
-    mk('add','+ New project',function(){
+    /* Five tabs don't fit across a phone, and the one that fell off the end was
+       "+ New project" — the most-used button in the app. On a narrow screen the
+       tabs keep their symbol and give up their word; the one you're on keeps its
+       word, so there is always something to read that says where you are. */
+    var tight=(widthClass()!=='wide');
+    function lbl(sym,word,on,extra){
+      return (tight&&!on)?(sym+(extra||'')):(sym+' '+word+(extra||''));
+    }
+    var onPaints=(state.view==='paintings'||state.view==='paint');
+    mk('home',lbl('⌂','Overview',state.view==='overview'),function(){navTo('overview');},state.view==='overview');
+    mk('paints',lbl('🖼','Projects',onPaints,'<span class="cnt">'+state.paintings.length+'</span>'),function(){navTo('paintings');},onPaints);
+    mk('find',lbl('🔎','Find',state.view==='find'),function(){navTo('find');},state.view==='find');
+    mk('set',lbl('⚙','Settings',state.view==='settings'),function(){navTo('settings');},state.view==='settings');
+    mk('add',tight?'＋ New':'+ New project',function(){
       if(state.view==='paintings')listScroll=scrollNow();
       var p=newPainting('Project '+(state.paintings.length+1));
       state.paintings.push(p); state.active=p.id; state.view='paint';
