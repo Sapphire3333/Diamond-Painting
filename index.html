@@ -209,6 +209,21 @@ try{
   .acc-sw.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink);}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);display:flex;align-items:center;justify-content:center;z-index:100;padding:18px;cursor:zoom-out;}
   .lightbox img{max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;}
+  /* ---- two pictures at once ----
+     Lives outside the app's own box like the single-photo view, so its colours
+     are written out rather than taken from the theme. */
+  .cmp{flex-direction:column;gap:8px;padding:10px;cursor:default;}
+  .cmp-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;flex:0 0 auto;}
+  .cmp-btn{border:1.5px solid rgba(255,255,255,.45);background:rgba(255,255,255,.10);color:#fff;
+    border-radius:11px;padding:8px 14px;font-size:14px;font-weight:700;cursor:pointer;}
+  .cmp-body{flex:1 1 auto;display:flex;gap:10px;min-height:0;width:100%;}
+  .cmp-body.stack{flex-direction:column;}
+  .cmp-fig{flex:1 1 0;min-width:0;min-height:0;margin:0;display:flex;flex-direction:column;gap:6px;cursor:zoom-in;}
+  .cmp-fig img{flex:1 1 auto;min-height:0;width:100%;object-fit:contain;}
+  .cmp-body.has-solo .cmp-fig{display:none;}
+  .cmp-body.has-solo .cmp-fig.solo{display:flex;cursor:zoom-out;}
+  .cmp-lbl{color:#fff;font-size:12px;font-weight:800;letter-spacing:.3px;text-align:center;flex:0 0 auto;}
+  .cmp-hint{color:rgba(255,255,255,.65);font-size:11.5px;font-weight:700;text-align:center;flex:0 0 auto;}
   .undobar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:9px 12px;display:flex;gap:12px;align-items:center;z-index:90;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:92%;}
   .undobar button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer;font-size:13px;}
   .paint-sticky{position:sticky;top:0;z-index:50;background:var(--bg);padding-bottom:6px;box-shadow:0 6px 10px -8px rgba(0,0,0,.35);}
@@ -1993,6 +2008,53 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     document.body.style.overflow='hidden';
     document.body.appendChild(lb);
   }
+  /* Side by side, full screen. Tapping a picture has always blown up ONE of them,
+     which is no use for the question these two pictures exist to answer: does
+     mine look like the one the seller photographed. Whole pictures, not the
+     cropped-to-card versions — only a mirrored photo keeps its flip. */
+  function openCompare(p){
+    var photos=(p.photos||[]).slice(0,2);
+    if(photos.length<2){toast('This project needs a second photo to compare',1800);return;}
+    var lbls=coverLabels(p);
+    var labels=[lbls[0]||'Photo 1',lbls[1]||'Photo 2'];
+    /* a narrow screen puts them one above the other, where each still gets the
+       full width; side by side on a phone leaves two slivers */
+    var stacked=(screenW()/(fontScale()/100))<560;
+    var solo=-1;
+    var ov=document.createElement('div');
+    ov.className='lightbox cmp';
+    function draw(){
+      ov.innerHTML='<div class="cmp-bar">'+
+          '<button class="cmp-btn" data-a="flip" type="button">'+(stacked?'⇔ Side by side':'⇕ One above the other')+'</button>'+
+          '<button class="cmp-btn" data-a="close" type="button">✕ Close</button>'+
+        '</div>'+
+        '<div class="cmp-body'+(stacked?' stack':'')+(solo>=0?' has-solo':'')+'">'+
+          photos.map(function(ph,i){
+            return '<figure class="cmp-fig'+(solo===i?' solo':'')+'" data-i="'+i+'">'+
+              '<img src="'+ph.d+'" alt="'+esc(labels[i])+'"'+(ph.flip?' style="transform:scaleX(-1)"':'')+'>'+
+              '<figcaption class="cmp-lbl">'+esc(labels[i])+'</figcaption></figure>';
+          }).join('')+
+        '</div>'+
+        '<div class="cmp-hint">'+(solo>=0?'Tap the picture to bring the other one back':'Tap a picture to see it on its own')+'</div>';
+    }
+    function destroy(){ov.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';}
+    function onKey(e){if(e.key==='Escape')destroy();}
+    ov._destroy=destroy; /* so Back closes it, like the single-photo view */
+    ov.addEventListener('click',function(e){
+      var b=e.target.closest?e.target.closest('[data-a]'):null;
+      if(b){
+        if(b.getAttribute('data-a')==='close'){destroy();return;}
+        stacked=!stacked; solo=-1; draw(); return;
+      }
+      var fig=e.target.closest?e.target.closest('.cmp-fig'):null;
+      if(fig){solo=(solo>=0)?-1:parseInt(fig.getAttribute('data-i'),10);draw();return;}
+      destroy(); /* the dark surround closes, as it always has */
+    });
+    document.addEventListener('keydown',onKey);
+    document.body.style.overflow='hidden';
+    draw();
+    document.body.appendChild(ov);
+  }
   function wirePaintingCards(){
     $('page').querySelectorAll('.ovcard').forEach(function(c){
       c.addEventListener('click',function(){
@@ -3359,6 +3421,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<div class="paint-head">'+
           '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
           '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
+          (p.photos.length>1?'<button class="chipbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
           (!isDraw&&p.photos.length>2?('<button class="chipbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
           '<button class="chipbtn" id="modeToggle" type="button" title="Switch to edit mode">📖🖋 Edit</button>'+
         '</div>'+
@@ -3391,6 +3454,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){
       if(arrangeMode)exitArrange(); else enterArrange();
     });
+    if($('cmpBtn'))$('cmpBtn').addEventListener('click',function(){openCompare(p);});
     pg.querySelectorAll('.vw-side img,.vw-hero img,.vw-gallery img').forEach(function(im){
       im.addEventListener('click',function(){openLightbox(im.src);});
     });
@@ -3422,6 +3486,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     ph+='</div>';
     ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
+      (p.photos.length>1?'<button class="pbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
       (p.photos.length?('<button class="pbtn'+(arrangeMode?' on':'')+'" id="arrEnter" type="button">'+(arrangeMode?'✓ Done arranging':'⇱ Arrange &amp; edit')+'</button>'):'')+
       '<button class="pbtn" id="phCheck" type="button" title="Why did a photo come out black or refuse to load?">🩺 Photo check</button></div>';
     ph+='<div class="photo-hint">'+(p.photos.length
@@ -3726,6 +3791,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('phAdd'))$('phAdd').addEventListener('click',function(){plog('opened the photo picker','');$('fileInput').click();});
     if($('phCheck'))$('phCheck').addEventListener('click',openPhotoCheck);
     if($('arrEnter'))$('arrEnter').addEventListener('click',function(){if(arrangeMode)exitArrange();else enterArrange();});
+    if($('cmpBtn'))$('cmpBtn').addEventListener('click',function(){openCompare(p);});
     if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){if(arrangeMode)exitArrange();else enterArrange();});
     if($('modeToggle'))$('modeToggle').addEventListener('click',function(){
       if(arrangeMode)arrangeMode=false;
