@@ -262,6 +262,14 @@ try{
   .fb-addrow input:focus{border-color:var(--accent);}
   .fb-hint{font-size:11px;color:var(--muted);margin-top:5px;}
   .section-lbl{font-size:13px;font-weight:700;color:var(--muted);margin:12px 2px 7px;}
+  /* a heading you can fold, and the bar that jumps to one */
+  .fsec-hd{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;}
+  .fsec-n{color:var(--muted);font-weight:800;opacity:.75;}
+  .fsec-hd.flash{background:var(--accent-soft);border-radius:8px;padding:3px 7px;margin-left:-5px;}
+  .jumpbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:2px 2px 10px;}
+  .jbtn{border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;
+    padding:4px 11px;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .jbtn:active{transform:scale(.97);}
   .backup{background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-top:6px;}
   .bk-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
   .backup textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:12px;
@@ -326,6 +334,13 @@ try{
   .prog-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);
     border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.35);}
   .ovsort{display:flex;gap:8px;align-items:center;margin-bottom:9px;flex-wrap:wrap;}
+  /* the one row that is always on screen, and the panel the other four fold into */
+  .toolrow{margin-bottom:8px;}
+  .chipbtn.ic{padding:9px 11px;font-size:15px;line-height:1;}
+  .toolsum{font-size:12.5px;color:var(--accent);font-weight:700;cursor:pointer;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 120px;}
+  .toolpanel{border:1.5px solid var(--line);border-radius:12px;padding:10px 10px 2px;margin-bottom:10px;background:var(--panel);}
+  .toolpanel .ovsort:last-child{margin-bottom:8px;}
   .sm-row{margin-bottom:9px;}
   .sm-lbl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-bottom:4px;}
   .sm-lbl span:last-child{color:var(--muted);font-weight:600;white-space:nowrap;}
@@ -501,7 +516,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   var state={
     paintings:[{id:'p1',name:'Project 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true,kind:'diamond',media:{},palette:[],notes:''}],
     active:'p1', onlySel:false, view:'paintings',
-    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), stash:{}, gone:{}, ovSort:'added', pGroup:'none', pSearchField:'all',
+    specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), stash:{}, gone:{}, ovSort:'added', pGroup:'none', pSearchField:'all', pTools:false,
     autoBackup:'off', dark:false, density:'full', cardStyle:'roomy', accent:'violet',
     media:DEFAULT_MEDIA.slice(), pKind:'all', lastKind:'diamond'
   };
@@ -887,6 +902,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(s.view==='overview'&&(!s.paintings||!s.paintings.length))s.view='paintings';
     if(!s.pGroup)s.pGroup='none';
     if(!s.pSearchField)s.pSearchField='all';
+    if(!('pTools' in s))s.pTools=false;
     if(!s.autoBackup)s.autoBackup='off';
     if(!('dark' in s))s.dark=false;
     if(!s.density)s.density='full';
@@ -2072,37 +2088,72 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var SF=[['all','All'],['name','Name'],['diamond','Diamond #'],['seller','Seller'],['code','Kit code'],['tag','Tag'],['media','Media']];
     var phMap={all:'Search name, seller, tag, code, media, diamond #…',name:'Search project name…',diamond:'Search diamond number, e.g. 321…',seller:'Search seller…',code:'Search kit code…',tag:'Search tag…',media:'Search media, e.g. watercolour…'};
     var ph=phMap[state.pSearchField]||'Search…';
+    var toolsOpen=!!state.pTools;
     var html='<div class="toolbar"><label class="search">🔎<input id="pq" type="text" inputmode="search" placeholder="'+esc(ph)+'" value="'+esc(pQuery)+'"></label></div>';
-    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Actions:</span>'+
-      '<button class="chipbtn" id="undoBtn" type="button">↶ Undo</button>'+
-      '<button class="chipbtn" id="redoBtn" type="button">↷ Redo</button>'+
-      '<button class="chipbtn'+(selectMode?' on':'')+'" id="selBtn" type="button">☑ Select</button>'+
-      '<button class="chipbtn" id="modeAll" type="button" title="Switch every project between edit and view mode">'+
-        (state.paintings.some(function(x){return x.edit!==false;})?'👁 View all':'📖🖋 Edit all')+'</button>'+
-      (selectMode?('<button class="chipbtn" id="copyBtn" type="button">⧉ Copy</button>'+
-                   '<button class="chipbtn danger" id="delBtn" type="button">🗑 Delete</button>'):'')+
+
+    /* Five rows of chips filled the whole first screen of a phone and most of the
+       top of a monitor, and four of them were sitting on their default the entire
+       time. They now live behind one button, with anything actually switched on
+       spelled out beside it — so a filter can never be left on invisibly. */
+    var SORTLBL={added:'order added',rating:'★ rating',edited:'🕒 recently edited',name:'🔤 name',price:'💰 price'};
+    var GROUPLBL={none:'',kind:'kind',status:'status',type:'diamond type',size:'size',seller:'seller',finish:'special diamonds'};
+    var SFLBL={}; SF.forEach(function(x){SFLBL[x[0]]=x[1];});
+    var on=[];
+    if(state.pKind!=='all')on.push(['kind',KINDMAP[state.pKind].sym+' '+KINDMAP[state.pKind].label+' only']);
+    if(state.pSearchField!=='all')on.push(['sf','searching '+SFLBL[state.pSearchField].toLowerCase()+' only']);
+    if(state.pGroup!=='none')on.push(['group','grouped by '+GROUPLBL[state.pGroup]]);
+    if(state.ovSort!=='added')on.push(['sort','by '+SORTLBL[state.ovSort]]);
+    if(selectMode)on.push(['sel','picking projects']);
+    html+='<div class="ovsort toolrow">'+
+      '<button class="chipbtn'+(toolsOpen?' on':'')+'" id="toolsBtn" type="button">'+(toolsOpen?'▾':'▸')+' Filters &amp; sorting'+
+        (on.length&&!toolsOpen?' <span class="cnt" style="color:inherit">'+on.length+'</span>':'')+'</button>'+
+      '<button class="chipbtn ic" id="undoBtn" type="button" title="Undo">↶</button>'+
+      '<button class="chipbtn ic" id="redoBtn" type="button" title="Redo">↷</button>'+
       (clipboard.length?('<button class="chipbtn" id="pasteBtn" type="button">📋 Paste ('+clipboard.length+')</button>'):'')+
       (trash.length?('<button class="chipbtn" id="restoreBtn" type="button">♻ Restore ('+trash.length+')</button>'):'')+
+      (selectMode?('<button class="chipbtn" id="copyBtn" type="button">⧉ Copy</button>'+
+                   '<button class="chipbtn danger" id="delBtn" type="button">🗑 Delete</button>'):'')+
+      (on.length&&!toolsOpen?('<span class="toolsum" id="toolSum">'+on.map(function(x){return esc(x[1]);}).join(' · ')+'</span>'):'')+
       '</div>';
-    var kindCount=function(id){return state.paintings.filter(function(p){return kindOf(p)===id;}).length;};
-    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Show:</span>'+
-      '<button class="chipbtn'+(state.pKind==='all'?' on':'')+'" data-kind="all" type="button">All<span class="cnt" style="color:var(--muted);margin-left:5px;">'+state.paintings.length+'</span></button>'+
-      KINDS.map(function(k){
-        return '<button class="chipbtn'+(state.pKind===k.id?' on':'')+'" data-kind="'+k.id+'" type="button">'+k.sym+' '+k.label+
-          '<span class="cnt" style="color:var(--muted);margin-left:5px;">'+kindCount(k.id)+'</span></button>';
-      }).join('')+'</div>';
-    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Search in:</span>'+
-      SF.map(function(x){return '<button class="chipbtn'+(state.pSearchField===x[0]?' on':'')+'" data-sf="'+x[0]+'" type="button">'+x[1]+'</button>';}).join('')+'</div>';
-    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Group:</span>'+
-      groupChip('none','None')+groupChip('kind','Kind')+groupChip('status','Status')+groupChip('type','Diamond type')+groupChip('size','Size')+groupChip('seller','Seller')+groupChip('finish','Special diamonds')+'</div>';
-    html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Sort:</span>'+
-      '<button class="chipbtn'+(state.ovSort==='added'?' on':'')+'" id="sortAdded" type="button">Order added</button>'+
-      '<button class="chipbtn'+(state.ovSort==='rating'?' on':'')+'" id="sortRating" type="button">★ Rating</button>'+
-      '<button class="chipbtn'+(state.ovSort==='edited'?' on':'')+'" id="sortEdited" type="button">🕒 Recently edited</button>'+
-      '<button class="chipbtn'+(state.ovSort==='name'?' on':'')+'" id="sortName" type="button">🔤 Name</button>'+
-      '<button class="chipbtn'+(state.ovSort==='price'?' on':'')+'" id="sortPrice" type="button">💰 Price</button></div>';
+
+    if(toolsOpen){
+      var kindCount=function(id){return state.paintings.filter(function(p){return kindOf(p)===id;}).length;};
+      html+='<div class="toolpanel">';
+      html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Show:</span>'+
+        '<button class="chipbtn'+(state.pKind==='all'?' on':'')+'" data-kind="all" type="button">All<span class="cnt" style="color:var(--muted);margin-left:5px;">'+state.paintings.length+'</span></button>'+
+        KINDS.map(function(k){
+          return '<button class="chipbtn'+(state.pKind===k.id?' on':'')+'" data-kind="'+k.id+'" type="button">'+k.sym+' '+k.label+
+            '<span class="cnt" style="color:var(--muted);margin-left:5px;">'+kindCount(k.id)+'</span></button>';
+        }).join('')+'</div>';
+      html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Search in:</span>'+
+        SF.map(function(x){return '<button class="chipbtn'+(state.pSearchField===x[0]?' on':'')+'" data-sf="'+x[0]+'" type="button">'+x[1]+'</button>';}).join('')+'</div>';
+      html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Group:</span>'+
+        groupChip('none','None')+groupChip('kind','Kind')+groupChip('status','Status')+groupChip('type','Diamond type')+groupChip('size','Size')+groupChip('seller','Seller')+groupChip('finish','Special diamonds')+'</div>';
+      html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Sort:</span>'+
+        '<button class="chipbtn'+(state.ovSort==='added'?' on':'')+'" id="sortAdded" type="button">Order added</button>'+
+        '<button class="chipbtn'+(state.ovSort==='rating'?' on':'')+'" id="sortRating" type="button">★ Rating</button>'+
+        '<button class="chipbtn'+(state.ovSort==='edited'?' on':'')+'" id="sortEdited" type="button">🕒 Recently edited</button>'+
+        '<button class="chipbtn'+(state.ovSort==='name'?' on':'')+'" id="sortName" type="button">🔤 Name</button>'+
+        '<button class="chipbtn'+(state.ovSort==='price'?' on':'')+'" id="sortPrice" type="button">💰 Price</button></div>';
+      html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Projects:</span>'+
+        '<button class="chipbtn'+(selectMode?' on':'')+'" id="selBtn" type="button">☑ Select several</button>'+
+        '<button class="chipbtn" id="modeAll" type="button" title="Switch every project between edit and view mode">'+
+          (state.paintings.some(function(x){return x.edit!==false;})?'👁 View all':'📖🖋 Edit all')+'</button>'+
+        (on.length?'<button class="chipbtn" id="toolsReset" type="button">↺ Back to normal</button>':'')+
+        '</div>';
+      html+='</div>';
+    }
     html+='<div id="pList"></div>';
     pg.innerHTML=html;
+    if($('toolsBtn'))$('toolsBtn').addEventListener('click',function(){
+      state.pTools=!toolsOpen; renderPaintings(); save();
+    });
+    if($('toolSum'))$('toolSum').addEventListener('click',function(){state.pTools=true;renderPaintings();save();});
+    if($('toolsReset'))$('toolsReset').addEventListener('click',function(){
+      state.pKind='all'; state.pSearchField='all'; state.pGroup='none'; state.ovSort='added';
+      selectMode=false; selectedIds={};
+      renderPaintings(); save(); toast('Filters and sorting back to normal ✓',1500);
+    });
     if($('sortAdded'))$('sortAdded').addEventListener('click',function(){state.ovSort='added';renderPaintings();save();});
     if($('sortRating'))$('sortRating').addEventListener('click',function(){state.ovSort='rating';renderPaintings();save();});
     if($('sortEdited'))$('sortEdited').addEventListener('click',function(){state.ovSort='edited';renderPaintings();save();});
@@ -4250,10 +4301,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="chipbtn'+(findPaste?' on':'')+'" id="fPaste" type="button" title="Paste a kit’s colour list and see what you already have">🧾 Check a kit list</button>'+
       '</div>'+
       (findPaste?'<div class="backup" id="fPasteBox" style="margin-bottom:10px;"></div>':'')+
+      '<div class="jumpbar" id="fjump"></div>'+
       '<div class="meta"><span id="fmeta"></span><span>Tap anything to see which paintings have it</span></div>'+
       '<div id="fspecials"></div>'+
-      '<div class="section-lbl">All colors</div>'+
-      '<div class="grid" id="fgrid"></div>'+
+      '<div id="fcolorsec"></div>'+
       '<div class="empty" id="femptyMsg" style="display:none"></div>';
     pg.querySelectorAll('.tbtn').forEach(function(b){
       b.addEventListener('click',function(){findType=b.getAttribute('data-t');renderFind();});
@@ -4332,19 +4383,39 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
   }
 
+  /* The Find page is one long ribbon: sizes, media, every kind of special
+     diamond, and then 454 colours. Reaching the colours meant scrolling past all
+     of it, and reaching the sizes again meant scrolling back. Each heading now
+     folds its own section away and the bar at the top jumps straight to one. */
+  function findClosed(key){return !!(state.findClosed&&state.findClosed[key]);}
+  function toggleFindSection(key,forceOpen){
+    if(!state.findClosed)state.findClosed={};
+    if(forceOpen)delete state.findClosed[key];
+    else if(state.findClosed[key])delete state.findClosed[key];
+    else state.findClosed[key]=1;
+    save();
+  }
+  function findHead(key,label,count,color){
+    return '<div class="section-lbl fsec-hd" data-sec="'+esc(key)+'"'+(color?' style="color:'+color+'"':'')+'>'+
+      (findClosed(key)?'▸':'▾')+' '+label+' <span class="fsec-n">'+count+'</span></div>';
+  }
   function renderFindLists(){
     var q=findQuery.toLowerCase();
     var fs=$('fspecials'); fs.innerHTML='';
+    var secs=[]; /* what the jump bar will offer, in the order they appear */
 
     /* "Leftovers only" is about colours, so the other sections step aside */
     var sizesShown=findStash?[]:state.sizes.filter(function(sz){
       return !q||sz.toLowerCase().indexOf(q)!==-1;
     });
     if(sizesShown.length){
+      secs.push({key:'sizes',label:'Sizes',n:sizesShown.length});
       var slbl=document.createElement('div');
-      slbl.className='section-lbl'; slbl.textContent='Sizes (cm)';
-      fs.appendChild(slbl);
+      slbl.innerHTML=findHead('sizes','Sizes (cm)',sizesShown.length);
+      fs.appendChild(slbl.firstChild);
       var sgrid=document.createElement('div'); sgrid.className='grid';
+      sgrid.id='sec-sizes';
+      if(findClosed('sizes'))sgrid.style.display='none';
       sizesShown.forEach(function(sz){
         var owners=paintingsWithSize(sz);
         var c=document.createElement('div');
@@ -4373,10 +4444,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var mediaShown=findStash?[]:state.media.filter(function(m){return !q||m.toLowerCase().indexOf(q)!==-1;})
       .filter(function(m){return state.paintings.some(function(p){return p.media&&p.media[m];});});
     if(mediaShown.length){
+      secs.push({key:'media',label:'Media',n:mediaShown.length});
       var mlbl=document.createElement('div');
-      mlbl.className='section-lbl'; mlbl.textContent='Media & tools';
-      fs.appendChild(mlbl);
+      mlbl.innerHTML=findHead('media','Media &amp; tools',mediaShown.length);
+      fs.appendChild(mlbl.firstChild);
       var mgrid=document.createElement('div'); mgrid.className='grid';
+      mgrid.id='sec-media';
+      if(findClosed('media'))mgrid.style.display='none';
       mediaShown.forEach(function(m){
         var owners=state.paintings.filter(function(p){return p.media&&p.media[m];});
         var c=document.createElement('div');
@@ -4403,11 +4477,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         return !q||en.text.toLowerCase().indexOf(q)!==-1;
       });
       if(!lib.length)return;
+      var skey='fin-'+f.id;
+      secs.push({key:skey,label:f.label,n:lib.length,color:f.fg});
       var lbl=document.createElement('div');
-      lbl.className='section-lbl'; lbl.style.color=f.fg;
-      lbl.textContent=f.label+' special diamonds';
-      fs.appendChild(lbl);
+      lbl.innerHTML=findHead(skey,esc(f.label)+' special diamonds',lib.length,f.fg);
+      fs.appendChild(lbl.firstChild);
       var grid=document.createElement('div'); grid.className='grid';
+      grid.id='sec-'+skey;
+      if(findClosed(skey))grid.style.display='none';
       lib.forEach(function(entry){
         var owners=paintingsWithSpec(f.id,entry.id);
         var kid=f.id+'|'+entry.id;
@@ -4432,7 +4509,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
     /* colors grid — one pass over the paintings builds a code -> owners map,
        instead of re-scanning every painting for every one of the 454 colors */
-    var g=$('fgrid'); g.innerHTML='';
+    var csec=$('fcolorsec'); csec.innerHTML='';
+    var g=document.createElement('div'); g.className='grid'; g.id='fgrid';
     var ownersByCode={};
     state.paintings.forEach(function(p){
       if(!typeOk(p))return;
@@ -4486,6 +4564,47 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       expandedColor=(expandedColor===code)?null:code; expandedSpec=null; expandedSize=null;
       renderFindLists();
     };
+    if(shown){
+      secs.push({key:'colors',label:'All colours',n:shown});
+      var chd=document.createElement('div');
+      chd.innerHTML=findHead('colors','All colours',shown);
+      csec.appendChild(chd.firstChild);
+      g.style.display=findClosed('colors')?'none':'';
+      csec.appendChild(g);
+    }
+
+    /* the jump bar, built from the sections that actually exist right now — a
+       search that hides the specials shouldn't leave dead links behind */
+    var jb=$('fjump');
+    if(jb){
+      jb.innerHTML=secs.length>1
+        ? '<span class="pd-lbl" style="margin:0">Jump to:</span>'+secs.map(function(s){
+            return '<button class="jbtn" data-jump="'+esc(s.key)+'"'+(s.color?' style="color:'+s.color+'"':'')+
+              ' type="button">'+esc(s.label)+' <span class="fsec-n">'+s.n+'</span></button>';
+          }).join('')
+        : '';
+      jb.querySelectorAll('[data-jump]').forEach(function(b){
+        b.addEventListener('click',function(){
+          var key=b.getAttribute('data-jump');
+          if(findClosed(key)){toggleFindSection(key,true);renderFindLists();}
+          var hd=$('page').querySelector('.fsec-hd[data-sec="'+key+'"]');
+          if(!hd)return;
+          /* a plain jump, not a glide: smooth scrolling is quietly ignored in
+             several situations and a jump that sometimes doesn't happen is worse
+             than one that always does. The heading lights up instead, so the eye
+             lands on the right place after the page moves under it. */
+          hd.scrollIntoView({block:'start'});
+          hd.classList.add('flash');
+          setTimeout(function(){hd.classList.remove('flash');},1100);
+        });
+      });
+    }
+    $('page').querySelectorAll('.fsec-hd').forEach(function(h){
+      h.addEventListener('click',function(){
+        toggleFindSection(h.getAttribute('data-sec'));
+        renderFindLists();
+      });
+    });
     var inAny=0;
     Object.keys(ownersByCode).forEach(function(k){if(DMCMAP[k])inAny++;});
     var inStash=0;

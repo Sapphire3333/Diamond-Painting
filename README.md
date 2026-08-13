@@ -59,8 +59,8 @@ After that it opens full-screen from its own icon and works offline.
 | Tab | What it does |
 |---|---|
 | **⌂ Overview** | Stats about your collection, CSV export for Excel, dark mode, text size & accent color, storage meter, cloud sync, backups |
-| **🖼 Projects** | Everything you've made — filter by kind, search, sort, group, multi-select, copy/paste, delete/restore |
-| **🔎 Find** | Look up any DMC color, size, special diamond or medium and see which projects use it |
+| **🖼 Projects** | Everything you've made — the search box and ↶ undo stay out; **▸ Filters & sorting** folds away the rest (kind, search field, grouping, sorting, multi-select), and anything you've switched on is spelled out beside the button so a filter is never left on invisibly |
+| **🔎 Find** | Look up any DMC color, size, special diamond or medium and see which projects use it — every section folds away, and a **Jump to** bar takes you straight to one |
 | **+ New project** | Adds a project (same kind as the last one you made) |
 
 ### How your projects are laid out
