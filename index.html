@@ -59,7 +59,8 @@ try{
   }
   .dp-app.dark img.ovthumb,.dp-app.dark .photo-grid img{filter:brightness(.94);}
   .dp-app{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    color:var(--ink); background:var(--bg); min-height:100vh; padding:14px 12px 60px;}
+    color:var(--ink); background:var(--bg); min-height:100vh; padding:14px 12px 60px;
+    position:relative; z-index:1;}
   .dp-app *{box-sizing:border-box;}
   .wrap{max-width:900px;margin:0 auto;}
   .dp-title{font-size:20px;font-weight:800;letter-spacing:.2px;margin:2px 2px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -195,6 +196,13 @@ try{
   .tile-body .ovsub{margin-top:5px;overflow:hidden;text-overflow:ellipsis;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
   .tile-body .ovname{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  /* the background layer: fixed so it doesn't scroll away, and behind everything */
+  #bgArt{position:fixed;inset:0;z-index:0;pointer-events:none;background-repeat:repeat;background-position:center;}
+  #bgArt.bg-wash{opacity:.16;}
+  #bgArt.bg-photo{opacity:.30;filter:blur(9px) saturate(.85);transform:scale(1.08);}
+  .bgswatch{width:52px;height:34px;border-radius:9px;border:2px solid var(--line);cursor:pointer;padding:0;
+    background-size:cover;background-position:center;}
+  .bgswatch.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent);}
   .acc-sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0;}
   .acc-sw.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink);}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);display:flex;align-items:center;justify-content:center;z-index:100;padding:18px;cursor:zoom-out;}
@@ -359,6 +367,20 @@ try{
   .sm-lbl span:last-child{color:var(--muted);font-weight:600;white-space:nowrap;}
   .sm-bar{height:8px;border-radius:999px;background:var(--unk-soft);overflow:hidden;}
   .sm-fill{height:100%;border-radius:999px;min-width:2px;}
+  /* the storage breakdown: one row per project, biggest first */
+  .stlist{display:flex;flex-direction:column;gap:2px;margin:4px 0 8px;}
+  .strow{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;}
+  .strow:hover{background:var(--accent-soft);}
+  .strow.open{background:var(--accent-soft);}
+  .strow-n{font-size:12.5px;font-weight:700;flex:1 1 120px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .strow-bar{flex:1 1 70px;height:7px;border-radius:999px;background:var(--unk-soft);overflow:hidden;min-width:40px;}
+  .strow-bar>i{display:block;height:100%;border-radius:999px;background:var(--accent);}
+  .strow-s{font-size:11.5px;font-weight:700;color:var(--muted);flex:0 0 auto;min-width:52px;text-align:right;}
+  .stphotos{display:flex;flex-direction:column;gap:6px;padding:4px 6px 8px 14px;}
+  .stphoto{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .stphoto img{width:46px;height:36px;object-fit:cover;border-radius:7px;border:1px solid var(--line);flex:0 0 auto;}
+  .stphoto-t{font-size:11.5px;color:var(--muted);line-height:1.35;flex:1 1 90px;min-width:0;}
   .renamer input,.codeinput,.rating-row input,.addinline input,.fb-addrow input{background:var(--panel);color:var(--ink);}
   /* buttons don't inherit text color — set it so they stay readable in dark mode
      (more specific rules like .pbtn.danger, .selchip.on and inline styles still win) */
@@ -566,7 +588,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     paintings:[{id:'p1',name:'Project 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true,kind:'diamond',media:{},palette:[],notes:''}],
     active:'p1', onlySel:false, view:'paintings',
     specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), stash:{}, gone:{}, ovSort:'added', pGroup:'none', pSearchField:'all', pTools:false,
-    autoBackup:'off', dark:false, density:'full', cardStyle:'roomy', accent:'violet',
+    autoBackup:'off', dark:false, density:'full', cardStyle:'roomy', accent:'violet', bg:'none', bgPhoto:null,
     media:DEFAULT_MEDIA.slice(), pKind:'all', lastKind:'diamond'
   };
   /* Text size and phone/full layout belong to the DEVICE, not to the collection:
@@ -967,6 +989,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(!s.density)s.density='full';
     if(!s.cardStyle)s.cardStyle='roomy';
     if(!s.accent||!ACCENTMAP[s.accent])s.accent='violet';
+    if(!s.bg)s.bg='none';
     if(!s.specials)s.specials={};
     if(!s.stash)s.stash={};
     if(!s.gone)s.gone={};
@@ -1421,6 +1444,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     mk('home','⌂ Overview',function(){navTo('overview');},state.view==='overview');
     mk('paints','🖼 Projects<span class="cnt">'+state.paintings.length+'</span>',function(){navTo('paintings');},state.view==='paintings'||state.view==='paint');
     mk('find','🔎 Find',function(){navTo('find');},state.view==='find');
+    mk('set','⚙ Settings',function(){navTo('settings');},state.view==='settings');
     mk('add','+ New project',function(){
       if(state.view==='paintings')listScroll=scrollNow();
       var p=newPainting('Project '+(state.paintings.length+1));
@@ -1495,10 +1519,25 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     resetTransient(); render(); save(); restoreScroll();
   });
 
+  function bgPickerHtml(){
+    var picks=[];
+    state.paintings.forEach(function(p){
+      (p.photos||[]).forEach(function(ph,i){
+        if(ph&&ph.d&&picks.length<24)picks.push({pid:p.id,i:i,d:ph.d,name:p.name});
+      });
+    });
+    if(!picks.length)return '<div class="bk-note">No photos yet — add one to a project and it can go behind the page.</div>';
+    var cur=state.bgPhoto||{};
+    return '<div class="bk-btns" style="margin-top:8px;">'+picks.map(function(x){
+      return '<button class="bgswatch'+((cur.pid===x.pid&&(cur.i||0)===x.i)?' on':'')+'" data-bgpick="'+esc(x.pid)+'|'+x.i+
+        '" type="button" title="'+esc(x.name)+'" style="background-image:url(\''+x.d+'\')"></button>';
+    }).join('')+'</div>';
+  }
+
   /* ---------- overview ---------- */
   function renderOverview(){
     var pg=$('page');
-    var html='<div class="ovsub" style="margin:2px 2px 12px;">Your projects live in the <b>🖼 Projects</b> tab. This page holds your summary, display, sync, storage and backups.</div>';
+    var html='<div class="ovsub" style="margin:2px 2px 12px;">Your projects live in the <b>🖼 Projects</b> tab. This page holds your summary, how the app looks, what is using the space, and backups you make yourself. Cloud sync and backups that happen on their own are in <b>⚙ Settings</b>.</div>';
     html+='<div class="section-lbl">Summary</div>'+statsHtml();
     html+='<div class="section-lbl">Display</div>'+
       '<div class="backup">'+
@@ -1528,8 +1567,18 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           '<span class="pd-lbl" style="margin:0;align-self:center;">Accent:</span>'+
           ACCENTS.map(function(a){return '<button class="acc-sw'+(state.accent===a.id?' on':'')+'" data-accent="'+a.id+'" type="button" title="'+a.name+'" style="background:'+a.accent+'"></button>';}).join('')+
         '</div>'+
+        '<div class="sm-row" style="margin-top:12px;">'+
+          '<div class="sm-lbl"><span>Behind the page</span><span></span></div>'+
+          '<div class="bk-btns">'+
+            BACKGROUNDS.map(function(b){
+              return '<button class="chipbtn'+(bgMode()===b.id?' on':'')+'" data-bg="'+b.id+'" type="button">'+b.label+'</button>';
+            }).join('')+
+          '</div>'+
+          '<div class="bk-note">'+esc((BACKGROUNDS.filter(function(b){return b.id===bgMode();})[0]||BACKGROUNDS[0]).hint)+
+            ' It shows around and between your cards, so there is most of it to see on a wide screen and a sliver of it on a phone.</div>'+
+          (bgMode()==='photo'?bgPickerHtml():'')+
+        '</div>'+
       '</div>';
-    html+=syncSectionHtml();
     html+='<div class="section-lbl">Storage</div><div class="backup" id="storMeter"></div>';
     html+='<div class="section-lbl">Backup &amp; restore</div>'+
       '<div class="backup">'+
@@ -1552,14 +1601,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           '<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;font-weight:600;">'+
           '<input type="checkbox" id="bkSavePhotos" checked> include photos</label>'+
         '</div>'+
-        '<div class="bk-btns" style="margin-top:6px;">'+
-          '<span class="pd-lbl" style="margin:0;align-self:center;">Auto-backup:</span>'+
-          '<button class="chipbtn'+(state.autoBackup==='off'?' on':'')+'" data-auto="off" type="button">Off</button>'+
-          '<button class="chipbtn'+(state.autoBackup==='daily'?' on':'')+'" data-auto="daily" type="button">Daily</button>'+
-          '<button class="chipbtn'+(state.autoBackup==='weekly'?' on':'')+'" data-auto="weekly" type="button">Weekly</button>'+
-        '</div>'+
         '<div id="bkList"></div>'+
-        '<div class="bk-note">Snapshots are kept on this device (up to 20). Perfect before a big change — save one, and you can roll back anytime. The app also saves one by itself just before any restore, so even restoring the wrong backup can be undone. They are not uploaded to the cloud.</div>'+
+        '<div class="bk-note">Snapshots are kept on this device (up to 20). Perfect before a big change — save one, and you can roll back anytime. The app also saves one by itself just before any restore, so even restoring the wrong backup can be undone. They are not uploaded to the cloud. Backups that happen <b>by themselves</b> are set up in <b>⚙ Settings</b>.</div>'+
       '</div>';
     pg.innerHTML=html;
     function backupJson(){
@@ -1624,21 +1667,72 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     $('bkSave').addEventListener('click',function(){
       saveBackup($('bkSavePhotos').checked,function(){renderBackupList();});
     });
+    if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
+    wireDisplay(pg);
+    renderStorageMeter();
+    renderBackupList();
+  }
+
+  /* ---------- settings ----------
+     Overview is for looking at your collection and doing things to it by hand;
+     Settings is for the things that then happen without you — the cloud, and
+     backups that take themselves. */
+  function renderSettings(){
+    var pg=$('page');
+    var html='<div class="ovsub" style="margin:2px 2px 12px;">Things that run by themselves. Your summary, display, storage and hand-made backups are on the <b>⌂ Overview</b> page.</div>';
+    html+=syncSectionHtml();
+    html+='<div class="section-lbl">Backups that happen by themselves</div>'+
+      '<div class="backup">'+
+        '<div class="bk-btns" style="align-items:center;">'+
+          '<span class="pd-lbl" style="margin:0;align-self:center;">Save a snapshot:</span>'+
+          '<button class="chipbtn'+(state.autoBackup==='off'?' on':'')+'" data-auto="off" type="button">Never</button>'+
+          '<button class="chipbtn'+(state.autoBackup==='daily'?' on':'')+'" data-auto="daily" type="button">Daily</button>'+
+          '<button class="chipbtn'+(state.autoBackup==='weekly'?' on':'')+'" data-auto="weekly" type="button">Weekly</button>'+
+        '</div>'+
+        '<div class="bk-note" id="autoNote"></div>'+
+      '</div>';
+    html+='<div class="section-lbl">This app</div>'+
+      '<div class="backup">'+
+        '<div class="bk-note">Build '+esc(window.APP_VERSION||'unknown')+'</div>'+
+        '<div class="bk-note">Everything is kept on this device unless you turn on cloud sync above. Text size and the phone/full switch belong to this device alone and never travel — so a big-text phone doesn’t drag your PC along with it.</div>'+
+      '</div>';
+    pg.innerHTML=html;
+    pg.querySelectorAll('[data-auto]').forEach(function(b){b.addEventListener('click',function(){
+      state.autoBackup=b.getAttribute('data-auto');save();maybeAutoBackup(function(){renderSettings();});
+    });});
+    autoNoteFill();
+    wireSync();
+  }
+  function autoNoteFill(){
+    var el=$('autoNote'); if(!el)return;
+    var when=state.autoBackup;
+    el.innerHTML=(when==='off')
+      ? 'Nothing is saved automatically. Snapshots you make yourself, and restoring from one, live on the <b>⌂ Overview</b> page.'
+      : 'A snapshot of everything is taken '+(when==='daily'?'once a day':'once a week')+
+        ', the first time you open the app after it is due. Up to 20 are kept on this device; the oldest drops off. They are not uploaded anywhere.';
+  }
+  /* the display controls are wired the same way wherever they are shown */
+  function wireDisplay(pg){
     if($('fsRange'))$('fsRange').addEventListener('input',function(e){setFontScale(parseInt(e.target.value,10)||100);});
     if($('fsReset'))$('fsReset').addEventListener('click',function(){setFontScale(100);renderSizeCtl();});
-    if($('darkToggle'))$('darkToggle').addEventListener('click',function(){state.dark=!state.dark;applyTheme();renderOverview();save();});
+    if($('darkToggle'))$('darkToggle').addEventListener('click',function(){state.dark=!state.dark;applyTheme();applyBackground();renderOverview();save();});
     pg.querySelectorAll('[data-card]').forEach(function(b){b.addEventListener('click',function(){
       state.cardStyle=b.getAttribute('data-card'); renderOverview(); save();
       toast('Card style: '+(CARD_STYLES.filter(function(c){return c.id===state.cardStyle;})[0]||{}).label+' — see 🖼 Projects',1800);
     });});
-    if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
-    pg.querySelectorAll('[data-accent]').forEach(function(b){b.addEventListener('click',function(){state.accent=b.getAttribute('data-accent');applyTheme();renderOverview();save();});});
-    pg.querySelectorAll('[data-auto]').forEach(function(b){b.addEventListener('click',function(){
-      state.autoBackup=b.getAttribute('data-auto');save();maybeAutoBackup(function(){renderOverview();});
+    pg.querySelectorAll('[data-accent]').forEach(function(b){b.addEventListener('click',function(){
+      state.accent=b.getAttribute('data-accent');applyTheme();applyBackground();renderOverview();save();
     });});
-    renderStorageMeter();
-    renderBackupList();
-    wireSync();
+    pg.querySelectorAll('[data-bg]').forEach(function(b){b.addEventListener('click',function(){
+      state.bg=b.getAttribute('data-bg');
+      if(state.bg==='photo'&&!bgPhotoData())state.bgPhoto=firstPhotoRef();
+      applyBackground(); renderOverview(); save();
+    });});
+    pg.querySelectorAll('[data-bgpick]').forEach(function(b){b.addEventListener('click',function(){
+      var v=b.getAttribute('data-bgpick').split('|');
+      state.bgPhoto={pid:v[0],i:parseInt(v[1],10)||0}; state.bg='photo';
+      applyBackground(); renderOverview(); save();
+    });});
   }
 
   /* ---------- local backups (device-only snapshots) ---------- */
@@ -2396,10 +2490,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     } else {
       html+='<div class="bk-note">Saving is unavailable here — use Backup below so nothing is lost.</div>';
     }
-    /* which build this device is actually running — so a "nothing changed"
-       report can carry the build's name instead of a guess about caches */
-    html+='<div class="bk-note" style="opacity:.7">Build '+esc(window.APP_VERSION||'unknown')+'</div>';
+    html+='<div id="storBreak"></div>';
     el.innerHTML=html;
+    renderStorageBreakdown();
     if(kind==='idb'&&navigator.storage&&navigator.storage.estimate){
       navigator.storage.estimate().then(function(est){
         var qn=$('quotaNote');
@@ -2409,6 +2502,124 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         }
       }).catch(function(){});
     }
+  }
+
+  /* ---------- what's using the space ----------
+     Two questions, answered in the order they're worth asking. "Photos or
+     words?" has a permanent answer — a single picture outweighs every word
+     you will ever type — so it gets one line. "WHICH project, and which
+     picture inside it?" is the one that can be acted on, so it gets the list.
+     Worked out when the panel is opened: on a 40-project, 6.6 MB library it
+     takes about 12 milliseconds, which is not worth a button to start it. */
+  var storOpen=false, storSel=null, storMsg='';
+  var BIG_PHOTO=400*1024;
+  function photoBytes(ph){return (ph&&ph.d)?ph.d.length:0;}
+  function storageRows(){
+    var rows=state.paintings.map(function(p){
+      var photos=(p.photos||[]).reduce(function(s,ph){return s+photoBytes(ph);},0);
+      var whole=JSON.stringify(p).length;
+      return {id:p.id,name:p.name,photos:photos,text:Math.max(0,whole-photos),total:whole,n:(p.photos||[]).length};
+    });
+    rows.sort(function(a,b){return b.total-a.total;});
+    return rows;
+  }
+  function photoLabel(p,i){
+    var l=coverLabels(p);
+    return l[i]||('Photo '+(i+1));
+  }
+  function renderStorageBreakdown(){
+    var el=$('storBreak'); if(!el)return;
+    var head='<div class="section-lbl fsec-hd" id="storHd" style="margin:10px 0 4px;">'+
+      (storOpen?'▾':'▸')+' What’s using the space</div>';
+    if(!storOpen){
+      el.innerHTML=head+'<div class="bk-note" style="opacity:.7">Build '+esc(window.APP_VERSION||'unknown')+'</div>';
+      wireStorageBreakdown(); return;
+    }
+    var rows=storageRows();
+    var photos=0,text=0,pn=0,big=0;
+    rows.forEach(function(r){photos+=r.photos;text+=r.text;pn+=r.n;});
+    state.paintings.forEach(function(p){(p.photos||[]).forEach(function(ph){if(photoBytes(ph)>BIG_PHOTO)big++;});});
+    var top=rows.length?rows[0].total:0;
+    var h=head+
+      '<div class="bk-note"><b>'+fmtBytes(photos)+'</b> in '+pn+' picture'+(pn===1?'':'s')+
+        ', and <b>'+fmtBytes(text)+'</b> in everything else — names, colours, tags, notes, the lot'+
+        (photos+text?(' ('+Math.max(0.1,text/(photos+text)*100).toFixed(1)+'% of it)'):'')+'.</div>';
+    h+='<div class="stlist">';
+    rows.forEach(function(r){
+      var pct=top?Math.round(r.total/top*100):0;
+      h+='<div class="strow'+(storSel===r.id?' open':'')+'" data-stp="'+esc(r.id)+'">'+
+        '<span class="strow-n">'+(storSel===r.id?'▾':'▸')+' '+esc(r.name)+'</span>'+
+        '<span class="strow-bar"><i style="width:'+pct+'%"></i></span>'+
+        '<span class="strow-s">'+fmtBytes(r.total)+'</span></div>';
+      if(storSel===r.id){
+        var p=findPainting(r.id);
+        h+='<div class="stphotos">';
+        if(!p||!p.photos||!p.photos.length)h+='<div class="bk-note">No pictures — this one is only words.</div>';
+        else p.photos.forEach(function(ph,i){
+          var b=photoBytes(ph);
+          h+='<div class="stphoto">'+
+            '<img src="'+ph.d+'" alt="">'+
+            '<span class="stphoto-t"><b>'+esc(photoLabel(p,i))+'</b><br>'+fmtBytes(b)+'</span>'+
+            '<button class="pbtn" data-stopen="'+esc(r.id)+'|'+i+'" type="button">Open</button>'+
+            (b>BIG_PHOTO?'<button class="pbtn" data-stshrink="'+esc(r.id)+'|'+i+'" type="button">↓ Make smaller</button>':'')+
+            '</div>';
+        });
+        h+='</div>';
+      }
+    });
+    h+='</div>';
+    if(storMsg)h+='<div class="bk-note" style="color:var(--rd);font-weight:700;">'+esc(storMsg)+'</div>';
+    h+='<div class="bk-note">'+(big
+      ? ('<b>'+big+'</b> picture'+(big===1?' is':'s are')+' larger than this app ever needs — “↓ Make smaller” redraws one at the size the app itself uses. It cannot be undone, so it asks twice.')
+      : 'No picture here is bigger than it needs to be. Photos are shrunk as they are added, so this stays true unless one arrives from an older backup.')+'</div>';
+    h+='<div class="bk-note" style="opacity:.7">Build '+esc(window.APP_VERSION||'unknown')+'</div>';
+    el.innerHTML=h;
+    wireStorageBreakdown();
+  }
+  function wireStorageBreakdown(){
+    var el=$('storBreak'); if(!el)return;
+    if($('storHd'))$('storHd').addEventListener('click',function(){storOpen=!storOpen;renderStorageBreakdown();});
+    el.querySelectorAll('[data-stp]').forEach(function(r){
+      r.addEventListener('click',function(){
+        var id=r.getAttribute('data-stp');
+        storSel=(storSel===id)?null:id;
+        renderStorageBreakdown();
+      });
+    });
+    /* "where is that picture?" answered by going there */
+    el.querySelectorAll('[data-stopen]').forEach(function(b){
+      b.addEventListener('click',function(e){
+        e.stopPropagation();
+        navTo('paint',b.getAttribute('data-stopen').split('|')[0]);
+      });
+    });
+    el.querySelectorAll('[data-stshrink]').forEach(function(b){
+      b.addEventListener('click',function(e){
+        e.stopPropagation();
+        var v=b.getAttribute('data-stshrink').split('|');
+        shrinkPhoto(v[0],parseInt(v[1],10)||0,b);
+      });
+    });
+  }
+  function shrinkPhoto(pid,i,btn){
+    var p=findPainting(pid); if(!p||!p.photos)return;
+    var ph=p.photos[i]; if(!ph||!ph.d)return;
+    if(!twoTap('shrink'+pid+i,btn,'Tap again — this can’t be undone'))return;
+    var before=ph.d.length;
+    var blob=dataUrlToBlob(ph.d);
+    if(!blob){toast('That picture couldn’t be read, so nothing was changed',2400);return;}
+    /* the same road every added photo takes, with the same refusal to save a
+       blank — so the worst case is that nothing happens */
+    importImage(blob,520,0.72,function(d){
+      if(!d){toast('That picture couldn’t be redrawn on this device — it is unchanged',3000);return;}
+      if(d.length>=before){toast('That one is already as small as it goes',2200);return;}
+      ph.d=d; savePhotos(pid); save();
+      /* the saving goes on the panel, not in a toast: saving the file pops its
+         own "Saved ✓" a moment later and would wipe the numbers off the screen */
+      storMsg='“'+p.name+'” · '+photoLabel(p,i)+': '+fmtBytes(before)+' → '+fmtBytes(d.length)+
+        ' — '+Math.round((1-d.length/before)*100)+'% smaller ✓';
+      renderStorageMeter();
+    });
   }
 
   /* ---------- photos ----------
@@ -4819,6 +5030,71 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   window.addEventListener('resize',function(){if(SIZE.layout==='auto')applySize();});
 
+  /* ---------- something behind the app ----------
+     The layer lives outside the app's own box, so the text-size zoom can't
+     stretch it, and behind everything, so nothing has to be see-through to let
+     it show. Cards stay solid: a background you can read words through is a
+     background that makes the words harder to read. */
+  var BACKGROUNDS=[
+    {id:'none',  label:'Plain',       hint:'Just the page colour.'},
+    {id:'drills',label:'Drills',      hint:'A field of tiny drills, the colour of your accent.'},
+    {id:'wash',  label:'Soft wash',   hint:'A quiet gradient from your accent colour.'},
+    {id:'photo', label:'Your picture',hint:'One of your own photos, blurred right back so it can’t compete with the page.'}
+  ];
+  function bgMode(){
+    var m=state.bg;
+    return BACKGROUNDS.some(function(b){return b.id===m;})?m:'none';
+  }
+  function firstPhotoRef(){
+    for(var i=0;i<state.paintings.length;i++){
+      var p=state.paintings[i];
+      if(p.photos&&p.photos.length)return {pid:p.id,i:0};
+    }
+    return null;
+  }
+  function bgPhotoData(){
+    var r=state.bgPhoto; if(!r)return '';
+    var p=findPainting(r.pid); if(!p||!p.photos)return '';
+    var ph=p.photos[r.i||0];
+    return (ph&&ph.d)?ph.d:'';
+  }
+  function applyBackground(){
+    var mode=bgMode();
+    var el=document.getElementById('bgArt');
+    var app=$('app');
+    if(mode==='none'){
+      if(el)el.remove();
+      if(app)app.style.background='';
+      return;
+    }
+    if(!el){
+      el=document.createElement('div'); el.id='bgArt';
+      document.body.insertBefore(el,document.body.firstChild);
+    }
+    /* the app's own fill would sit on top of the layer and hide it */
+    if(app)app.style.background='transparent';
+    var acc=(ACCENTMAP[state.accent]||ACCENTMAP.violet).accent;
+    el.className='bg-'+mode;
+    el.style.backgroundImage='';
+    if(mode==='drills'){
+      var dot=state.dark?'rgba(255,255,255,.10)':'rgba(0,0,0,.07)';
+      el.style.backgroundImage='radial-gradient('+dot+' 1.6px, transparent 1.7px)';
+      el.style.backgroundSize='18px 18px';
+      el.style.backgroundColor='';
+    } else if(mode==='wash'){
+      el.style.backgroundImage='linear-gradient(160deg,'+acc+' 0%, transparent 46%), '+
+        'radial-gradient(circle at 88% 8%, '+acc+' 0%, transparent 38%)';
+      el.style.backgroundSize='';
+      el.style.backgroundColor='';
+    } else {
+      var d=bgPhotoData();
+      if(!d){state.bg='none';applyBackground();return;}
+      el.style.backgroundImage='url("'+d+'")';
+      el.style.backgroundSize='cover';
+      el.style.backgroundColor='';
+    }
+  }
+
   /* ---------- root ---------- */
   function applyTheme(){
     var app=$('app'); if(app)app.classList.toggle('dark',!!state.dark);
@@ -4836,6 +5112,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function render(){
     applyTheme();
+    applyBackground();
     applySize();
     renderSizeCtl();
     var pgEl=$('page'); if(pgEl)pgEl.style.paddingBottom='';
@@ -4843,6 +5120,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(state.view==='overview')renderOverview();
     else if(state.view==='paintings')renderPaintings();
     else if(state.view==='find')renderFind();
+    else if(state.view==='settings')renderSettings();
     else renderPainting();
   }
 

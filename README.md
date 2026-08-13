@@ -64,9 +64,10 @@ After that it opens full-screen from its own icon and works offline.
 
 | Tab | What it does |
 |---|---|
-| **⌂ Overview** | Stats about your collection, CSV export for Excel, dark mode, text size & accent color, storage meter, cloud sync, backups |
+| **⌂ Overview** | Stats about your collection, CSV export for Excel, how the app looks (dark mode, text size, accent, card style, background), what's using the space, and backups you make yourself |
 | **🖼 Projects** | Everything you've made — the search box and ↶ undo stay out; **▸ Filters & sorting** folds away the rest (kind, search field, grouping, sorting, multi-select), and anything you've switched on is spelled out beside the button so a filter is never left on invisibly |
 | **🔎 Find** | Look up any DMC color, size, special diamond or medium and see which projects use it — every section folds away, and a **Jump to** bar takes you straight to one |
+| **⚙ Settings** | The things that then run without you — cloud sync and logout, and backups that take themselves daily or weekly |
 | **+ New project** | Adds a project (same kind as the last one you made) |
 
 ### How your projects are laid out
@@ -119,7 +120,7 @@ Everything is in plain files:
 
 ## Privacy & storage
 
-- All data lives in your browser (IndexedDB — usually hundreds of MB of room). The Overview page has a storage meter so you can see exactly what's used.
+- All data lives in your browser (IndexedDB — usually hundreds of MB of room). The Overview page has a storage meter, and **What's using the space** opens a list of your projects biggest-first — tap one to see its individual pictures, jump straight to the project, or shrink a picture that's larger than the app ever needs.
 - Photos are automatically resized before saving so they stay small.
 - Nothing leaves your device unless you set up your own cloud sync — and then it goes only to *your* Supabase project.
 - Clearing your browser data will erase the app's data too — that's what backups (and sync) are for. Save a backup code somewhere safe once in a while!
