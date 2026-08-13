@@ -121,7 +121,7 @@ Everything is in plain files:
 ## Privacy & storage
 
 - All data lives in your browser (IndexedDB — usually hundreds of MB of room). The Overview page has a storage meter, and **What's using the space** opens a list of your projects biggest-first — tap one to see its individual pictures, jump straight to the project, or shrink a picture that's larger than the app ever needs.
-- Photos are automatically resized before saving so they stay small.
+- Photos are resized to 1200px on the long edge before saving — around 200–250 KB each, sharp enough for a phone screen and for **⇔ Compare**, and small enough that a big collection is still a few tens of MB against the gigabytes the browser offers.
 - Nothing leaves your device unless you set up your own cloud sync — and then it goes only to *your* Supabase project.
 - Clearing your browser data will erase the app's data too — that's what backups (and sync) are for. Save a backup code somewhere safe once in a while!
 
