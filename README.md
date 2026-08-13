@@ -64,10 +64,10 @@ After that it opens full-screen from its own icon and works offline.
 
 | Tab | What it does |
 |---|---|
-| **⌂ Overview** | Stats about your collection, CSV export for Excel, how the app looks (dark mode, text size, accent, card style, background), what's using the space, and backups you make yourself |
+| **⌂ Overview** | Stats about your collection, CSV export for Excel, how the app looks (dark mode, text size, accent, card style, background), what's using the space, and **Save a backup now** |
 | **🖼 Projects** | Everything you've made — the search box and ↶ undo stay out; **▸ Filters & sorting** folds away the rest (kind, search field, grouping, sorting, multi-select), and anything you've switched on is spelled out beside the button so a filter is never left on invisibly |
 | **🔎 Find** | Look up any DMC color, size, special diamond or medium and see which projects use it — every section folds away, and a **Jump to** bar takes you straight to one |
-| **⚙ Settings** | The things that then run without you — cloud sync and logout, and backups that take themselves daily or weekly |
+| **⚙ Settings** | Cloud sync and logout, the backup code and files, your saved snapshots, and backups that take themselves daily or weekly |
 | **+ New project** | Adds a project (same kind as the last one you made) |
 
 ### How your projects are laid out
@@ -88,7 +88,7 @@ Every page has **A− 115% A+** in the top-right corner. It grows the whole app 
 - **⇔ Compare:** on any project with two pictures, this puts the seller's photo and your finished result on screen together, full size — side by side on a PC, one above the other on a phone, with a tap to switch. Tap either one to see it alone and tap again to bring the other back.
 - **Photos:** tap a photo to open its tools (crop to card, flip, reorder). Use **⇱ Arrange & edit** to drag photos anywhere on the page, resize, tilt, crop, or cut out the background. On PC you can paste a copied image with Ctrl+V. If a photo ever refuses to load on a phone, **🩺 Photo check** explains what went wrong on that device.
 - **Tags, sizes, sellers** are shared lists — add one once, reuse it everywhere. Tap **edit list** next to a group to remove entries you no longer want.
-- **Backups:** Overview → *Backup & restore*. "Show backup code" gives you a text code you can save anywhere (notes app, email to yourself), and "⬇ Download as file" saves the same thing as a file — sturdier than the clipboard when photos make the code huge. You can also keep up to 20 snapshots on the device and turn on automatic daily/weekly backups.
+- **Backups:** **Save a backup now** sits on Overview, where you'll want it before a big change. Everything else is in **⚙ Settings**: "Show backup code" gives you a text code you can save anywhere (notes app, email to yourself), "⬇ Download as file" saves the same thing as a file — sturdier than the clipboard when photos make the code huge — plus your last 20 snapshots to restore from, and the daily/weekly automatic backup switch.
 
 ## Phone ⇄ PC sync (optional)
 

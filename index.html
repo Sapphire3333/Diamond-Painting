@@ -1580,31 +1580,40 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '</div>'+
       '</div>';
     html+='<div class="section-lbl">Storage</div><div class="backup" id="storMeter"></div>';
-    html+='<div class="section-lbl">Backup &amp; restore</div>'+
-      '<div class="backup">'+
-        '<div class="bk-btns">'+
-          '<button class="chipbtn" id="bkShow" type="button">Show backup code</button>'+
-          '<button class="chipbtn" id="bkCopy" type="button">Copy</button>'+
-          '<button class="chipbtn" id="bkFile" type="button">⬇ Download as file</button>'+
-          '<button class="chipbtn" id="bkLoad" type="button">⬆ Load from file</button>'+
-          '<button class="chipbtn" id="bkRestore" type="button" style="color:var(--accent);border-color:var(--accent);">Restore from code</button>'+
-          '<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;font-weight:600;">'+
-          '<input type="checkbox" id="bkPhotos" checked> include photos</label>'+
-        '</div>'+
-        '<textarea id="bkText" rows="4" placeholder="Tap “Show backup code” to get a code with all your lists — save it anywhere (notes app, email to yourself). To restore, paste a code here and tap “Restore from code”."></textarea>'+
-        '<div class="bk-note" id="bkNote"></div>'+
-      '</div>';
-    html+='<div class="section-lbl">Saved backups (this device)</div>'+
+    /* the one backup action worth having to hand while you're looking at your
+       collection: take a snapshot before you change something. Everything else
+       about backups — the code, the file, the list, restoring — is a Settings job. */
+    html+='<div class="section-lbl">Backup</div>'+
       '<div class="backup">'+
         '<div class="bk-btns">'+
           '<button class="chipbtn" id="bkSave" type="button" style="color:#fff;background:var(--accent);border-color:var(--accent);">Save a backup now</button>'+
           '<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;font-weight:600;">'+
           '<input type="checkbox" id="bkSavePhotos" checked> include photos</label>'+
+          '<button class="chipbtn" id="toSettings" type="button">⚙ All backups</button>'+
         '</div>'+
-        '<div id="bkList"></div>'+
-        '<div class="bk-note">Snapshots are kept on this device (up to 20). Perfect before a big change — save one, and you can roll back anytime. The app also saves one by itself just before any restore, so even restoring the wrong backup can be undone. They are not uploaded to the cloud. Backups that happen <b>by themselves</b> are set up in <b>⚙ Settings</b>.</div>'+
+        '<div class="bk-note" id="bkSaveNote">Takes a snapshot of everything onto this device — worth doing before any big change. The backup code, loading from a file, and the list of snapshots you can restore are all in <b>⚙ Settings</b>.</div>'+
       '</div>';
     pg.innerHTML=html;
+    if($('toSettings'))$('toSettings').addEventListener('click',function(){navTo('settings');});
+    wireSaveNow();
+    if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
+    wireDisplay(pg);
+    renderStorageMeter();
+  }
+  /* "Save a backup now" is on Overview; the list it lands in is in Settings, so
+     the button says out loud where its snapshot went */
+  function wireSaveNow(){
+    if(!$('bkSave'))return;
+    $('bkSave').addEventListener('click',function(){
+      saveBackup($('bkSavePhotos').checked,function(){
+        renderBackupList();
+        var n=$('bkSaveNote');
+        if(n)n.innerHTML='Snapshot saved ✓ — it is in the list under <b>⚙ Settings → Saved backups</b>, ready to restore.';
+      });
+    });
+  }
+  function wireBackupBox(){
+    if(!$('bkShow'))return;
     function backupJson(){
       var withPhotos=$('bkPhotos').checked;
       return JSON.stringify(withPhotos?state:strippedState());
@@ -1664,13 +1673,6 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       /* escape hatch: snapshot what's here now, so even a wrong restore can be undone */
       saveBackup(true,function(){applyRestored(s);},'safety');
     });
-    $('bkSave').addEventListener('click',function(){
-      saveBackup($('bkSavePhotos').checked,function(){renderBackupList();});
-    });
-    if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
-    wireDisplay(pg);
-    renderStorageMeter();
-    renderBackupList();
   }
 
   /* ---------- settings ----------
@@ -1679,17 +1681,33 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      backups that take themselves. */
   function renderSettings(){
     var pg=$('page');
-    var html='<div class="ovsub" style="margin:2px 2px 12px;">Things that run by themselves. Your summary, display, storage and hand-made backups are on the <b>⌂ Overview</b> page.</div>';
+    var html='<div class="ovsub" style="margin:2px 2px 12px;">Sync, and everything to do with backups. Your summary, how the app looks and what is using the space are on the <b>⌂ Overview</b> page, along with the <b>Save a backup now</b> button.</div>';
     html+=syncSectionHtml();
-    html+='<div class="section-lbl">Backups that happen by themselves</div>'+
+    html+='<div class="section-lbl">Backup code &amp; files</div>'+
+      '<div class="backup">'+
+        '<div class="bk-btns">'+
+          '<button class="chipbtn" id="bkShow" type="button">Show backup code</button>'+
+          '<button class="chipbtn" id="bkCopy" type="button">Copy</button>'+
+          '<button class="chipbtn" id="bkFile" type="button">⬇ Download as file</button>'+
+          '<button class="chipbtn" id="bkLoad" type="button">⬆ Load from file</button>'+
+          '<button class="chipbtn" id="bkRestore" type="button" style="color:var(--accent);border-color:var(--accent);">Restore from code</button>'+
+          '<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;font-weight:600;">'+
+          '<input type="checkbox" id="bkPhotos" checked> include photos</label>'+
+        '</div>'+
+        '<textarea id="bkText" rows="4" placeholder="Tap “Show backup code” to get a code with all your lists — save it anywhere (notes app, email to yourself). To restore, paste a code here and tap “Restore from code”."></textarea>'+
+        '<div class="bk-note" id="bkNote"></div>'+
+      '</div>';
+    html+='<div class="section-lbl">Saved backups (this device)</div>'+
       '<div class="backup">'+
         '<div class="bk-btns" style="align-items:center;">'+
-          '<span class="pd-lbl" style="margin:0;align-self:center;">Save a snapshot:</span>'+
+          '<span class="pd-lbl" style="margin:0;align-self:center;">By itself:</span>'+
           '<button class="chipbtn'+(state.autoBackup==='off'?' on':'')+'" data-auto="off" type="button">Never</button>'+
           '<button class="chipbtn'+(state.autoBackup==='daily'?' on':'')+'" data-auto="daily" type="button">Daily</button>'+
           '<button class="chipbtn'+(state.autoBackup==='weekly'?' on':'')+'" data-auto="weekly" type="button">Weekly</button>'+
         '</div>'+
         '<div class="bk-note" id="autoNote"></div>'+
+        '<div id="bkList"></div>'+
+        '<div class="bk-note">Up to 20 are kept on this device; the oldest drops off. The app also saves one by itself just before any restore, so even restoring the wrong backup can be undone. They are not uploaded to the cloud.</div>'+
       '</div>';
     html+='<div class="section-lbl">This app</div>'+
       '<div class="backup">'+
@@ -1701,15 +1719,17 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       state.autoBackup=b.getAttribute('data-auto');save();maybeAutoBackup(function(){renderSettings();});
     });});
     autoNoteFill();
+    wireBackupBox();
+    renderBackupList();
     wireSync();
   }
   function autoNoteFill(){
     var el=$('autoNote'); if(!el)return;
     var when=state.autoBackup;
     el.innerHTML=(when==='off')
-      ? 'Nothing is saved automatically. Snapshots you make yourself, and restoring from one, live on the <b>⌂ Overview</b> page.'
+      ? 'Nothing is saved automatically — only the snapshots you take with <b>Save a backup now</b> on the ⌂ Overview page.'
       : 'A snapshot of everything is taken '+(when==='daily'?'once a day':'once a week')+
-        ', the first time you open the app after it is due. Up to 20 are kept on this device; the oldest drops off. They are not uploaded anywhere.';
+        ', the first time you open the app after it is due.';
   }
   /* the display controls are wired the same way wherever they are shown */
   function wireDisplay(pg){
