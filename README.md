@@ -27,6 +27,12 @@ For every diamond painting you can track:
 - 📷 **Photos** — the seller's picture and your finished result, with crop, background cut-out, and a free "arrange" mode to place photos anywhere on the page
 - 📋 **Everything else** — status (wishlist / in progress / finished), progress %, rating, price, size, seller, kit code, start & finish dates, and your own tags
 
+### A rating that works itself out
+
+Tags come in three groups. **Good ＋** ones (*sharp print*, *extra drills*) are worth a point each, **bad −** ones (*wrinkled canvas*, *missing diamonds*) cost a point each, and the rest (*big project*, *glue/wax*) are just describing the kit and count for nothing. Start at 5 out of 10, add the good, subtract the bad — so ticking what a kit was actually like gives it a rating without you having to invent a number.
+
+Type a number yourself whenever you'd rather, and it stands until you press **↺ Use the tag score**. Any rating you'd already typed stays exactly as it was. Tap **edit list** beside Tags to move a tag between the three groups, or to add your own.
+
 ## Why you'll like it
 
 **"Do I already have this color?"** — the Find page answers the question every diamond painter asks. Tap any DMC number and instantly see which of your paintings use it (filtered by square/round if you want) — and mark the colours you have leftover drills of 🧺, so "do I own this?" gets a direct answer. A "Leftovers only" filter shows your whole stash at a glance, and **🧾 Check a kit list** takes a pasted colour list from a kit you're eyeing and reports what's new to you, what's in your leftovers, and what's already in your paintings — before you buy.

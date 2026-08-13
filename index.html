@@ -45,6 +45,7 @@ try{
     --od:#B0398F; --od-soft:#F9E9F4;
     --unk:#8A8494; --unk-soft:#EEEDF1;
     --star:#B98A2F; --star-soft:#F8EFDC;
+    --bad:#A8324B; --bad-soft:#F8E6EA;
   }
   .dp-app.dark{
     --bg:#16141B; --panel:#221F2A; --ink:#ECE9F2; --muted:#9E98AC;
@@ -54,6 +55,7 @@ try{
     --od:#E084C4; --od-soft:#33172B;
     --unk:#A79FB4; --unk-soft:#2A2733;
     --star:#E0B65F; --star-soft:#332A16;
+    --bad:#E58AA0; --bad-soft:#3A1E26;
   }
   .dp-app.dark img.ovthumb,.dp-app.dark .photo-grid img{filter:brightness(.94);}
   .dp-app{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -306,6 +308,17 @@ try{
   .pd-row{margin-bottom:9px;}
   .pd-lbl{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;}
   .selchips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  /* tags in three groups, so what a tag does to the rating is visible at a glance */
+  .tg-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%;margin-bottom:5px;}
+  .tg-lbl{font-size:11px;font-weight:800;letter-spacing:.2px;flex:0 0 auto;margin-right:2px;}
+  .tg-lbl.tg-pos{color:var(--rd);} .tg-lbl.tg-neg{color:var(--bad);} .tg-lbl.tg-plain{color:var(--muted);}
+  .selchip.tg-pos{border-color:var(--rd);} .selchip.tg-pos.on{background:var(--rd);border-color:var(--rd);color:#fff;}
+  .selchip.tg-neg{border-color:var(--bad);} .selchip.tg-neg.on{background:var(--bad);border-color:var(--bad);color:#fff;}
+  .tg-x{color:var(--bad);font-weight:900;}
+  .selchip.on .tg-x{color:#fff;}
+  /* on a card and on the project page, a tag keeps the colour of what it means */
+  .ovtag.tg-pos{background:var(--rd-soft);color:var(--rd);}
+  .ovtag.tg-neg{background:var(--bad-soft);color:var(--bad);}
   .selchip{border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 11px;
     font-size:13px;font-weight:700;cursor:pointer;position:relative;}
   .selchip.on{background:var(--accent);border-color:var(--accent);color:#fff;}
@@ -487,7 +500,43 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     {id:'done',     label:'Finished',    bg:'#E6F6EE', fg:'#2F9E63'}
   ];
   var STATUSMAP={}; STATUSES.forEach(function(s){STATUSMAP[s.id]=s;});
-  var DEFAULT_TAGS=['good','bad diamonds','boring','wrong shade','unclear','missing diamonds','beautiful colors'];
+  /* Tags now carry a sign, and the signed ones add up to a rating: every good
+     thing is worth a point, every bad thing costs one. Plenty of the words you'd
+     use about a kit aren't praise or complaint at all though — "big project",
+     "glue/wax" — so a tag can also be a plain description that counts for
+     nothing. Every sign here is only a starting point; each one can be changed. */
+  var DEFAULT_TAGS=['good','beautiful colors','favourite','sharp print','good coverage','extra drills',
+    'bad diamonds','missing diamonds','kit missing pieces','wrong shade','blurry print','wrinkled canvas',
+    'weak glue','boring','unclear',
+    'hard','easy','big project','glue/wax','sticky canvas','poured'];
+  var DEFAULT_TAG_SIGNS={
+    'good':1,'beautiful colors':1,'favourite':1,'sharp print':1,'good coverage':1,'extra drills':1,
+    'bad diamonds':-1,'missing diamonds':-1,'kit missing pieces':-1,'wrong shade':-1,'blurry print':-1,
+    'wrinkled canvas':-1,'weak glue':-1,'boring':-1,'unclear':-1
+  };
+  function tagSign(t){var m=state.tagSign||{};return m[t]===1?1:(m[t]===-1?-1:0);}
+  function tagTally(p){
+    var pos=0,neg=0;
+    Object.keys((p&&p.tags)||{}).forEach(function(t){var s=tagSign(t);if(s===1)pos++;else if(s===-1)neg++;});
+    return {pos:pos,neg:neg,sum:pos-neg,n:pos+neg};
+  }
+  /* five out of ten is the middle; each good tag is a step up from there and each
+     bad one a step down. No signed tags at all means no opinion, not a five. */
+  function autoRating(p){
+    var t=tagTally(p);
+    if(!t.n)return null;
+    return Math.max(0,Math.min(10,5+t.sum));
+  }
+  function typedRating(p){
+    return (p.rating===null||p.rating===undefined||p.rating==='')?null:Number(p.rating);
+  }
+  /* a rating you typed always wins; otherwise the tags speak, and if they have
+     nothing to say an older typed rating still stands */
+  function ratingOf(p){
+    if(p&&p.ratingOwn)return typedRating(p);
+    var a=autoRating(p);
+    return (a===null)?typedRating(p):a;
+  }
   var DEFAULT_SIZES=['20×20','30×30','30×40','40×50','50×70'];
   /* three kinds of project share one record; sections show or hide by kind, and
      switching kind only hides a section — nothing is ever thrown away */
@@ -609,9 +658,19 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     return '<span class="badge unk">'+k.sym+' '+k.label+'</span>';
   }
   function coverLabels(p){return kindOf(p)==='drawing'?['Main','']:['Sold','Result'];}
+  function ratingWhy(p){
+    var t=tagTally(p), a=autoRating(p);
+    var made=t.n?('Your tags make it <b>'+a+'</b> — 5 to start, '+
+      (t.pos?('＋'+t.pos+' good'):'')+(t.pos&&t.neg?', ':'')+(t.neg?('−'+t.neg+' bad'):'')+'.')
+      :'Tick some good or bad tags below and a rating works itself out — or just type one.';
+    if(p.ratingOwn&&typedRating(p)!==null)
+      return 'Showing the <b>'+typedRating(p)+'</b> you typed.'+(t.n?(' '+made.replace('Your tags make it','Your tags would make it')):'');
+    return made;
+  }
   function ratingBadge(p){
-    if(p.rating===null||p.rating===undefined||p.rating==='')return '';
-    return '<span class="badge star">★ '+Number(p.rating).toFixed(1)+'</span>';
+    var r=ratingOf(p);
+    if(r===null||isNaN(r))return '';
+    return '<span class="badge star">★ '+Number(r).toFixed(1)+'</span>';
   }
   function statusBadge(p){
     var s=p.status&&STATUSMAP[p.status];
@@ -913,6 +972,19 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(!s.gone)s.gone={};
     if(!s.sellers)s.sellers=[];
     if(!s.tags||!s.tags.length)s.tags=DEFAULT_TAGS.slice();
+    /* the extra ready-made tags arrive once, so deleting one doesn't bring it
+       back on the next start */
+    if(!s.tagsV2){
+      DEFAULT_TAGS.forEach(function(t){if(s.tags.indexOf(t)===-1)s.tags.push(t);});
+      s.tagsV2=1;
+    }
+    if(!s.tagSign)s.tagSign={};
+    if(!s.tagSignSeeded){
+      Object.keys(DEFAULT_TAG_SIGNS).forEach(function(t){
+        if(!(t in s.tagSign))s.tagSign[t]=DEFAULT_TAG_SIGNS[t];
+      });
+      s.tagSignSeeded=1;
+    }
     if(!s.sizes||!s.sizes.length)s.sizes=DEFAULT_SIZES.slice();
     if(!s.media||!s.media.length)s.media=DEFAULT_MEDIA.slice();
     if(!s.pKind)s.pKind='all';
@@ -926,6 +998,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!p.photos)p.photos=[];
       if(!('seller' in p))p.seller=null;
       if(!('rating' in p))p.rating=null;
+      /* a rating typed before tags could work one out is still yours: it is
+         marked as your own so the tags never quietly overwrite it */
+      if(!('ratingOwn' in p))p.ratingOwn=(p.rating!==null&&p.rating!==undefined&&p.rating!=='');
       if(!p.tags)p.tags={};
       if(!('code' in p))p.code='';
       if(!('size' in p))p.size=null;
@@ -1648,7 +1723,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       byKind[kindOf(p)]++;
       if(p.status&&byStatus.hasOwnProperty(p.status))byStatus[p.status]++;
       if(p.type&&byType.hasOwnProperty(p.type))byType[p.type]++;
-      if(p.rating!==null&&p.rating!==undefined&&p.rating!==''){rsum+=Number(p.rating);rn++;}
+      var rr=ratingOf(p);
+      if(rr!==null&&!isNaN(rr)){rsum+=rr;rn++;}
       colors+=Object.keys(p.colors||{}).length;
       var pr=parsePrice(p.price);
       if(!isNaN(pr)){spend+=pr;spendN++;}
@@ -1683,7 +1759,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         p.name||'', KINDMAP[kindOf(p)].label,
         (p.status&&STATUSMAP[p.status])?STATUSMAP[p.status].label:'',
         p.progress||0,
-        (p.rating===null||p.rating===undefined||p.rating==='')?'':p.rating,
+        (function(){var r=ratingOf(p);return (r===null||isNaN(r))?'':r;})(),
         p.price||'', p.size||'', p.seller||'', p.code||'',
         (p.type&&TYPES[p.type])?TYPES[p.type].label:'',
         p.started||'', p.finished||'',
@@ -1804,7 +1880,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var style=cardStyle();
     var fins=finTagsHtml(p);
     var tagKeys=Object.keys(p.tags||{});
-    var tagHtml=tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag">'+esc(t)+'</span>';}).join('')+'</div>'):'';
+    var tagHtml=tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag'+(tagSign(t)===1?' tg-pos':(tagSign(t)===-1?' tg-neg':''))+'">'+esc(t)+'</span>';}).join('')+'</div>'):'';
     var sub=cardSub(p,style==='tile'), prog=progHtml(p);
     var st=p.status&&STATUSMAP[p.status];
     var open='<div class="ovcard st-'+style+(st?' stripe':'')+(selectedIds[p.id]?' picked':'')+'" data-id="'+p.id+'"'+
@@ -1862,8 +1938,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     }
     if(state.ovSort==='rating'){
       list.sort(function(a,b){
-        var ra=(a.rating===null||a.rating===undefined||a.rating==='')?-1:Number(a.rating);
-        var rb=(b.rating===null||b.rating===undefined||b.rating==='')?-1:Number(b.rating);
+        var ra=ratingOf(a); ra=(ra===null||isNaN(ra))?-1:ra;
+        var rb=ratingOf(b); rb=(rb===null||isNaN(rb))?-1:rb;
         return rb-ra;
       });
     } else if(state.ovSort==='edited'){
@@ -3474,7 +3550,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
             (fins?'<div class="ovfins">'+fins+'</div>':'')+
             (rows?'<div class="vw-list">'+rows+'</div>':'')+
             mediaHtml+
-            (tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag">'+esc(t)+'</span>';}).join('')+'</div>'):'')+
+            (tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag'+(tagSign(t)===1?' tg-pos':(tagSign(t)===-1?' tg-neg':''))+'">'+esc(t)+'</span>';}).join('')+'</div>'):'')+
             prog+notesHtml+
           '</div>'+
           (isDraw?'':sideHtml(1,'Result'))+
@@ -3605,12 +3681,23 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     sellerChips+='<span class="addinline"><input id="newSeller" type="text" maxlength="40" placeholder="＋ new seller"><button class="pbtn" id="addSeller" type="button">Add</button></span>';
 
+    /* the good ones first, the bad ones under them, and the words that are only
+       describing the kit last — the order says what each group does to the score */
     var tgEdit=!!editLists.tag, tagChips='';
-    state.tags.forEach(function(tg){
-      var on=!!p.tags[tg];
-      tagChips+='<button class="selchip'+(on&&!tgEdit?' on':'')+'" data-tag="'+esc(tg)+'" type="button"'+(tgEdit?rmStyle:'')+'>'+(tgEdit?'✕ ':'')+esc(tg)+'</button>';
+    var GROUPS=[[1,'Good ＋1 each','tg-pos'],[-1,'Bad −1 each','tg-neg'],[0,'Just describing (no effect)','tg-plain']];
+    GROUPS.forEach(function(g){
+      var list=state.tags.filter(function(tg){return tagSign(tg)===g[0];});
+      if(!list.length&&!(tgEdit&&g[0]===0))return;
+      tagChips+='<div class="tg-row"><span class="tg-lbl '+g[2]+'">'+g[1]+'</span>';
+      list.forEach(function(tg){
+        var on=!!p.tags[tg];
+        tagChips+='<button class="selchip '+g[2]+(on&&!tgEdit?' on':'')+'" data-tag="'+esc(tg)+'" type="button">'+
+          (tgEdit?'<span class="tg-x" data-rmtag="'+esc(tg)+'">✕</span> ':'')+esc(tg)+'</button>';
+      });
+      tagChips+='</div>';
     });
-    tagChips+='<span class="addinline"><input id="newTag" type="text" maxlength="40" placeholder="＋ new tag"><button class="pbtn" id="addTag" type="button">Add</button></span>';
+    tagChips+='<div class="tg-row"><span class="addinline"><input id="newTag" type="text" maxlength="40" placeholder="＋ new tag"><button class="pbtn" id="addTag" type="button">Add</button></span>'+
+      (tgEdit?'<span class="fb-hint" style="flex:1 1 100%;margin-top:4px;">Tap a tag to move it: describing → good ＋ → bad − → describing. Tap its ✕ to remove it from the list and from every project.</span>':'')+'</div>';
 
     /* media & tools — shared by paint-by-number and drawings */
     var mdEdit=!!editLists.media, mediaChips='';
@@ -3709,8 +3796,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Kit code</div>'+
             '<input class="codeinput" id="kitCode" type="text" maxlength="60" placeholder="e.g. DP-4471, seller\u2019s article nr\u2026" value="'+esc(p.code||'')+'"></div>'):'')+
           '<div class="pd-row"><div class="pd-lbl">Size (cm)'+listEditBtn('size',state.sizes.length)+'</div><div class="selchips">'+sizeChips+'</div></div>'+
-          '<div class="pd-row"><div class="pd-lbl">Rating (0–10, e.g. 5.6)</div>'+
-            '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="'+(p.rating===null?'':p.rating)+'"><span id="ratingBadge">'+ratingBadge(p)+'</span></div></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Rating (0–10)</div>'+
+            '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" placeholder="'+
+              (autoRating(p)===null?'—':String(autoRating(p)))+'" value="'+(p.ratingOwn&&p.rating!==null?p.rating:'')+'">'+
+              '<span id="ratingBadge">'+ratingBadge(p)+'</span>'+
+              (autoRating(p)!==null?'<button class="pbtn" id="ratingAuto" type="button"'+(p.ratingOwn?'':' hidden')+'>↺ Use the tag score</button>':'')+
+            '</div>'+
+            '<div class="fb-hint" id="ratingWhy">'+ratingWhy(p)+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input class="prog-range" id="progRange" type="range" min="0" max="100" step="5" value="'+(p.progress||0)+'" style="flex:1;--fill:'+(p.progress||0)+'%;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
           (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Price</div><input class="codeinput" id="priceInput" type="text" maxlength="20" placeholder="e.g. €25 or 25" value="'+esc(p.price||'')+'"></div>'):'')+
           '<div class="pd-row"><div class="pd-lbl">Dates</div><div class="selchips" style="gap:10px;">'+dateInputs+'</div></div>'+
@@ -3903,18 +3995,29 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     /* rating */
     $('rating').addEventListener('input',function(e){
       var v=e.target.value;
-      if(v===''){p.rating=null;}
+      /* typing a number takes the rating off the tags; clearing the box gives it
+         back to them, which is why an empty box shows the tag score in grey */
+      if(v===''){p.rating=null;p.ratingOwn=false;}
       else{
         var n=Number(v);
         if(isNaN(n))return;
         if(n<0)n=0; if(n>10)n=10;
         p.rating=Math.round(n*10)/10;
+        p.ratingOwn=true;
         if(Number(v)>10||Number(v)<0)e.target.value=String(p.rating);
       }
       var rb=$('ratingBadge'); if(rb)rb.innerHTML=ratingBadge(p);
+      var rw=$('ratingWhy'); if(rw)rw.innerHTML=ratingWhy(p);
+      /* the way back to the tag score has to appear the moment you take over,
+         not after you happen to tap somewhere else */
+      var ra=$('ratingAuto'); if(ra)ra.hidden=!p.ratingOwn;
       saveEdit(); renderTabsOnly();
     });
     $('rating').addEventListener('blur',function(){renderPainting();});
+    if($('ratingAuto'))$('ratingAuto').addEventListener('click',function(){
+      p.ratingOwn=false; p.rating=null; renderPainting(); saveEdit();
+      toast('Rating back to the tag score ✓',1500);
+    });
 
     /* kit code */
     if($('kitCode'))$('kitCode').addEventListener('input',function(e){p.code=e.target.value;saveEdit();});
@@ -4029,13 +4132,24 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
     /* tags */
     pg.querySelectorAll('[data-tag]').forEach(function(b){
-      b.addEventListener('click',function(){
+      b.addEventListener('click',function(e){
         var tg=b.getAttribute('data-tag');
         if(editLists.tag){
-          if(!twoTap('rmtag'+tg,b,'✕ remove?'))return;
-          state.tags=state.tags.filter(function(x){return x!==tg;});
-          state.paintings.forEach(function(pp){if(pp.tags)delete pp.tags[tg];});
-          renderPainting(); saveEdit(); toast('Tag removed from every painting',1500);
+          /* the ✕ removes the tag everywhere; the chip itself moves it between
+             the good, bad and describing groups */
+          var x=(e.target&&e.target.getAttribute)?e.target.getAttribute('data-rmtag'):null;
+          if(x){
+            if(!twoTap('rmtag'+tg,b,'✕ remove?'))return;
+            state.tags=state.tags.filter(function(y){return y!==tg;});
+            state.paintings.forEach(function(pp){if(pp.tags)delete pp.tags[tg];});
+            if(state.tagSign)delete state.tagSign[tg];
+            renderPainting(); saveEdit(); toast('Tag removed from every project',1600);
+            return;
+          }
+          if(!state.tagSign)state.tagSign={};
+          var s=tagSign(tg);
+          if(s===0)state.tagSign[tg]=1; else if(s===1)state.tagSign[tg]=-1; else delete state.tagSign[tg];
+          renderPainting(); saveEdit();
           return;
         }
         if(p.tags[tg])delete p.tags[tg]; else p.tags[tg]=1;
@@ -4264,8 +4378,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function sortByRating(list){
     return list.slice().sort(function(a,b){
-      var ra=(a.rating===null||a.rating===undefined||a.rating==='')?-1:Number(a.rating);
-      var rb=(b.rating===null||b.rating===undefined||b.rating==='')?-1:Number(b.rating);
+      var ra=ratingOf(a); ra=(ra===null||isNaN(ra))?-1:ra;
+      var rb=ratingOf(b); rb=(rb===null||isNaN(rb))?-1:rb;
       return rb-ra;
     });
   }
