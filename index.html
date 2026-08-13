@@ -280,6 +280,11 @@ try{
   .jbtn{border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;
     padding:4px 11px;font-size:12.5px;font-weight:700;cursor:pointer;}
   .jbtn:active{transform:scale(.97);}
+  /* shapes sit with the search box, and say so loudly when one is on */
+  .fshapes{display:flex;gap:5px;flex:0 0 auto;}
+  .fshapes .tbtn{padding:7px 12px;font-size:15px;}
+  .fbanner{background:var(--accent-soft);color:var(--accent);border:1.5px solid var(--accent);border-radius:11px;
+    padding:7px 12px;font-size:12.5px;font-weight:700;margin:0 2px 10px;cursor:pointer;}
   .backup{background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-top:6px;}
   .bk-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
   .backup textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:12px;
@@ -596,7 +601,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      each other forever if they travelled through cloud sync like the rest of the
      settings do. So they live in this browser's own small storage instead. */
   var SIZE={scale:null,layout:'auto'};
-  var query='', findQuery='', findType='any', findStash=false, pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null, expandedMedia=null;
+  var query='', findQuery='', findType='any', findStash=false, pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null, expandedMedia=null, expandedTag=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, editLists={}, armed={};
   /* the name as it stood when the box was opened (so Cancel has something to put
      back), and a one-shot flag so the box is focused when it opens and never
@@ -1453,7 +1458,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       render(); save(); pushHistory(); pushNav(); scrollTo(0);
     },false);
   }
-  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
+  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;expandedTag=null;expandedMedia=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
     showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;chartPick=false;
     findPaste=false;findPasteText='';findPasteReview=null;}
 
@@ -4634,17 +4639,23 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
   function renderFind(){
     var pg=$('page');
+    /* The shapes used to sit in a row of their own above the search box, labelled
+       "Diamond type:", and were so easy to walk past that they were forgotten
+       entirely. They belong with the search box, because narrowing by shape is
+       the same act as searching, and they are toggles now: tap ■ for square
+       only, tap it again for all three. */
     pg.innerHTML=
-      '<div class="typerow"><span class="lbl">Diamond type:</span>'+
-        '<button class="tbtn any'+(findType==='any'?' on':'')+'" data-t="any" type="button">All</button>'+
-        '<button class="tbtn sq'+(findType==='square'?' on':'')+'" data-t="square" type="button">■ Square</button>'+
-        '<button class="tbtn rd'+(findType==='round'?' on':'')+'" data-t="round" type="button">● Round</button>'+
-        '<button class="tbtn od'+(findType==='odd'?' on':'')+'" data-t="odd" type="button">✦ Odd</button>'+
+      '<div class="toolbar"><label class="search">🔎<input id="fq" type="text" inputmode="search" placeholder="Search a number, name, size or tag…" value="'+esc(findQuery)+'"></label>'+
+        '<span class="fshapes">'+
+          '<button class="tbtn sq'+(findType==='square'?' on':'')+'" data-t="square" type="button" title="Count square-drill projects only">■</button>'+
+          '<button class="tbtn rd'+(findType==='round'?' on':'')+'" data-t="round" type="button" title="Count round-drill projects only">●</button>'+
+          '<button class="tbtn od'+(findType==='odd'?' on':'')+'" data-t="odd" type="button" title="Count odd-drill projects only">✦</button>'+
+        '</span>'+
         '<button class="chipbtn'+(findStash?' on':'')+'" id="fStash" type="button" title="Show only colours you have leftovers of">🧺 Leftovers only</button>'+
-      '</div>'+
-      '<div class="toolbar"><label class="search">🔎<input id="fq" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(findQuery)+'"></label>'+
         '<button class="chipbtn'+(findPaste?' on':'')+'" id="fPaste" type="button" title="Paste a kit’s colour list and see what you already have">🧾 Check a kit list</button>'+
       '</div>'+
+      (findType!=='any'?('<div class="fbanner" id="fClear">Counting <b>'+TYPES[findType].sym+' '+esc(TYPES[findType].label.toLowerCase())+
+        '</b> projects only — tap to count them all again</div>'):'')+
       (findPaste?'<div class="backup" id="fPasteBox" style="margin-bottom:10px;"></div>':'')+
       '<div class="jumpbar" id="fjump"></div>'+
       '<div class="meta"><span id="fmeta"></span><span>Tap anything to see which paintings have it</span></div>'+
@@ -4652,8 +4663,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div id="fcolorsec"></div>'+
       '<div class="empty" id="femptyMsg" style="display:none"></div>';
     pg.querySelectorAll('.tbtn').forEach(function(b){
-      b.addEventListener('click',function(){findType=b.getAttribute('data-t');renderFind();});
+      b.addEventListener('click',function(){
+        var t=b.getAttribute('data-t');
+        findType=(findType===t)?'any':t;   /* the same shape again means all of them */
+        renderFind();
+      });
     });
+    if($('fClear'))$('fClear').addEventListener('click',function(){findType='any';renderFind();});
     $('fStash').addEventListener('click',function(){findStash=!findStash;renderFind();});
     $('fPaste').addEventListener('click',function(){
       findPaste=!findPaste;
@@ -4782,6 +4798,42 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         }
       });
       fs.appendChild(sgrid);
+    }
+
+    /* tags — "which of mine were good?" is the same kind of question as "which
+       are 30×40?", and it was the one thing you couldn't ask here. A tag belongs
+       to any kind of project, so the drill-shape filter doesn't apply to it. */
+    var tagsShown=findStash?[]:state.tags.filter(function(t){return !q||t.toLowerCase().indexOf(q)!==-1;})
+      .filter(function(t){return state.paintings.some(function(p){return p.tags&&p.tags[t];});});
+    if(tagsShown.length){
+      secs.push({key:'tags',label:'Tags',n:tagsShown.length});
+      var tlbl=document.createElement('div');
+      tlbl.innerHTML=findHead('tags','Tags',tagsShown.length);
+      fs.appendChild(tlbl.firstChild);
+      var tgrid=document.createElement('div'); tgrid.className='grid';
+      tgrid.id='sec-tags';
+      if(findClosed('tags'))tgrid.style.display='none';
+      tagsShown.forEach(function(tg){
+        var owners=state.paintings.filter(function(p){return p.tags&&p.tags[tg];});
+        var sgn=tagSign(tg);
+        var c=document.createElement('div');
+        c.className='card'+(expandedTag===tg?' open':'');
+        c.innerHTML='<div class="drill spec" style="background-color:'+(sgn===1?'var(--rd)':(sgn===-1?'var(--bad)':'var(--unk)'))+
+            ';font-size:12px;">'+(sgn===1?'＋':(sgn===-1?'−':'·'))+'</div>'+
+          '<div class="ctext"><div class="code">'+esc(tg)+'</div><div class="cname">'+
+            (sgn===1?'good tag':(sgn===-1?'bad tag':'describing'))+'</div></div>'+
+          '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
+        c.addEventListener('click',function(){
+          expandedTag=(expandedTag===tg)?null:tg; expandedColor=null; expandedSpec=null; expandedSize=null; expandedMedia=null;
+          renderFindLists();
+        });
+        tgrid.appendChild(c);
+        if(expandedTag===tg){
+          var head=esc(tg)+' — '+owners.length+' project'+(owners.length===1?'':'s')+':';
+          tgrid.appendChild(expanderEl(head,owners));
+        }
+      });
+      fs.appendChild(tgrid);
     }
 
     /* media & tools — spans paint-by-number and drawings, so the diamond-type

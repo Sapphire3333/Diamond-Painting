@@ -35,7 +35,7 @@ Type a number yourself whenever you'd rather, and it stands until you press **�
 
 ## Why you'll like it
 
-**"Do I already have this color?"** — the Find page answers the question every diamond painter asks. Tap any DMC number and instantly see which of your paintings use it (filtered by square/round if you want) — and mark the colours you have leftover drills of 🧺, so "do I own this?" gets a direct answer. A "Leftovers only" filter shows your whole stash at a glance, and **🧾 Check a kit list** takes a pasted colour list from a kit you're eyeing and reports what's new to you, what's in your leftovers, and what's already in your paintings — before you buy.
+**"Do I already have this color?"** — the Find page answers the question every diamond painter asks. Tap any DMC number and instantly see which of your paintings use it — or tap a **tag** to ask a different question, like which of your kits you marked *good* or *wrinkled canvas*. The **■ ● ✦** buttons beside the search box narrow every count to one drill shape (tap the same one again for all of them) — and mark the colours you have leftover drills of 🧺, so "do I own this?" gets a direct answer. A "Leftovers only" filter shows your whole stash at a glance, and **🧾 Check a kit list** takes a pasted colour list from a kit you're eyeing and reports what's new to you, what's in your leftovers, and what's already in your paintings — before you buy.
 
 **It works everywhere.** It's a website, so it runs on any phone, tablet, or PC. Add it to your home screen and it installs like a real app and works offline.
 
@@ -66,7 +66,7 @@ After that it opens full-screen from its own icon and works offline.
 |---|---|
 | **⌂ Overview** | Stats about your collection, CSV export for Excel, how the app looks (dark mode, text size, accent, card style, background), what's using the space, and **Save a backup now** |
 | **🖼 Projects** | Everything you've made — the search box and ↶ undo stay out; **▸ Filters & sorting** folds away the rest (kind, search field, grouping, sorting, multi-select), and anything you've switched on is spelled out beside the button so a filter is never left on invisibly |
-| **🔎 Find** | Look up any DMC color, size, special diamond or medium and see which projects use it — every section folds away, and a **Jump to** bar takes you straight to one |
+| **🔎 Find** | Look up any DMC color, size, tag, special diamond or medium and see which projects have it — every section folds away, and a **Jump to** bar takes you straight to one |
 | **⚙ Settings** | Cloud sync and logout, the backup code and files, your saved snapshots, and backups that take themselves daily or weekly |
 | **+ New project** | Adds a project (same kind as the last one you made) |
 
