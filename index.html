@@ -241,6 +241,11 @@ try{
   .ovcard.picked{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset;}
   /* ---- arrange mode ---- */
   .arr-layer{position:absolute;left:0;top:0;width:100%;pointer-events:none;z-index:30;}
+  /* sent behind the page: under the cards and the words, above the page itself.
+     Cards have a solid colour of their own, so a photo back here shows in the
+     margins and the gaps — fade it and it reads as a watermark. */
+  .arr-layer.behind{z-index:0;}
+  .arr-layer.behind .arr-img{box-shadow:none;pointer-events:none;cursor:default;}
   .arr-img{position:absolute;display:block;cursor:grab;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,.25);
     user-select:none;-webkit-user-drag:none;pointer-events:auto;touch-action:none;}
   .arr-img.sel{outline:3px solid var(--accent);outline-offset:2px;}
@@ -3267,6 +3272,22 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
   }
 
+  /* Only for the photo in hand: fading a picture and sending it behind the page
+     are things you do to one of them, so with none selected the row isn't there
+     at all rather than sitting greyed out saying "pick a photo first". */
+  function fadeRowHtml(p){
+    var ph=(arrSel>=0&&arrSel<p.photos.length)?p.photos[arrSel]:null;
+    if(!ph)return '';
+    var op=Math.round((ph.op==null?1:ph.op)*100);
+    return '<div class="photo-btns arr-fade">'+
+      '<span class="pd-lbl" style="margin:0;align-self:center;">Fade:</span>'+
+      '<input class="prog-range" id="arrOp" type="range" min="10" max="100" step="5" value="'+op+
+        '" style="flex:1 1 130px;max-width:220px;--fill:'+((op-10)/90*100)+'%;">'+
+      '<span id="arrOpVal" style="font-weight:800;font-size:12px;min-width:38px;">'+op+'%</span>'+
+      '<button class="pbtn'+(ph.back?' on':'')+'" id="arrBack" type="button">'+
+        (ph.back?'▣ Behind the page':'▢ Send behind the page')+'</button>'+
+    '</div>';
+  }
   function arrangeUiHtml(p){
     var h='<div class="arr-bar">'+
       '<div class="photo-btns">'+
@@ -3285,6 +3306,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="pbtn" id="arrReset" type="button">⤺ Reset layout</button>'+
         '<button class="pbtn danger" id="arrDel" type="button">✕ Remove</button>'+
       '</div>'+
+      /* only for the photo in hand: fading it and sending it behind are things
+         you do to one picture, and offering them with nothing selected would
+         just be two more buttons that say "pick a photo first" */
+      fadeRowHtml(p)+
       '<div class="arr-hint">'+
         (p.edit===false
           ? 'The <b>Sold</b> and <b>Result</b> covers stay put — left and right of the details. Everything from the third photo on can be dragged anywhere on this page. '
@@ -3293,10 +3318,43 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '</div>';
     return h;
   }
+  /* The page has to be long enough to hold the photos AND to scroll clear of the
+     tools bar. It was neither: the page's length was measured once when the
+     layer was built, so a photo dragged down or made bigger grew past the end of
+     the page and there was nothing left to scroll — it stayed pinned under the
+     bar. And the room left for the bar was a fixed 210px guess, while the bar's
+     real height depends on how the buttons wrap and how big your text is. */
+  function fitArrLayer(){
+    var layer=document.getElementById('arrLayer'); if(!layer)return;
+    var host=layer.parentElement, pg=$('page');
+    /* measure the page without the layer in it — an absolutely-placed layer
+       counts towards its parent's height, so measuring with it would make each
+       pass a little taller than the last, forever */
+    layer.style.height='0px';
+    var base=Math.max(host.scrollHeight,400);
+    var lowest=0;
+    layer.querySelectorAll('.arr-img').forEach(function(im){
+      lowest=Math.max(lowest,im.offsetTop+im.offsetHeight);
+    });
+    /* Two different bottoms need clearing, and padding on the page only fixes one
+       of them. The page's own padding holds the content clear of the bar — but a
+       floating photo is positioned absolutely, so it lives outside the page's box
+       entirely and the padding is nowhere near it. What extends the scrollable
+       area past a photo is this layer's own height, so the room for the bar is
+       added HERE, below the lowest photo. */
+    var z=appZoom();
+    var bar=document.querySelector('.arr-bar');
+    var barH=(arrangeMode&&bar)?(bar.getBoundingClientRect().height/z):0;
+    layer.style.height=Math.max(base,lowest+barH+24)+'px';
+    var back=document.getElementById('arrLayerBack');
+    if(back)back.style.height=layer.style.height;
+    if(pg)pg.style.paddingBottom=barH?(barH+28)+'px':'';
+  }
   function buildArrLayer(p){
     var pg=$('page'); if(!pg)return;
     var old=document.getElementById('arrLayer'); if(old)old.remove();
-    pg.style.paddingBottom=arrangeMode?'210px':'';
+    var oldB=document.getElementById('arrLayerBack'); if(oldB)oldB.remove();
+    pg.style.paddingBottom='';
     /* view mode anchors the Sold and Result covers in the stage, so only the
        third photo onwards is free-floating there */
     var viewMode=(p.edit===false);
@@ -3314,6 +3372,15 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var layer=document.createElement('div');
     layer.id='arrLayer'; layer.className='arr-layer';
     layer.style.height=Math.max(host.scrollHeight,400)+'px';
+    /* photos sent behind the page live in their own layer underneath it — but
+       only once you've stopped arranging. While the tools are open everything is
+       in front, because a photo under the page is a photo you can't take hold of. */
+    var back=null;
+    if(!arrangeMode&&p.photos.some(function(ph){return ph&&ph.back;})){
+      back=document.createElement('div');
+      back.id='arrLayerBack'; back.className='arr-layer behind';
+      back.style.height=layer.style.height;
+    }
     var hostW=host.clientWidth||pg.clientWidth||0;
     /* a hidden or not-yet-laid-out page reports zero width; building now would
        migrate the stored coordinates against a bogus width and wreck the layout,
@@ -3339,19 +3406,23 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       lpx=Math.max(40-hostLeft-wpx,Math.min(vw-40-hostLeft,lpx));
       im.style.left=lpx+'px'; im.style.top=(photo.ay/100*hostW)+'px';
       im.style.width=photo.aw+'%'; im.style.transform='rotate('+photo.arot+'deg)';
-      layer.appendChild(im);
+      if(photo.op!=null&&photo.op<1)im.style.opacity=photo.op;
+      ((back&&photo.back)?back:layer).appendChild(im);
     });
+    if(back)host.appendChild(back);
     host.appendChild(layer);
+    var placed=[].concat([].slice.call(layer.querySelectorAll('.arr-img')),
+                         back?[].slice.call(back.querySelectorAll('.arr-img')):[]);
     if(arrangeMode)wireArrange(p,layer);
     else if(p.edit===false){
       /* view mode: tapping a photo opens it full-screen */
-      layer.querySelectorAll('.arr-img').forEach(function(im){
+      placed.forEach(function(im){
         im.addEventListener('click',function(){openLightbox(im.src);});
       });
     }
     else {
       /* not arranging: tapping a photo just selects it for the photo tools */
-      layer.querySelectorAll('.arr-img').forEach(function(im){
+      placed.forEach(function(im){
         im.addEventListener('click',function(){
           var i=parseInt(im.getAttribute('data-i'),10);
           selPhoto=(selPhoto===i)?-1:i;
@@ -3359,6 +3430,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         });
       });
     }
+    fitArrLayer();
   }
   function wireArrange(p,layer){
     if(!layer)return;
@@ -3400,6 +3472,23 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         x.classList.toggle('sel',parseInt(x.getAttribute('data-i'),10)===i);
       });
       placeHandles();
+      refreshFadeRow();
+    }
+    /* the fade row belongs to whichever photo is selected, and selecting one
+       happens on the way into a drag — so only this row is rebuilt, never the
+       whole page, which would pull the photo out from under the finger */
+    function refreshFadeRow(){
+      var bar=document.querySelector('.arr-bar'); if(!bar)return;
+      var row=bar.querySelector('.arr-fade');
+      var html=fadeRowHtml(p);
+      if(!html){if(row)row.remove();fitArrLayer();return;}
+      if(row)row.outerHTML=html;
+      else {
+        var tmp=document.createElement('div'); tmp.innerHTML=html;
+        bar.insertBefore(tmp.firstChild,bar.querySelector('.arr-hint'));
+      }
+      wireFadeRow();
+      fitArrLayer(); /* the bar just changed height, so the room left for it has too */
     }
     function wireHandle(el,kind){
       el.addEventListener('pointerdown',function(e){
@@ -3424,7 +3513,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
             photo.arot=Math.round(rot0+(ang-startAng));
             im.style.transform='rotate('+photo.arot+'deg)';
           }
-          syncHandles();
+          syncHandles(); fitArrLayer();
         }
         function up(ev){
           try{el.releasePointerCapture(ev.pointerId);}catch(_){}
@@ -3462,7 +3551,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
              units, so the zoom has to come back out on the way in */
           var zz=appZoom();
           im.style.left=(photo.ax/100*r.width/zz)+'px'; im.style.top=(photo.ay/100*r.width/zz)+'px';
-          syncHandles();
+          syncHandles(); fitArrLayer();
         }
         function up(ev){
           try{im.releasePointerCapture(ev.pointerId);}catch(_){}
@@ -3479,8 +3568,31 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var photo=p.photos[arrSel];
       photo.aw=Math.max(5,Math.min(140,(photo.aw||28)*mult));
       var im=selImg(); if(im)im.style.width=photo.aw+'%';
-      syncHandles(); p.arranged=true; savePhotos(p.id); saveEdit();
+      syncHandles(); fitArrLayer(); p.arranged=true; savePhotos(p.id); saveEdit();
     }
+    /* the fade shows on the photo as the slider moves, without redrawing the page
+       under your finger */
+    function wireFadeRow(){
+      if($('arrOp'))$('arrOp').addEventListener('input',function(e){
+        if(needSel())return;
+        var photo=p.photos[arrSel];
+        photo.op=Math.max(0.1,Math.min(1,(parseInt(e.target.value,10)||100)/100));
+        var im=selImg(); if(im)im.style.opacity=photo.op;
+        e.target.style.setProperty('--fill',((photo.op*100-10)/90*100)+'%');
+        var v=$('arrOpVal'); if(v)v.textContent=Math.round(photo.op*100)+'%';
+        p.arranged=true; savePhotos(p.id); saveEdit();
+      });
+      if($('arrBack'))$('arrBack').addEventListener('click',function(){
+        if(needSel())return;
+        var photo=p.photos[arrSel];
+        photo.back=!photo.back;
+        p.arranged=true; savePhotos(p.id); saveEdit(); refreshFadeRow();
+        /* while the tools are open every photo stays in front, or it couldn't be
+           picked up — so this says when the change will actually show */
+        toast(photo.back?'▣ It sits behind the page — you’ll see that when you read the project (👁 View)':'▢ Back in front of the page',3200);
+      });
+    }
+    wireFadeRow();
     if($('arrSmall'))$('arrSmall').addEventListener('click',function(){resizeSel(1/1.18);});
     if($('arrBig'))$('arrBig').addEventListener('click',function(){resizeSel(1.18);});
 
@@ -3512,6 +3624,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var vm=(p.edit===false), from=vm?2:0, slot=0;
       p.photos.forEach(function(photo,i){
         photo.ax=null;photo.ay=null;photo.aw=null;photo.arot=null;photo.aunit=null;
+        photo.op=null;photo.back=false; /* fading and sending behind are part of the free layout too */
         if(i>=from)arrLayout(photo,slot++,hw,vm);
       });
       p.arranged=false; arrangeMode=false; arrSel=-1;
