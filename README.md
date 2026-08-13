@@ -65,12 +65,12 @@ After that it opens full-screen from its own icon and works offline.
 
 ### How your projects are laid out
 
-**Overview → Display → How a project looks in the list** offers four shapes for the same card, and you can switch between them as often as you like — nothing about your projects changes, only the layout:
+**Overview → Display → How a project looks in the list** offers two shapes for the same card, and you can switch between them as often as you like — nothing about your projects changes, only the layout:
 
 - **Roomy** — big covers on the right, the kit's own colours filling the middle
-- **Photo first** — both pictures across the top, the words underneath
 - **Tiles** — a grid of picture tiles, the most projects on screen at once
-- **One line** — a single dense row each, for scanning a long list
+
+Tapping anywhere on a card — the covers included — opens that project, and coming back puts you where you were in the list.
 
 ### Too small to read?
 
