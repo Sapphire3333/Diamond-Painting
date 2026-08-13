@@ -138,8 +138,11 @@ try{
     padding:6px 14px;border-radius:999px;font-size:12px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90%;z-index:50;}
   .toast.show{opacity:.92;}
   .ovlist{display:flex;flex-direction:column;gap:8px;}
+  /* the status stripe is drawn as this card's own edge; without a positioned card
+     it had been measuring itself against the whole page and drawing one long line
+     down the side of the list instead */
   .ovcard{background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:12px;
-    cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    cursor:pointer;-webkit-tap-highlight-color:transparent;position:relative;}
   .ovcard:active{transform:scale(.99);}
   .ovtop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .ovname{font-weight:800;font-size:16px;margin-right:auto;}
@@ -160,13 +163,48 @@ try{
   .ovphoto-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;letter-spacing:.3px;padding:2px 8px;border-radius:999px;}
   .ovcard.stripe{padding-left:16px;}
   .ovcard.stripe::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;border-radius:14px 0 0 14px;background:var(--stripe,transparent);}
-  .ovprog{height:7px;border-radius:999px;background:var(--unk-soft);overflow:hidden;margin-top:9px;}
-  .ovprog>i{display:block;height:100%;border-radius:999px;background:var(--rd);}
-  .ovprog-lbl{font-size:11px;color:var(--muted);font-weight:700;margin-top:3px;}
-  .ovthumbc{width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--line);display:none;flex:0 0 auto;}
-  .ovcard.compact{padding-top:9px;padding-bottom:9px;}
-  .ovcard.compact .ovthumbc{display:block;}
-  .ovcard.compact .ovbody{display:none;}
+  .ovthumbc{width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:0 0 auto;}
+  /* progress as a badge, not a banner: a short bar with the number beside it */
+  .ovpct{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--rd);
+    background:var(--rd-soft);border-radius:999px;padding:3px 9px 3px 7px;flex:0 0 auto;}
+  .ovpct-bar{width:42px;height:5px;border-radius:999px;background:rgba(0,0,0,.10);overflow:hidden;}
+  .dp-app.dark .ovpct-bar{background:rgba(255,255,255,.16);}
+  .ovpct-bar>i{display:block;height:100%;border-radius:999px;background:var(--rd);}
+  .ovprogrow{margin-top:8px;}
+  /* ---- card style: roomy ---- */
+  .ovcard.st-roomy .ovswatches .mini{width:20px;height:20px;border-radius:6px;}
+  .ovcard.st-roomy .ovswatches .mini.more{width:auto;line-height:20px;font-size:10px;}
+  .ovcard.st-roomy .ovphoto img{width:150px;height:112px;}
+  .ovcard.st-roomy .ovphotos.frame-portrait .ovphoto img{width:112px;height:150px;}
+  .ovcard.st-roomy .ovphotos.frame-square .ovphoto img,
+  .ovcard.st-roomy .ovphotos.frame-round .ovphoto img{width:130px;height:130px;}
+  /* ---- card style: photo first ---- */
+  .ovcard.st-photo .ovphotos{margin-bottom:9px;}
+  .ovcard.st-photo .ovphoto{flex:1 1 0;min-width:0;}
+  .ovcard.st-photo .ovphoto img{width:100%;height:190px;}
+  .ovcard.st-photo .ovphotos.frame-portrait .ovphoto img{height:260px;}
+  .ovcard.st-photo .ovphotos.frame-square .ovphoto img,
+  .ovcard.st-photo .ovphotos.frame-round .ovphoto img{height:220px;}
+  .ovcard.st-photo .ovsub{margin-top:0;}
+  /* ---- card style: tiles ---- */
+  .ovgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;align-items:start;}
+  .ovcard.st-tile{padding:0;overflow:hidden;display:flex;flex-direction:column;}
+  .ovcard.st-tile.stripe{padding-left:0;}
+  .ovcard.st-tile.stripe::before{width:100%;height:5px;bottom:auto;border-radius:0;}
+  .tile-pic{position:relative;width:100%;aspect-ratio:4/3;background:var(--unk-soft);}
+  .tile-pic img{width:100%;height:100%;display:block;}
+  .tile-pic.empty{display:flex;align-items:center;justify-content:center;}
+  .tile-none{font-size:12px;color:var(--muted);font-weight:700;}
+  .tile-sel{position:absolute;top:8px;left:8px;}
+  .tile-body{padding:9px 10px 11px;}
+  .tile-body .ovname{font-size:15px;line-height:1.25;overflow-wrap:anywhere;}
+  .tile-badges{margin-top:6px;gap:5px;}
+  .tile-body .ovsub{margin-top:5px;overflow:hidden;text-overflow:ellipsis;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .tile-body .ovname{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  /* ---- card style: one line ---- */
+  .ovcard.st-compact{padding-top:9px;padding-bottom:9px;}
+  .ovcard.st-compact .ovsub{margin-top:4px;}
   .acc-sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0;}
   .acc-sw.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink);}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);display:flex;align-items:center;justify-content:center;z-index:100;padding:18px;cursor:zoom-out;}
@@ -354,6 +392,29 @@ try{
   .dp-app[data-vw="micro"] .datefield{flex-direction:column;align-items:flex-start;gap:2px;}
   .dp-app[data-vw="micro"] .datefield input{font-size:12px;padding:5px 6px;}
   .dp-app[data-vw="micro"] .szbtn{padding:3px 6px;}
+  /* ---- the same four card styles, packed down for a narrow screen ----
+     On a phone a card can't afford a column of pictures beside a column of
+     words, so the covers take the full width and share it between them. */
+  .dp-app:not([data-vw="wide"]) .ovcard{padding:10px;}
+  .dp-app:not([data-vw="wide"]) .ovcard.stripe{padding-left:14px;}
+  .dp-app:not([data-vw="wide"]) .ovcard.st-roomy .ovphotos{width:100%;}
+  .dp-app:not([data-vw="wide"]) .ovcard.st-roomy .ovphoto{flex:1 1 0;min-width:0;}
+  .dp-app:not([data-vw="wide"]) .ovcard.st-roomy .ovphoto img,
+  .dp-app:not([data-vw="wide"]) .ovcard.st-photo .ovphoto img{width:100%;height:auto;aspect-ratio:4/3;}
+  .dp-app:not([data-vw="wide"]) .ovcard .ovphotos.frame-portrait .ovphoto img{aspect-ratio:3/4;}
+  .dp-app:not([data-vw="wide"]) .ovcard .ovphotos.frame-square .ovphoto img,
+  .dp-app:not([data-vw="wide"]) .ovcard .ovphotos.frame-round .ovphoto img{aspect-ratio:1;}
+  .dp-app:not([data-vw="wide"]) .ovgrid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;}
+  /* two tiles across a phone, but one across a phone at 150% — the columns are
+     worked out from the room actually left, so a tile never gets thinner than
+     its own words */
+  .dp-app[data-vw="micro"] .ovgrid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+  .dp-app[data-vw="micro"] .tile-body{padding:7px 8px 9px;}
+  .dp-app[data-vw="micro"] .tile-body .ovname{font-size:13.5px;}
+  .dp-app[data-vw="micro"] .ovname{font-size:15px;}
+  .dp-app[data-vw="micro"] .ovsub{font-size:12px;}
+  /* one line means one line, even when the facts don't fit */
+  .dp-app:not([data-vw="wide"]) .ovcard.st-compact .ovsub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   /* Narrow screens: the two covers share the top row at a usable size, details
      below. Keyed off the measured width rather than @media, so turning the text
      up switches the layout at the point the screen ACTUALLY runs out of room. */
@@ -441,7 +502,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     paintings:[{id:'p1',name:'Project 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true,kind:'diamond',media:{},palette:[],notes:''}],
     active:'p1', onlySel:false, view:'paintings',
     specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), stash:{}, gone:{}, ovSort:'added', pGroup:'none', pSearchField:'all',
-    autoBackup:'off', dark:false, density:'full', accent:'violet',
+    autoBackup:'off', dark:false, density:'full', cardStyle:'roomy', accent:'violet',
     media:DEFAULT_MEDIA.slice(), pKind:'all', lastKind:'diamond'
   };
   /* Text size and phone/full layout belong to the DEVICE, not to the collection:
@@ -829,6 +890,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(!s.autoBackup)s.autoBackup='off';
     if(!('dark' in s))s.dark=false;
     if(!s.density)s.density='full';
+    /* the old on/off "compact cards" switch became one of four card styles */
+    if(!s.cardStyle)s.cardStyle=(s.density==='compact')?'compact':'roomy';
     if(!s.accent||!ACCENTMAP[s.accent])s.accent='violet';
     if(!s.specials)s.specials={};
     if(!s.stash)s.stash={};
@@ -1329,7 +1392,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div class="backup">'+
         '<div class="bk-btns">'+
           '<button class="chipbtn'+(state.dark?' on':'')+'" id="darkToggle" type="button">🌙 Dark mode: '+(state.dark?'On':'Off')+'</button>'+
-          '<button class="chipbtn'+(state.density==='compact'?' on':'')+'" id="densToggle" type="button">▤ Compact cards: '+(state.density==='compact'?'On':'Off')+'</button>'+
+        '</div>'+
+        '<div class="sm-row" style="margin-top:10px;">'+
+          '<div class="sm-lbl"><span>How a project looks in the list</span><span></span></div>'+
+          '<div class="bk-btns">'+
+            CARD_STYLES.map(function(c){
+              return '<button class="chipbtn'+(cardStyle()===c.id?' on':'')+'" data-card="'+c.id+'" type="button">'+c.label+'</button>';
+            }).join('')+
+          '</div>'+
+          '<div class="bk-note" id="cardHint">'+esc((CARD_STYLES.filter(function(c){return c.id===cardStyle();})[0]||CARD_STYLES[0]).hint)+
+            ' — pick one and look at the 🖼 Projects tab; nothing about your projects changes, only how they are laid out.</div>'+
         '</div>'+
         '<div class="sm-row" style="margin-top:10px;">'+
           '<div class="sm-lbl"><span>Text &amp; button size</span><span id="fsVal">'+fontScale()+'%</span></div>'+
@@ -1443,7 +1515,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if($('fsRange'))$('fsRange').addEventListener('input',function(e){setFontScale(parseInt(e.target.value,10)||100);});
     if($('fsReset'))$('fsReset').addEventListener('click',function(){setFontScale(100);renderSizeCtl();});
     if($('darkToggle'))$('darkToggle').addEventListener('click',function(){state.dark=!state.dark;applyTheme();renderOverview();save();});
-    if($('densToggle'))$('densToggle').addEventListener('click',function(){state.density=(state.density==='compact')?'full':'compact';renderOverview();save();});
+    pg.querySelectorAll('[data-card]').forEach(function(b){b.addEventListener('click',function(){
+      state.cardStyle=b.getAttribute('data-card'); renderOverview(); save();
+      toast('Card style: '+(CARD_STYLES.filter(function(c){return c.id===state.cardStyle;})[0]||{}).label+' — see 🖼 Projects',1800);
+    });});
     if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
     pg.querySelectorAll('[data-accent]').forEach(function(b){b.addEventListener('click',function(){state.accent=b.getAttribute('data-accent');applyTheme();renderOverview();save();});});
     pg.querySelectorAll('[data-auto]').forEach(function(b){b.addEventListener('click',function(){
@@ -1624,54 +1699,123 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var py=(photo.posY==null?50:photo.posY);
     return 'object-fit:'+fit+';object-position:'+px+'% '+py+'%;'+(photo.flip?'transform:scaleX(-1);':'');
   }
-  function paintingCardHtml(p){
-    var codes=Object.keys(p.colors);
-    var fins=finTagsHtml(p);
-    var tagKeys=Object.keys(p.tags||{});
-    var tagHtml=tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag">'+esc(t)+'</span>';}).join('')+'</div>'):'';
-    var photoHtml='';
-    if(p.photos&&p.photos.length){
-      var labels=coverLabels(p);
-      photoHtml='<div class="ovphotos frame-'+(p.frame||'landscape')+'">';
-      p.photos.slice(0,2).forEach(function(ph,i){
-        photoHtml+='<div class="ovphoto"><img class="lb-img" src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'"><span class="ovphoto-lbl">'+labels[i]+'</span></div>';
-      });
-      photoHtml+='</div>';
-    }
+  /* ---------- how a project looks in the list ----------
+     Four shapes of the same card. They exist side by side so the choice can be
+     made by looking at a real collection rather than by imagining one. */
+  var CARD_STYLES=[
+    {id:'roomy',   label:'Roomy',       hint:'Big covers on the right, and the kit’s own colours filling the middle'},
+    {id:'photo',   label:'Photo first', hint:'Both pictures across the top, the words underneath'},
+    {id:'tile',    label:'Tiles',       hint:'A grid of picture tiles — most projects on screen at once'},
+    {id:'compact', label:'One line',    hint:'A single dense row each, for scanning a long list'}
+  ];
+  function cardStyle(){
+    var s=state.cardStyle;
+    return CARD_STYLES.some(function(c){return c.id===s;})?s:'roomy';
+  }
+  /* the colours the kit uses — for a colour tracker this is the project's real
+     content, and it is what the wide empty band in the middle was missing */
+  function swatchStrip(p,max){
+    var hexes=[];
+    if(isDiamond(p))Object.keys(p.colors||{}).forEach(function(c){var r=DMCMAP[c];if(r)hexes.push([r[2],c+' '+r[1]]);});
+    else if(kindOf(p)==='pbn')(p.palette||[]).forEach(function(en){if(en&&en.color)hexes.push([en.color,en.label||'']);});
+    if(!hexes.length)return '';
+    var show=hexes.slice(0,max);
+    var h=show.map(function(x){return '<span class="mini" style="background-color:'+esc(x[0])+'" title="'+esc(x[1])+'"></span>';}).join('');
+    if(hexes.length>show.length)h+='<span class="mini more">+'+(hexes.length-show.length)+'</span>';
+    return '<div class="ovswatches">'+h+'</div>';
+  }
+  /* A bar the width of the whole card, announcing 100% on a project with nothing
+     in it, was the loudest thing on the page and said the least. It now appears
+     only while a project is genuinely part-done, and takes a badge's worth of room. */
+  function progHtml(p){
+    var pct=Math.max(0,Math.min(100,p.progress||0));
+    var worth=(p.status==='progress')||(pct>0&&pct<100&&p.status!=='done');
+    if(!worth)return '';
+    return '<span class="ovpct"><span class="ovpct-bar"><i style="width:'+pct+'%"></i></span>'+pct+'%</span>';
+  }
+  function cardSub(p,short){
     var kd=kindOf(p), sub;
-    if(kd==='diamond')sub=codes.length+' colour'+(codes.length===1?'':'s');
+    if(kd==='diamond'){var n=Object.keys(p.colors).length;sub=n+' colour'+(n===1?'':'s');}
     else if(kd==='pbn')sub=(p.palette&&p.palette.length)?(p.palette.length+' colour'+(p.palette.length===1?'':'s')+' picked'):'paint by number';
     else sub=p.photos.length+' photo'+(p.photos.length===1?'':'s');
     var med=Object.keys(p.media||{});
     if(usesMedia(p)&&med.length)sub+=' · '+esc(med.slice(0,3).join(', '))+(med.length>3?(' +'+(med.length-3)):'');
     if(p.size)sub+=' · '+esc(p.size);
+    /* a tile is narrow — it gets the two facts that identify a project and stops,
+       rather than pushing its own picture off the top of the screen */
+    if(short)return sub+(p.finished?(' · ✓ '+esc(p.finished)):'');
     if(p.seller)sub+=' · '+esc(p.seller);
     if(p.code)sub+=' · '+esc(p.code);
     if(p.price)sub+=' · '+esc(p.price);
     if(p.started)sub+=' · ▶ '+esc(p.started);
     if(p.finished)sub+=' · ✓ '+esc(p.finished);
     if(state.ovSort==='edited'&&p.updatedAt)sub+=' · 🕒 '+fmtDate(p.updatedAt);
-    var prog='';
-    if((p.status==='progress')||(p.progress>0&&p.status!=='done')){
-      var pct=Math.max(0,Math.min(100,p.progress||0));
-      prog='<div class="ovprog"><i style="width:'+pct+'%"></i></div><div class="ovprog-lbl">'+pct+'% done</div>';
-    }
+    return sub;
+  }
+  function cardPhotos(p,n){
+    if(!p.photos||!p.photos.length)return '';
+    var labels=coverLabels(p);
+    var h='<div class="ovphotos frame-'+(p.frame||'landscape')+'">';
+    p.photos.slice(0,n).forEach(function(ph,i){
+      h+='<div class="ovphoto"><img class="lb-img" src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'">'+
+        (labels[i]?'<span class="ovphoto-lbl">'+labels[i]+'</span>':'')+'</div>';
+    });
+    return h+'</div>';
+  }
+  function paintingCardHtml(p){
+    var style=cardStyle();
+    var fins=finTagsHtml(p);
+    var tagKeys=Object.keys(p.tags||{});
+    var tagHtml=tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag">'+esc(t)+'</span>';}).join('')+'</div>'):'';
+    var sub=cardSub(p,style==='tile'), prog=progHtml(p);
     var st=p.status&&STATUSMAP[p.status];
-    var stripeCls=st?' stripe':'';
-    var stripeStyle=st?' style="--stripe:'+st.fg+'"':'';
-    var thumbc=(p.photos&&p.photos.length)?'<img class="ovthumbc" src="'+p.photos[0].d+'" alt="" style="'+photoStyle(p.photos[0])+'">':'';
+    var open='<div class="ovcard st-'+style+(st?' stripe':'')+(selectedIds[p.id]?' picked':'')+'" data-id="'+p.id+'"'+
+      (st?' style="--stripe:'+st.fg+'"':'')+'>';
     var selBox=selectMode?('<span class="selbox'+(selectedIds[p.id]?' on':'')+'">'+(selectedIds[p.id]?'✓':'')+'</span>'):'';
-    return '<div class="ovcard'+stripeCls+(state.density==='compact'?' compact':'')+(selectedIds[p.id]?' picked':'')+'" data-id="'+p.id+'"'+stripeStyle+'>'+
-      '<div class="ovtop">'+selBox+thumbc+'<span class="ovname">'+esc(p.name)+'</span>'+statusBadge(p)+ratingBadge(p)+
-        (isDiamond(p)?badgeHtml(p.type):kindBadge(p))+'</div>'+
+    var badges=statusBadge(p)+ratingBadge(p)+(isDiamond(p)?badgeHtml(p.type):kindBadge(p));
+
+    if(style==='compact'){
+      var thumb=(p.photos&&p.photos.length)?'<img class="ovthumbc" src="'+p.photos[0].d+'" alt="" style="'+photoStyle(p.photos[0])+'">':'';
+      return open+'<div class="ovtop">'+selBox+thumb+'<span class="ovname">'+esc(p.name)+'</span>'+prog+badges+'</div>'+
+        '<div class="ovsub">'+sub+'</div></div>';
+    }
+    if(style==='tile'){
+      return open+
+        /* the picture IS the tile, so tapping it opens the project rather than
+           blowing the photo up full-screen the way it does on a wide card */
+        (p.photos&&p.photos.length?'<div class="tile-pic"><img src="'+p.photos[0].d+'" alt="" style="'+photoStyle(p.photos[0])+'">'+
+          (selBox?'<span class="tile-sel">'+selBox+'</span>':'')+'</div>'
+         :'<div class="tile-pic empty">'+(selBox?'<span class="tile-sel">'+selBox+'</span>':'')+'<span class="tile-none">no photo yet</span></div>')+
+        '<div class="tile-body">'+
+          '<div class="ovname">'+esc(p.name)+'</div>'+
+          '<div class="ovtop tile-badges">'+badges+prog+'</div>'+
+          '<div class="ovsub">'+sub+'</div>'+
+          swatchStrip(p,10)+
+        '</div></div>';
+    }
+    if(style==='photo'){
+      return open+
+        cardPhotos(p,2)+
+        '<div class="ovtop">'+selBox+'<span class="ovname">'+esc(p.name)+'</span>'+badges+'</div>'+
+        '<div class="ovsub">'+sub+'</div>'+
+        (fins?'<div class="ovfins">'+fins+'</div>':'')+
+        tagHtml+
+        (prog?'<div class="ovprogrow">'+prog+'</div>':'')+
+        swatchStrip(p,26)+
+        '</div>';
+    }
+    /* roomy */
+    return open+
+      '<div class="ovtop">'+selBox+'<span class="ovname">'+esc(p.name)+'</span>'+badges+'</div>'+
       '<div class="ovbody">'+
         '<div class="ovinfo">'+
           '<div class="ovsub">'+sub+'</div>'+
           (fins?'<div class="ovfins">'+fins+'</div>':'')+
           tagHtml+
-          prog+
+          (prog?'<div class="ovprogrow">'+prog+'</div>':'')+
+          swatchStrip(p,30)+
         '</div>'+
-        photoHtml+
+        cardPhotos(p,2)+
       '</div>'+
       '</div>';
   }
@@ -1710,6 +1854,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     }
     return list;
   }
+  /* tiles need a grid to sit in; the other three stack down the page */
+  function listClass(){return cardStyle()==='tile'?'ovgrid':'ovlist';}
   function groupChip(id,label){return '<button class="chipbtn'+(state.pGroup===id?' on':'')+'" data-g="'+id+'" type="button">'+label+'</button>';}
   function groupedHtml(list){
     var groups=[];
@@ -1766,7 +1912,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     groups.forEach(function(g){
       var collapsed=!!collapsedGroups[g.label];
       out+='<div class="section-lbl grp-hd" data-grp="'+encodeURIComponent(g.label)+'" style="cursor:pointer;user-select:none;">'+(collapsed?'▸':'▾')+' '+g.label+' <span style="color:var(--muted);font-weight:700;">'+g.items.length+'</span></div>';
-      if(!collapsed)out+='<div class="ovlist">'+g.items.map(paintingCardHtml).join('')+'</div>';
+      if(!collapsed)out+='<div class="'+listClass()+'">'+g.items.map(paintingCardHtml).join('')+'</div>';
     });
     return out;
   }
@@ -1777,7 +1923,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       (pQuery.trim()?('No projects match “'+esc(pQuery)+'”'+(state.pKind!=='all'?(' in '+KINDMAP[state.pKind].label):'')+'.')
                     :('No '+(state.pKind!=='all'?KINDMAP[state.pKind].label.toLowerCase()+' projects':'projects')+' yet.'))+'</div>';
     var count=((pQuery.trim()||state.pKind!=='all')?'<div class="meta"><span>Showing '+list.length+' of '+state.paintings.length+' project'+(state.paintings.length===1?'':'s')+'</span></div>':'');
-    if(state.pGroup==='none')return count+'<div class="ovlist">'+list.map(paintingCardHtml).join('')+'</div>';
+    if(state.pGroup==='none')return count+'<div class="'+listClass()+'">'+list.map(paintingCardHtml).join('')+'</div>';
     return count+groupedHtml(list);
   }
   function newPainting(name,kind){
@@ -3145,11 +3291,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     }
     var tagKeys=Object.keys(p.tags||{});
     var fins=finTagsHtml(p);
-    var prog='';
-    if(p.progress>0||p.status==='progress'){
-      var pct=Math.max(0,Math.min(100,p.progress||0));
-      prog='<div class="ovprog"><i style="width:'+pct+'%"></i></div><div class="ovprog-lbl">'+pct+'% done</div>';
-    }
+    /* the same rule as the list: a full-width bar reading 100% under a project
+       already badged “Finished” said the same thing twice, loudly */
+    var pv=progHtml(p);
+    var prog=pv?('<div class="ovprogrow">'+pv+'</div>'):'';
     var kd=kindOf(p), isDraw=(kd==='drawing');
     var rows=(kd!=='drawing'?viewRow('Kit code',esc(p.code||'')):'')+
       viewRow('Size',p.size?(esc(p.size)+' cm'):'')+

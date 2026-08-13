@@ -63,6 +63,15 @@ After that it opens full-screen from its own icon and works offline.
 | **🔎 Find** | Look up any DMC color, size, special diamond or medium and see which projects use it |
 | **+ New project** | Adds a project (same kind as the last one you made) |
 
+### How your projects are laid out
+
+**Overview → Display → How a project looks in the list** offers four shapes for the same card, and you can switch between them as often as you like — nothing about your projects changes, only the layout:
+
+- **Roomy** — big covers on the right, the kit's own colours filling the middle
+- **Photo first** — both pictures across the top, the words underneath
+- **Tiles** — a grid of picture tiles, the most projects on screen at once
+- **One line** — a single dense row each, for scanning a long list
+
 ### Too small to read?
 
 Every page has **A− 115% A+** in the top-right corner. It grows the whole app — words, buttons and photos together — from 80% to 220%, and the layout re-checks how much room is really left as you go, so nothing overlaps or slides off the side. The button beside it switches between the narrow **📱 phone** shape and the wide **🖥 full** one, whatever screen you're on. Both settings belong to the device you set them on, so a big-text phone doesn't drag your PC along with it.
