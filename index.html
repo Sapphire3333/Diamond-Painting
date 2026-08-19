@@ -2455,8 +2455,13 @@ try{
     var hexes=[];
     if(isDiamond(p))Object.keys(p.colors||{}).forEach(function(c){var r=DMCMAP[c];if(r)hexes.push(r[2]);});
     else if(kindOf(p)==='pbn')(p.palette||[]).forEach(function(en){if(en&&en.color&&!/["'<>()\\\s]/.test(en.color))hexes.push(en.color);});
-    var ySw=yBadge+48+(hexes.length?26:0);
-    var yFoot=ySw+(hexes.length?34:0)+34;
+    /* every colour the kit uses, wrapped onto as many rows as it takes — for
+       another painter the palette IS the interesting part, so none may hide
+       behind a "+N" */
+    var swPerRow=Math.floor((SHARE_W-2*SH_PAD+6)/38);
+    var swRows=hexes.length?Math.ceil(hexes.length/swPerRow):0;
+    var ySw=yBadge+48+(swRows?26:0);
+    var yFoot=ySw+(swRows?swRows*38-6:0)+34;
     var cv=document.createElement('canvas');
     cv.width=SHARE_W; cv.height=Math.round(yFoot+34+SH_PAD/2);
     var ctx=cv.getContext('2d');
@@ -2500,18 +2505,11 @@ try{
     if(p.size)pill(p.size+' cm','#EEEDF1','#26222E');
     var pct=Math.max(0,Math.min(100,p.progress||0));
     if(pct>0&&pct<100&&p.status!=='done')pill(pct+'% done','#E6F6EE','#20714a');
-    if(hexes.length){
-      var shown=hexes.slice(0,26);
-      shown.forEach(function(hx,i){
-        rrPath(ctx,SH_PAD+i*38,ySw,32,32,8);
-        ctx.fillStyle=hx; ctx.fill();
-        ctx.strokeStyle='rgba(0,0,0,.15)'; ctx.lineWidth=1; ctx.stroke();
-      });
-      if(hexes.length>shown.length){
-        ctx.fillStyle='#7A7486'; ctx.font='700 24px '+SH_FONT; ctx.textBaseline='middle';
-        ctx.fillText('+'+(hexes.length-shown.length),SH_PAD+shown.length*38+6,ySw+17);
-      }
-    }
+    hexes.forEach(function(hx,i){
+      rrPath(ctx,SH_PAD+(i%swPerRow)*38,ySw+Math.floor(i/swPerRow)*38,32,32,8);
+      ctx.fillStyle=hx; ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.15)'; ctx.lineWidth=1; ctx.stroke();
+    });
     ctx.fillStyle='#7A7486'; ctx.font='600 24px '+SH_FONT; ctx.textBaseline='alphabetic';
     var foot=p.finished?('Finished '+p.finished):(p.started?('Started '+p.started):'');
     ctx.fillText((foot?foot+'  ·  ':'')+'Diamond Painting Colors',SH_PAD,yFoot+24);
