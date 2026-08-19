@@ -613,6 +613,10 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-08-19 · second helping',items:[
+      '🔤 Tags and media show with a capital first letter — they are still saved lowercase underneath, so “Good” and “good” can never become two different tags',
+      '📤 The share picture shows every colour the kit uses, wrapping onto new rows instead of hiding the rest behind a “+2”',
+    ]},
     {when:'2026-08-19',items:[
       '📤 Share — every project gets a Share button that turns it into one picture (covers, name, badges, its colours), ready for a group or a chat',
       '🆕 This “What’s new” list, so updates explain themselves',
@@ -725,6 +729,9 @@ try{
     clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');}, ms||1000);
   }
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  /* Tags and media are STORED lowercase, so "Good" and "good" can never become
+     two different tags — the capital letter is put on only when one is shown */
+  function capFirst(s){s=String(s);return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
   function badgeHtml(type){
     if(type&&TYPES[type]){var t=TYPES[type];return '<span class="badge '+t.cls+'">'+t.sym+' '+t.label+'</span>';}
     return '<span class="badge unk">? type not set</span>';
@@ -2124,7 +2131,7 @@ try{
     else if(kd==='pbn')sub=(p.palette&&p.palette.length)?(p.palette.length+' colour'+(p.palette.length===1?'':'s')+' picked'):'paint by number';
     else sub=p.photos.length+' photo'+(p.photos.length===1?'':'s');
     var med=Object.keys(p.media||{});
-    if(usesMedia(p)&&med.length)sub+=' · '+esc(med.slice(0,3).join(', '))+(med.length>3?(' +'+(med.length-3)):'');
+    if(usesMedia(p)&&med.length)sub+=' · '+esc(med.slice(0,3).map(capFirst).join(', '))+(med.length>3?(' +'+(med.length-3)):'');
     if(p.size)sub+=' · '+esc(p.size);
     /* a tile is narrow — it gets the two facts that identify a project and stops,
        rather than pushing its own picture off the top of the screen */
@@ -2154,7 +2161,7 @@ try{
     var style=cardStyle();
     var fins=finTagsHtml(p);
     var tagKeys=Object.keys(p.tags||{});
-    var tagHtml=tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag'+(tagSign(t)===1?' tg-pos':(tagSign(t)===-1?' tg-neg':''))+'">'+esc(t)+'</span>';}).join('')+'</div>'):'';
+    var tagHtml=tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag'+(tagSign(t)===1?' tg-pos':(tagSign(t)===-1?' tg-neg':''))+'">'+esc(capFirst(t))+'</span>';}).join('')+'</div>'):'';
     var sub=cardSub(p,style==='tile'), prog=progHtml(p);
     var st=p.status&&STATUSMAP[p.status];
     var open='<div class="ovcard st-'+style+(st?' stripe':'')+(selectedIds[p.id]?' picked':'')+'" data-id="'+p.id+'"'+
@@ -4285,7 +4292,7 @@ try{
       viewRow('Finished',esc(p.finished||''));
     var med=Object.keys(p.media||{});
     var mediaHtml=(usesMedia(p)&&med.length)
-      ? '<div class="ovtags">'+med.map(function(m){return '<span class="ovtag">'+esc(m)+'</span>';}).join('')+'</div>' : '';
+      ? '<div class="ovtags">'+med.map(function(m){return '<span class="ovtag">'+esc(capFirst(m))+'</span>';}).join('')+'</div>' : '';
     var notesHtml=p.notes
       ? '<div class="vw-row" style="display:block;margin-top:8px;"><span class="vw-lbl" style="display:block;">Notes</span>'+
         '<span class="vw-val" style="white-space:pre-wrap;">'+esc(p.notes)+'</span></div>' : '';
@@ -4358,7 +4365,7 @@ try{
             (fins?'<div class="ovfins">'+fins+'</div>':'')+
             (rows?'<div class="vw-list">'+rows+'</div>':'')+
             mediaHtml+
-            (tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag'+(tagSign(t)===1?' tg-pos':(tagSign(t)===-1?' tg-neg':''))+'">'+esc(t)+'</span>';}).join('')+'</div>'):'')+
+            (tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag'+(tagSign(t)===1?' tg-pos':(tagSign(t)===-1?' tg-neg':''))+'">'+esc(capFirst(t))+'</span>';}).join('')+'</div>'):'')+
             prog+notesHtml+
           '</div>'+
           (isDraw?'':sideHtml(1,'Result'))+
@@ -4511,7 +4518,7 @@ try{
       list.forEach(function(tg){
         var on=!!p.tags[tg];
         tagChips+='<button class="selchip '+g[2]+(on&&!tgEdit?' on':'')+'" data-tag="'+esc(tg)+'" type="button">'+
-          (tgEdit?'<span class="tg-x" data-rmtag="'+esc(tg)+'">✕</span> ':'')+esc(tg)+'</button>';
+          (tgEdit?'<span class="tg-x" data-rmtag="'+esc(tg)+'">✕</span> ':'')+esc(capFirst(tg))+'</button>';
       });
       tagChips+='</div>';
     });
@@ -4522,7 +4529,7 @@ try{
     var mdEdit=!!editLists.media, mediaChips='';
     state.media.forEach(function(m){
       var on=!!p.media[m];
-      mediaChips+='<button class="selchip'+(on&&!mdEdit?' on':'')+'" data-media="'+esc(m)+'" type="button"'+(mdEdit?rmStyle:'')+'>'+(mdEdit?'✕ ':'')+esc(m)+'</button>';
+      mediaChips+='<button class="selchip'+(on&&!mdEdit?' on':'')+'" data-media="'+esc(m)+'" type="button"'+(mdEdit?rmStyle:'')+'>'+(mdEdit?'✕ ':'')+esc(capFirst(m))+'</button>';
     });
     mediaChips+='<span class="addinline"><input id="newMedia" type="text" maxlength="40" placeholder="＋ new medium"><button class="pbtn" id="addMedia" type="button">Add</button></span>';
 
@@ -5426,7 +5433,7 @@ try{
         asButton(c,'Tag '+tg+' — '+owners.length+' projects',expandedTag===tg);
         c.innerHTML='<div class="drill spec" style="background-color:'+(sgn===1?'var(--rd)':(sgn===-1?'var(--bad)':'var(--unk)'))+
             ';font-size:12px;">'+(sgn===1?'＋':(sgn===-1?'−':'·'))+'</div>'+
-          '<div class="ctext"><div class="code">'+esc(tg)+'</div><div class="cname">'+
+          '<div class="ctext"><div class="code">'+esc(capFirst(tg))+'</div><div class="cname">'+
             (sgn===1?'good tag':(sgn===-1?'bad tag':'describing'))+'</div></div>'+
           '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
         c.addEventListener('click',function(){
@@ -5435,7 +5442,7 @@ try{
         });
         tgrid.appendChild(c);
         if(expandedTag===tg){
-          var head=esc(tg)+' — '+owners.length+' project'+(owners.length===1?'':'s')+':';
+          var head=esc(capFirst(tg))+' — '+owners.length+' project'+(owners.length===1?'':'s')+':';
           tgrid.appendChild(expanderEl(head,owners));
         }
       });
@@ -5460,7 +5467,7 @@ try{
         c.className='card'+(expandedMedia===m?' open':'');
         asButton(c,m+' — '+owners.length+' projects',expandedMedia===m);
         c.innerHTML='<div class="drill spec" style="background-color:var(--accent);font-size:12px;">🖌</div>'+
-          '<div class="ctext"><div class="code">'+esc(m)+'</div><div class="cname">media</div></div>'+
+          '<div class="ctext"><div class="code">'+esc(capFirst(m))+'</div><div class="cname">media</div></div>'+
           '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
         c.addEventListener('click',function(){
           expandedMedia=(expandedMedia===m)?null:m; expandedColor=null; expandedSpec=null; expandedSize=null;
@@ -5468,7 +5475,7 @@ try{
         });
         mgrid.appendChild(c);
         if(expandedMedia===m){
-          var head=esc(m)+' — '+owners.length+' project'+(owners.length===1?'':'s')+':';
+          var head=esc(capFirst(m))+' — '+owners.length+' project'+(owners.length===1?'':'s')+':';
           mgrid.appendChild(expanderEl(head,owners));
         }
       });
