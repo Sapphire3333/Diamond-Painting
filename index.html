@@ -608,6 +608,25 @@ try{
   var ACCENTMAP={}; ACCENTS.forEach(function(a){ACCENTMAP[a.id]=a;});
   var COLOR_FAMILIES=['Red','Orange','Yellow','Green','Teal','Blue','Purple','Pink','Brown','Neutral'];
 
+  /* ---------- what's new ----------
+     Shown on ⌂ Overview so an update explains itself instead of arriving as a
+     quiet mystery. Newest first; when the app changes in a way the user can
+     see, add a {when, items} block at the TOP of this list. */
+  var APP_NEWS=[
+    {when:'2026-08-19',items:[
+      '📤 Share — every project gets a Share button that turns it into one picture (covers, name, badges, its colours), ready for a group or a chat',
+      '🆕 This “What’s new” list, so updates explain themselves',
+      '⏳ Leftovers can now be “running low” as well as have/none — so Find also answers what to reorder',
+      '✏️ A photo can carry a caption, and remembers the day it was added — work-in-progress photos become a little diary',
+      '💾 Closing the app right after an edit can no longer lose it, and if a page ever breaks, a rescue screen hands over your backup code instead of going blank',
+      '🖼 The project lists load small copies of photos, so a big collection scrolls lightly on an older phone',
+      '💰 The summary now shows “total spend” and “wishlist would cost” separately',
+      '📱 A proper iPhone home-screen icon, and the installed app is no longer locked to portrait',
+      '⌨️ Everything a finger can tap, a keyboard can now reach too',
+      '🔔 If nothing has protected your data for a fortnight — no backup, no cloud — the app says one quiet sentence about it',
+    ]}
+  ];
+
   var state={
     paintings:[{id:'p1',name:'Project 1',colors:{},type:null,finishes:{},spec:{},photos:[],seller:null,rating:null,tags:{},code:'',size:null,status:null,started:'',finished:'',frame:'landscape',progress:0,price:'',updatedAt:0,edit:true,kind:'diamond',media:{},palette:[],notes:''}],
     active:'p1', onlySel:false, view:'paintings',
@@ -1625,10 +1644,34 @@ try{
   }
 
   /* ---------- overview ---------- */
+  var newsOlderOpen=false;
+  function newsSeen(){try{return localStorage.getItem('dpNewsSeen')||'';}catch(e){return '';}}
+  function newsItemsHtml(items){
+    return '<ul style="margin:6px 0 0;padding-left:18px;">'+
+      items.map(function(it){return '<li class="bk-note" style="margin-top:4px;">'+esc(it)+'</li>';}).join('')+'</ul>';
+  }
+  function newsSectionHtml(){
+    if(!APP_NEWS.length)return '';
+    var latest=APP_NEWS[0];
+    var unseen=newsSeen()!==latest.when;
+    var h='<div class="section-lbl">What’s new</div><div class="backup">'+
+      '<div class="sm-lbl"><span>Updated '+esc(latest.when)+(unseen?' <span class="badge star">new</span>':'')+'</span>'+
+        '<span>build '+esc(window.APP_VERSION||'')+'</span></div>'+
+      newsItemsHtml(latest.items);
+    if(APP_NEWS.length>1){
+      h+='<div class="fsec-hd bk-note" id="newsOlder" role="button" tabindex="0" aria-expanded="'+(newsOlderOpen?'true':'false')+'" style="margin-top:10px;font-weight:700;">'+
+        (newsOlderOpen?'▾':'▸')+' Older updates</div>';
+      if(newsOlderOpen)APP_NEWS.slice(1).forEach(function(n0){
+        h+='<div class="sm-lbl" style="margin-top:10px;"><span>'+esc(n0.when)+'</span><span></span></div>'+newsItemsHtml(n0.items);
+      });
+    }
+    return h+'</div>';
+  }
   function renderOverview(){
     var pg=$('page');
     var html='<div class="ovsub" style="margin:2px 2px 12px;">Your projects live in the <b>🖼 Projects</b> tab. This page holds your summary, how the app looks, what is using the space, and backups you make yourself. Cloud sync and backups that happen on their own are in <b>⚙ Settings</b>.</div>';
     html+='<div class="section-lbl">Summary</div>'+statsHtml();
+    html+=newsSectionHtml();
     html+='<div class="section-lbl">Display</div>'+
       '<div class="backup">'+
         '<div class="bk-btns">'+
@@ -1684,6 +1727,9 @@ try{
         '<div class="bk-note" id="bkSaveNote">Takes a snapshot of everything onto this device — worth doing before any big change. The backup code, loading from a file, and the list of snapshots you can restore are all in <b>⚙ Settings</b>.</div>'+
       '</div>';
     pg.innerHTML=html;
+    /* the "new" badge shows once — being seen is what spends it */
+    if(APP_NEWS.length){try{localStorage.setItem('dpNewsSeen',APP_NEWS[0].when);}catch(e){}}
+    if($('newsOlder'))$('newsOlder').addEventListener('click',function(){newsOlderOpen=!newsOlderOpen;renderOverview();});
     if($('toSettings'))$('toSettings').addEventListener('click',function(){navTo('settings');});
     wireSaveNow();
     if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
@@ -2331,6 +2377,209 @@ try{
     document.body.appendChild(lb);
     try{lb.focus();}catch(e){}
   }
+  /* ---------- share a project as one picture ----------
+     The groups this hobby lives in (Facebook, Reddit, family chats) take
+     pictures, not app screens. This draws the project — its covers, name,
+     badges and the kit's own colours — onto one canvas sized for a feed, then
+     hands it to the phone's share sheet, or saves it where sharing files isn't
+     a thing. Always drawn in the light palette: a share lands on strangers'
+     screens, not in your theme. */
+  var SHARE_W=1080, SH_PAD=48, SH_FONT='-apple-system,"Segoe UI",Roboto,Arial,sans-serif';
+  function rrPath(ctx,x,y,w,h,r){
+    r=Math.min(r,w/2,h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+  /* cover-crop like the cards do, honouring the photo's own pan and flip */
+  function drawCover(ctx,img,dx,dy,dw,dh,ph){
+    var iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
+    if(!iw||!ih)return;
+    var k=Math.max(dw/iw,dh/ih);
+    var sw=dw/k, sh=dh/k;
+    var px=(ph.posX==null?50:ph.posX)/100, py=(ph.posY==null?50:ph.posY)/100;
+    var sx=(iw-sw)*px, sy=(ih-sh)*py;
+    ctx.save();
+    rrPath(ctx,dx,dy,dw,dh,20); ctx.clip();
+    if(ph.flip){ctx.translate(dx+dw,dy);ctx.scale(-1,1);ctx.drawImage(img,sx,sy,sw,sh,0,0,dw,dh);}
+    else ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
+    ctx.restore();
+  }
+  function drawPill(ctx,x,y,text,bg,fg,font){
+    ctx.font=font;
+    var w=Math.ceil(ctx.measureText(text).width)+36, h=48;
+    rrPath(ctx,x,y,w,h,24);
+    ctx.fillStyle=bg; ctx.fill();
+    ctx.fillStyle=fg; ctx.textBaseline='middle';
+    ctx.fillText(text,x+18,y+h/2+2);
+    return w;
+  }
+  function buildShareCard(p,cb){
+    var photos=(p.photos||[]).slice(0,2);
+    var imgs=new Array(photos.length);
+    var pend=photos.length;
+    function done(){
+      var cv=null;
+      try{cv=drawShareCard(p,photos,imgs);}catch(e){cv=null;}
+      cb(cv);
+    }
+    if(!pend){done();return;}
+    photos.forEach(function(ph,i){
+      loadImg(ph.d,function(img){imgs[i]=img;if(--pend===0)done();});
+    });
+  }
+  function drawShareCard(p,photos,imgs){
+    var lbls=coverLabels(p);
+    var acc=(ACCENTMAP[state.accent]||ACCENTMAP.violet).accent;
+    /* measure the name first — the canvas can't be sized until the lines are known */
+    var mc=document.createElement('canvas').getContext('2d');
+    var nameFont='800 60px '+SH_FONT;
+    mc.font=nameFont;
+    var maxW=SHARE_W-2*SH_PAD;
+    var words=String(p.name||'Project').split(/\s+/), lines=[], cur='';
+    words.forEach(function(w){
+      var t=cur?cur+' '+w:w;
+      if(mc.measureText(t).width>maxW&&cur){lines.push(cur);cur=w;}
+      else cur=t;
+    });
+    if(cur)lines.push(cur);
+    if(lines.length>2){lines=lines.slice(0,2);lines[1]+='…';}
+    var n=imgs.filter(Boolean).length, single=(n===1);
+    var photoH=n?(single?738:480):0;
+    var yName=SH_PAD+(n?photoH+44:12);
+    var yBadge=yName+lines.length*72+16;
+    var hexes=[];
+    if(isDiamond(p))Object.keys(p.colors||{}).forEach(function(c){var r=DMCMAP[c];if(r)hexes.push(r[2]);});
+    else if(kindOf(p)==='pbn')(p.palette||[]).forEach(function(en){if(en&&en.color&&!/["'<>()\\\s]/.test(en.color))hexes.push(en.color);});
+    var ySw=yBadge+48+(hexes.length?26:0);
+    var yFoot=ySw+(hexes.length?34:0)+34;
+    var cv=document.createElement('canvas');
+    cv.width=SHARE_W; cv.height=Math.round(yFoot+34+SH_PAD/2);
+    var ctx=cv.getContext('2d');
+    ctx.fillStyle='#F6F4FA'; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.fillStyle=acc; ctx.fillRect(0,0,cv.width,10);
+    var drawn=0;
+    photos.forEach(function(ph,i){
+      var img=imgs[i]; if(!img)return;
+      var w=single?(SHARE_W-2*SH_PAD):480;
+      var h=photoH;
+      var x=SH_PAD+(single?0:drawn*(480+24));
+      drawCover(ctx,img,x,SH_PAD+14,w,h,ph);
+      if(lbls[i]&&n>1){
+        ctx.font='800 26px '+SH_FONT;
+        var tw=ctx.measureText(lbls[i]).width;
+        rrPath(ctx,x+16,SH_PAD+30,tw+28,42,21);
+        ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fill();
+        ctx.fillStyle='#fff'; ctx.textBaseline='middle';
+        ctx.fillText(lbls[i],x+30,SH_PAD+30+23);
+      }
+      drawn++;
+    });
+    ctx.fillStyle='#26222E'; ctx.font=nameFont; ctx.textBaseline='alphabetic';
+    lines.forEach(function(ln,i){ctx.fillText(ln,SH_PAD,yName+58+i*72);});
+    var bx=SH_PAD, bfont='700 30px '+SH_FONT;
+    function pill(text,bg,fg){
+      ctx.font=bfont;
+      var w=Math.ceil(ctx.measureText(text).width)+36;
+      if(bx+w>SHARE_W-SH_PAD)return;   /* a pill that doesn't fit is left off, not squeezed */
+      drawPill(ctx,bx,yBadge,text,bg,fg,bfont); bx+=w+14;
+    }
+    var st=p.status&&STATUSMAP[p.status];
+    if(st)pill(st.label,st.fg,'#fff');
+    var r=ratingOf(p);
+    if(r!==null&&!isNaN(r))pill('★ '+Number(r).toFixed(1),'#F8EFDC','#8a6a1f');
+    if(isDiamond(p)){
+      if(p.type&&TYPES[p.type])pill(TYPES[p.type].sym+' '+TYPES[p.type].label,'#EEEDF1','#26222E');
+      var nc=Object.keys(p.colors||{}).length;
+      if(nc)pill(nc+' colour'+(nc===1?'':'s'),'#EFEAFB',acc);
+    } else pill(KINDMAP[kindOf(p)].label,'#EEEDF1','#26222E');
+    if(p.size)pill(p.size+' cm','#EEEDF1','#26222E');
+    var pct=Math.max(0,Math.min(100,p.progress||0));
+    if(pct>0&&pct<100&&p.status!=='done')pill(pct+'% done','#E6F6EE','#20714a');
+    if(hexes.length){
+      var shown=hexes.slice(0,26);
+      shown.forEach(function(hx,i){
+        rrPath(ctx,SH_PAD+i*38,ySw,32,32,8);
+        ctx.fillStyle=hx; ctx.fill();
+        ctx.strokeStyle='rgba(0,0,0,.15)'; ctx.lineWidth=1; ctx.stroke();
+      });
+      if(hexes.length>shown.length){
+        ctx.fillStyle='#7A7486'; ctx.font='700 24px '+SH_FONT; ctx.textBaseline='middle';
+        ctx.fillText('+'+(hexes.length-shown.length),SH_PAD+shown.length*38+6,ySw+17);
+      }
+    }
+    ctx.fillStyle='#7A7486'; ctx.font='600 24px '+SH_FONT; ctx.textBaseline='alphabetic';
+    var foot=p.finished?('Finished '+p.finished):(p.started?('Started '+p.started):'');
+    ctx.fillText((foot?foot+'  ·  ':'')+'Diamond Painting Colors',SH_PAD,yFoot+24);
+    return cv;
+  }
+  function shareFileName(p){
+    return (String(p.name||'project').replace(/[^\wÀ-ɏ-]+/g,'-').replace(/^-+|-+$/g,'')||'project')+'.jpg';
+  }
+  function openShareCard(p){
+    buildShareCard(p,function(cv){
+      if(!cv){toast('Could not draw the picture on this device',2400);return;}
+      var d;
+      try{d=cv.toDataURL('image/jpeg',0.88);}catch(e){toast('Could not draw the picture on this device',2400);return;}
+      var canShare=false;
+      var blob=dataUrlToBlob(d), file=null;
+      try{
+        if(blob&&window.File)file=new File([blob],shareFileName(p),{type:'image/jpeg'});
+        canShare=!!(file&&navigator.share&&navigator.canShare&&navigator.canShare({files:[file]}));
+      }catch(e){canShare=false;}
+      var ov=document.createElement('div'); ov.className='lightbox';
+      ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+      ov.setAttribute('aria-label','Share this project'); ov.tabIndex=-1;
+      ov.style.cursor='default';
+      var wasFocused=document.activeElement;
+      var panel=document.createElement('div');
+      panel.style.cssText='background:var(--panel);color:var(--ink);border-radius:14px;padding:14px;max-width:520px;width:100%;max-height:92vh;overflow:auto;';
+      var im=document.createElement('img'); im.src=d; im.alt='The share picture';
+      im.style.cssText='width:100%;height:auto;border-radius:10px;border:1.5px solid var(--line);display:block;';
+      var note=document.createElement('div'); note.className='bk-note'; note.style.marginTop='8px';
+      note.textContent=canShare
+        ? 'One picture of this project, sized for a feed — Share opens the phone’s share sheet, or save it and post it yourself.'
+        : 'One picture of this project, sized for a feed — save it, then post it wherever you like.';
+      var bar=document.createElement('div'); bar.className='bk-btns'; bar.style.marginTop='10px';
+      function mkBtn(label,primary){
+        var b=document.createElement('button'); b.className='chipbtn'; b.type='button'; b.textContent=label;
+        if(primary)b.style.cssText='background:var(--accent);border-color:var(--accent);color:#fff;';
+        bar.appendChild(b); return b;
+      }
+      var shareB=canShare?mkBtn('📤 Share',true):null;
+      var saveB=mkBtn('⬇ Save image',!canShare);
+      var closeB=mkBtn('Close',false);
+      panel.appendChild(im); panel.appendChild(note); panel.appendChild(bar);
+      ov.appendChild(panel);
+      function destroy(){
+        ov.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';
+        try{if(wasFocused&&wasFocused.focus)wasFocused.focus();}catch(e){}
+      }
+      function onKey(e){if(e.key==='Escape')destroy();}
+      ov._destroy=destroy;
+      ov.addEventListener('click',function(e){if(e.target===ov)destroy();});
+      closeB.addEventListener('click',destroy);
+      if(shareB)shareB.addEventListener('click',function(){
+        /* a cancelled share sheet rejects — that's a choice, not an error */
+        navigator.share({files:[file],title:p.name||'My project'}).catch(function(){});
+      });
+      saveB.addEventListener('click',function(){
+        var a=document.createElement('a');
+        a.href=d; a.download=shareFileName(p);
+        document.body.appendChild(a); a.click(); a.remove();
+        toast('Picture saved — check your Downloads ✓',1800);
+      });
+      document.addEventListener('keydown',onKey);
+      document.body.style.overflow='hidden';
+      document.body.appendChild(ov);
+      try{ov.focus();}catch(e){}
+    });
+  }
+
   /* Side by side, full screen. Tapping a picture has always blown up ONE of them,
      which is no use for the question these two pictures exist to answer: does
      mine look like the one the seller photographed. Whole pictures, not the
@@ -4096,6 +4345,7 @@ try{
         '<div class="paint-head">'+
           '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
           '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
+          '<button class="chipbtn" id="shareBtn" type="button" title="Turn this project into one picture to share">📤 Share</button>'+
           (p.photos.length>1?'<button class="chipbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
           (!isDraw&&p.photos.length>2?('<button class="chipbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
           '<button class="chipbtn" id="modeToggle" type="button" title="Switch to edit mode">📖🖋 Edit</button>'+
@@ -4129,6 +4379,7 @@ try{
     if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){
       if(arrangeMode)exitArrange(); else enterArrange();
     });
+    if($('shareBtn'))$('shareBtn').addEventListener('click',function(){openShareCard(p);});
     if($('cmpBtn'))$('cmpBtn').addEventListener('click',function(){openCompare(p);});
     pg.querySelectorAll('.vw-side img,.vw-hero img,.vw-gallery img').forEach(function(im){
       im.addEventListener('click',function(){
@@ -4389,6 +4640,7 @@ try{
         '<button class="chipbtn" id="copyColors" type="button">⧉ Copy colours</button>'):'')+
         '<button class="chipbtn" id="rename" type="button">Rename</button>'+
         '<button class="chipbtn" id="dupe" type="button">Duplicate</button>'+
+        '<button class="chipbtn" id="shareBtn" type="button" title="Turn this project into one picture to share">📤 Share</button>'+
         '<button class="chipbtn" id="moveUp" type="button" title="Move earlier in the list" aria-label="Move earlier in the list">↑</button>'+
         '<button class="chipbtn" id="moveDown" type="button" title="Move later in the list" aria-label="Move later in the list">↓</button>'+
         '<button class="chipbtn danger" id="del" type="button">Delete</button>'+
@@ -4487,6 +4739,7 @@ try{
       render(); save(); if(copy.photos&&copy.photos.length)savePhotos(copy.id);
       pushHistory(); toast('Duplicated ✓',1200);
     });
+    if($('shareBtn'))$('shareBtn').addEventListener('click',function(){openShareCard(p);});
 
     /* photos events */
     if($('phAdd'))$('phAdd').addEventListener('click',function(){plog('opened the photo picker','');$('fileInput').click();});
