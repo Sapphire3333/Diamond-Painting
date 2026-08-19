@@ -1,11 +1,20 @@
 #!/bin/sh
-# Stamps version.js with today's date (plus a counter for a second commit on
-# the same day) so every build carries its own name. The app shows the stamp,
-# and the service worker's cache is named after it — which is what guarantees
-# a new build can never be served from an old cache.
+# 1. Refuses the commit if any JavaScript in the repo doesn't parse — the whole
+#    app is one page, so one missing bracket would take down everything.
+# 2. Stamps version.js with today's date (plus a counter for a second commit on
+#    the same day) so every build carries its own name. The app shows the stamp,
+#    and the service worker's cache is named after it — which is what guarantees
+#    a new build can never be served from an old cache.
 #
 # This hook only runs if git is told where to find it (once per machine):
 #   git config core.hooksPath .githooks
+
+if command -v node >/dev/null 2>&1; then
+  if ! node scripts/check-syntax.mjs; then
+    echo "pre-commit: JavaScript syntax check failed — commit aborted." >&2
+    exit 1
+  fi
+fi
 
 d=$(date +%Y-%m-%d)
 n=1

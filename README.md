@@ -35,7 +35,7 @@ Type a number yourself whenever you'd rather, and it stands until you press **�
 
 ## Why you'll like it
 
-**"Do I already have this color?"** — the Find page answers the question every diamond painter asks. Tap any DMC number and instantly see which of your paintings use it — or tap a **tag** to ask a different question, like which of your kits you marked *good* or *wrinkled canvas*. The **■ ● ✦** buttons beside the search box narrow every count to one drill shape (tap the same one again for all of them) — and mark the colours you have leftover drills of 🧺, so "do I own this?" gets a direct answer. A "Leftovers only" filter shows your whole stash at a glance, and **🧾 Check a kit list** takes a pasted colour list from a kit you're eyeing and reports what's new to you, what's in your leftovers, and what's already in your paintings — before you buy.
+**"Do I already have this color?"** — the Find page answers the question every diamond painter asks. Tap any DMC number and instantly see which of your paintings use it — or tap a **tag** to ask a different question, like which of your kits you marked *good* or *wrinkled canvas*. The **■ ● ✦** buttons beside the search box narrow every count to one drill shape (tap the same one again for all of them) — and mark the colours you have leftover drills of 🧺, so "do I own this?" gets a direct answer. Leftovers have three answers, because a bag with a dozen drills left is its own familiar state: **🧺 have some · ⏳ running low · ∅ none left** — so Find also answers "what should I reorder?". A "Leftovers only" filter shows your whole stash at a glance, and **🧾 Check a kit list** takes a pasted colour list from a kit you're eyeing and reports what's new to you, what's in your leftovers, and what's already in your paintings — before you buy.
 
 **It works everywhere.** It's a website, so it runs on any phone, tablet, or PC. Add it to your home screen and it installs like a real app and works offline.
 
@@ -87,7 +87,7 @@ Every page has **A− 115% A+** in the top-right corner. It grows the whole app 
 
 - **⇔ Compare:** on any project with two pictures, this puts the seller's photo and your finished result on screen together, full size — side by side on a PC, one above the other on a phone, with a tap to switch. Tap either one to see it alone and tap again to bring the other back.
 - **Fading a photo and putting it behind the page:** in **⇱ Arrange & edit**, tap a photo and a *Fade* slider appears, with **▢ Send behind the page** beside it. A faded photo sitting behind the page reads as a watermark — cards and text keep their own solid colours and sit on top of it, so it shows in the margins and the gaps. It stays in front while you're arranging (otherwise you couldn't take hold of it) and drops behind when you read the project.
-- **Photos:** tap a photo to open its tools (crop to card, flip, reorder). Use **⇱ Arrange & edit** to drag photos anywhere on the page, resize, tilt, crop, or cut out the background. On PC you can paste a copied image with Ctrl+V. If a photo ever refuses to load on a phone, **🩺 Photo check** explains what went wrong on that device.
+- **Photos:** tap a photo to open its tools (crop to card, flip, reorder, a **caption**). A caption shows on the project page's gallery and when the photo opens big — with the date each photo was added, your work-in-progress photos become a little diary. Use **⇱ Arrange & edit** to drag photos anywhere on the page, resize, tilt, crop, or cut out the background. On PC you can paste a copied image with Ctrl+V. If a photo ever refuses to load on a phone, **🩺 Photo check** explains what went wrong on that device.
 - **Tags, sizes, sellers** are shared lists — add one once, reuse it everywhere. Tap **edit list** next to a group to remove entries you no longer want.
 - **Backups:** **Save a backup now** sits on Overview, where you'll want it before a big change. Everything else is in **⚙ Settings**: "Show backup code" gives you a text code you can save anywhere (notes app, email to yourself), "⬇ Download as file" saves the same thing as a file — sturdier than the clipboard when photos make the code huge — plus your last 20 snapshots to restore from, and the daily/weekly automatic backup switch.
 
@@ -102,6 +102,8 @@ By default the app is 100% local. If you want your phone and PC to share the sam
 
 Sync is automatic while the app is open. Each account only ever sees its own data (enforced by row-level security), and the anon key is safe to keep in a public file. After creating your account, you can disable new sign-ups in Supabase (Authentication → Sign In / Providers) so nobody else can register on your project.
 
+One honest limit: a project's **photos** sync as one bundle, newest-wins. Editing the *same project's photos* on two devices at the same time keeps whichever device saved last — everything else (the project list, settings, shared lists) merges properly.
+
 ## Host your own copy
 
 Want your own version? It's one HTML file — no build tools, no server code.
@@ -114,17 +116,20 @@ Everything is in plain files:
 
 | File | Purpose |
 |---|---|
-| `index.html` | The entire app — HTML, CSS, JavaScript, and the DMC color table |
+| `index.html` | The entire app — HTML, CSS and JavaScript |
+| `dmc.js` | The full DMC color table (454 colors) |
 | `sw.js` | Service worker for offline use |
-| `manifest.webmanifest` + `icon.svg` | Makes it installable as an app |
+| `manifest.webmanifest` + `icon.svg` + `apple-touch-icon.png` | Makes it installable as an app (the PNG is the iPhone home-screen icon) |
 | `SUPABASE_SETUP.sql` | Optional — sets up your own cloud sync |
+| `scripts/check-syntax.mjs` | Refuses a commit whose JavaScript doesn't parse (via `.githooks/pre-commit`) |
 
 ## Privacy & storage
 
 - All data lives in your browser (IndexedDB — usually hundreds of MB of room). The Overview page has a storage meter, and **What's using the space** opens a list of your projects biggest-first — tap one to see its individual pictures, jump straight to the project, or shrink a picture that's larger than the app ever needs.
-- Photos are resized to 1200px on the long edge before saving — around 200–250 KB each, sharp enough for a phone screen and for **⇔ Compare**, and small enough that a big collection is still a few tens of MB against the gigabytes the browser offers.
+- Photos are resized to 1200px on the long edge before saving — around 200–250 KB each, sharp enough for a phone screen and for **⇔ Compare**, and small enough that a big collection is still a few tens of MB against the gigabytes the browser offers. Each photo also keeps a tiny copy for the list pages, so scrolling a big collection stays light on an old phone.
+- The app asks the browser to treat its storage as *persistent*, and the storage panel tells you whether the browser agreed — protection against the automatic clean-ups some browsers do.
 - Nothing leaves your device unless you set up your own cloud sync — and then it goes only to *your* Supabase project.
-- Clearing your browser data will erase the app's data too — that's what backups (and sync) are for. Save a backup code somewhere safe once in a while!
+- Clearing your browser data will erase the app's data too — that's what backups (and sync) are for. If there's been no backup for a fortnight and no cloud sync, the app says one quiet sentence about it — and if a page ever fails to draw, a rescue screen hands you the backup code instead of a blank page.
 
 ## FAQ
 
