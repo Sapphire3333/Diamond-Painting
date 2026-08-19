@@ -4,7 +4,7 @@
    gets a fresh cache and the old one is deleted on activate — stale files
    can't outlive the build they belonged to. */
 var CACHE = 'dp-colors-' + (new URL(self.location.href).searchParams.get('v') || 'v3');
-var ASSETS = ['./', './index.html', './version.js', './manifest.webmanifest', './icon.svg'];
+var ASSETS = ['./', './index.html', './dmc.js', './version.js', './manifest.webmanifest', './icon.svg', './apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
@@ -43,14 +43,16 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  /* everything else (icon, manifest): cache-first is fine */
+  /* everything else (icon, manifest, scripts): cache-first is fine. When a
+     fetch fails and nothing is cached, fail honestly — handing index.html to
+     an image or script request only produces stranger errors downstream. */
   e.respondWith(
     caches.match(req).then(function (cached) {
       return cached || fetch(req).then(function (res) {
         var copy = res.clone();
         caches.open(CACHE).then(function (c) { c.put(req, copy); });
         return res;
-      }).catch(function () { return caches.match('./index.html'); });
+      }).catch(function () { return Response.error(); });
     })
   );
 });

@@ -7,7 +7,9 @@
 <title>Diamond Painting Colors</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
-<link rel="apple-touch-icon" href="icon.svg">
+<!-- iOS ignores SVG here and would fall back to a screenshot-ish tile; the home
+     screen icon has to be a real PNG, opaque and square — iOS rounds it itself -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="DP Colors">
@@ -62,6 +64,11 @@ try{
     color:var(--ink); background:var(--bg); min-height:100vh; padding:14px 12px 60px;
     position:relative; z-index:1;}
   .dp-app *{box-sizing:border-box;}
+  /* keyboard focus must be visible on everything tappable — the cards and
+     fold-away headings are divs, so the browser's default outline never came */
+  .dp-app button:focus-visible,.dp-app [role="button"]:focus-visible,
+  .dp-app input:focus-visible,.dp-app textarea:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;}
   .wrap{max-width:900px;margin:0 auto;}
   .dp-title{font-size:20px;font-weight:800;letter-spacing:.2px;margin:2px 2px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .dp-title .gem{width:16px;height:16px;background:linear-gradient(135deg,#8f6fe0 0%,#5B3FA8 55%,#3c2a75 100%);
@@ -205,8 +212,12 @@ try{
   .bgswatch.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent);}
   .acc-sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0;}
   .acc-sw.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink);}
-  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);display:flex;align-items:center;justify-content:center;z-index:100;padding:18px;cursor:zoom-out;}
-  .lightbox img{max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;}
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;z-index:100;padding:18px;cursor:zoom-out;outline:none;}
+  .lightbox img{max-width:100%;max-height:100%;min-height:0;border-radius:10px;object-fit:contain;}
+  .lb-cap{color:#fff;font-size:13px;font-weight:700;text-align:center;max-width:90%;flex:0 0 auto;}
+  /* a caption sits on its gallery tile without stealing the tap */
+  .vw-gitem{position:relative;display:block;}
+  .vw-gcap{position:absolute;left:6px;right:6px;bottom:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;}
   /* ---- two pictures at once ----
      Lives outside the app's own box like the single-photo view, so its colours
      are written out rather than taken from the theme. */
@@ -502,9 +513,8 @@ try{
   <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
 </div>
 
+<script src="dmc.js"></script>
 <script>
-const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","#F0CED4"],["152","Shell Pink Med Light","#E2A099"],["153","Violet Very Light","#E6CCD9"],["154","Grape Very Dark","#572433"],["155","Blue Violet Med Dark","#9891B6"],["156","Blue Violet Med Lt","#A3AED1"],["157","Cornflower Blue Vy Lt","#BBC3D9"],["158","Cornflower Blu M V D","#4C526E"],["159","Blue Gray Light","#C7CAD7"],["160","Blue Gray Medium","#999FB7"],["161","Blue Gray","#7880A4"],["162","Blue Ultra Very Light","#DBECF5"],["163","Celadon Green Md","#4D8361"],["164","Forest Green Lt","#C8D8B8"],["165","Moss Green Vy Lt","#EFF4A4"],["166","Moss Green Md Lt","#C0C840"],["167","Yellow Beige V Dk","#A77C49"],["168","Pewter Very Light","#D1D1D1"],["169","Pewter Light","#848484"],["208","Lavender Very Dark","#835B8B"],["209","Lavender Dark","#A37BA7"],["210","Lavender Medium","#C39FC3"],["211","Lavender Light","#E3CBE3"],["221","Shell Pink Vy Dk","#883E43"],["223","Shell Pink Light","#CC847C"],["224","Shell Pink Very Light","#EBB7AF"],["225","Shell Pink Ult Vy Lt","#FFDFD5"],["300","Mahogany Vy Dk","#6F2F00"],["301","Mahogany Med","#B35F2B"],["304","Red Medium","#B71F33"],["307","Lemon","#FDED54"],["309","Rose Dark","#D62B5B"],["310","Black","#000000"],["311","Wedgewood Ult VyDk","#1C5066"],["312","Baby Blue Very Dark","#35668B"],["315","Antique Mauve Md Dk","#814952"],["316","Antique Mauve Med","#B7737F"],["317","Pewter Gray","#6C6C6C"],["318","Steel Gray Lt","#ABABAB"],["319","Pistachio Grn Vy Dk","#205F2E"],["320","Pistachio Green Med","#69885A"],["321","Red","#C72B3B"],["322","Baby Blue Dark","#5A8FB8"],["326","Rose Very Dark","#B33B4B"],["327","Violet Dark","#633666"],["333","Blue Violet Very Dark","#5C5478"],["334","Baby Blue Medium","#739FC1"],["335","Rose","#EE546E"],["336","Navy Blue","#253B73"],["340","Blue Violet Medium","#ADA7C7"],["341","Blue Violet Light","#B7BFDD"],["347","Salmon Very Dark","#BF2D2D"],["349","Coral Dark","#D21035"],["350","Coral Medium","#E04848"],["351","Coral","#E96A67"],["352","Coral Light","#FD9C97"],["353","Peach","#FED7CC"],["355","Terra Cotta Dark","#984436"],["356","Terra Cotta Med","#C56A5B"],["367","Pistachio Green Dk","#617A52"],["368","Pistachio Green Lt","#A6C298"],["369","Pistachio Green Vy Lt","#D7EDCC"],["370","Mustard Medium","#B89D64"],["371","Mustard","#BFA671"],["372","Mustard Lt","#CCB784"],["400","Mahogany Dark","#8F430F"],["402","Mahogany Vy Lt","#F7A777"],["407","Desert Sand Med","#BB8161"],["413","Pewter Gray Dark","#565656"],["414","Steel Gray Dk","#8C8C8C"],["415","Pearl Gray","#D3D3D6"],["420","Hazelnut Brown Dk","#A07042"],["422","Hazelnut Brown Lt","#C69F7B"],["433","Brown Med","#7A451F"],["434","Brown Light","#985E33"],["435","Brown Very Light","#B87748"],["436","Tan","#CB9051"],["437","Tan Light","#E4BB8E"],["444","Lemon Dark","#FFD600"],["445","Lemon Light","#FFFB8B"],["451","Shell Gray Dark","#917B73"],["452","Shell Gray Med","#C0B3AE"],["453","Shell Gray Light","#D7CECB"],["469","Avocado Green","#72843C"],["470","Avocado Grn Lt","#94AB4F"],["471","Avocado Grn V Lt","#AEBF79"],["472","Avocado Grn U Lt","#D8E498"],["498","Red Dark","#A7132B"],["500","Blue Green Vy Dk","#044D33"],["501","Blue Green Dark","#396F52"],["502","Blue Green","#5B9071"],["503","Blue Green Med","#7BAC94"],["504","Blue Green Vy Lt","#C4DECC"],["505","Jade Green","#338362"],["517","Wedgewood Dark","#3B768F"],["518","Wedgewood Light","#4F93A7"],["519","Sky Blue","#7EB1C8"],["520","Fern Green Dark","#666D4F"],["522","Fern Green","#969E7E"],["523","Fern Green Lt","#ABB197"],["524","Fern Green Vy Lt","#C4CDAC"],["535","Ash Gray Vy Lt","#636458"],["543","Beige Brown Ult Vy Lt","#F2E3CE"],["550","Violet Very Dark","#5C184E"],["552","Violet Medium","#803A6B"],["553","Violet","#A3638B"],["554","Violet Light","#DBB3CB"],["561","Celadon Green VD","#2C6A45"],["562","Jade Medium","#53976A"],["563","Jade Light","#8FC098"],["564","Jade Very Light","#A7CDAF"],["580","Moss Green Dk","#888D33"],["581","Moss Green","#A7AE38"],["597","Turquoise","#5BA3B3"],["598","Turquoise Light","#90C3CC"],["600","Cranberry Very Dark","#CD2F63"],["601","Cranberry Dark","#D1286A"],["602","Cranberry Medium","#E24874"],["603","Cranberry","#FFA4BE"],["604","Cranberry Light","#FFB0BE"],["605","Cranberry Very Light","#FFC0CD"],["606","Orange-Red Bright","#FA3203"],["608","Burnt Orange Bright","#FD5D35"],["610","Drab Brown Dk","#796047"],["611","Drab Brown","#967656"],["612","Drab Brown Lt","#BC9A78"],["613","Drab Brown V Lt","#DCC4AA"],["632","Desert Sand Ult Vy Dk","#875539"],["640","Beige Gray Vy Dk","#857B61"],["642","Beige Gray Dark","#A49878"],["644","Beige Gray Med","#DDD8CB"],["645","Beaver Gray Vy Dk","#6E655C"],["646","Beaver Gray Dk","#877D73"],["647","Beaver Gray Med","#B0A69C"],["648","Beaver Gray Lt","#BCB4AC"],["666","Bright Red","#E31D42"],["676","Old Gold Lt","#E5CE97"],["677","Old Gold Vy Lt","#F5ECCB"],["680","Old Gold Dark","#BC8D0E"],["699","Green","#056517"],["700","Green Bright","#07731B"],["701","Green Light","#3F8F29"],["702","Kelly Green","#47A72F"],["703","Chartreuse","#7BB547"],["704","Chartreuse Bright","#9ECF34"],["712","Cream","#FFFBEF"],["718","Plum","#9C2462"],["720","Orange Spice Dark","#E55C1F"],["721","Orange Spice Med","#F27842"],["722","Orange Spice Light","#F7976F"],["725","Topaz Med Lt","#FFC840"],["726","Topaz Light","#FDD755"],["727","Topaz Vy Lt","#FFF1AF"],["728","Topaz","#E4B468"],["729","Old Gold Medium","#D0A53E"],["730","Olive Green V Dk","#827B30"],["731","Olive Green Dk","#938B37"],["732","Olive Green","#948C36"],["733","Olive Green Md","#BCB34C"],["734","Olive Green Lt","#C7C077"],["738","Tan Very Light","#ECCC9E"],["739","Tan Ult Vy Lt","#F8E4C8"],["740","Tangerine","#FF8B00"],["741","Tangerine Med","#FFA32B"],["742","Tangerine Light","#FFBF57"],["743","Yellow Med","#FED376"],["744","Yellow Pale","#FFE793"],["745","Yellow Pale Light","#FFE9AD"],["746","Off White","#FCFCEE"],["747","Peacock Blue Vy Lt","#E5FCFD"],["754","Peach Light","#F7CBBF"],["758","Terra Cotta Vy Lt","#EEAA9B"],["760","Salmon","#F5ADAD"],["761","Salmon Light","#FFC9C9"],["762","Pearl Gray Vy Lt","#ECECEC"],["772","Yellow Green Vy Lt","#E4ECD4"],["775","Baby Blue Very Light","#D9EBF1"],["776","Pink Medium","#FCB0B9"],["777","Raspberry Very Dark","#913546"],["778","Antique Mauve Vy Lt","#DFB3BB"],["779","Cocoa Dark","#624B45"],["780","Topaz Ultra Vy Dk","#94631A"],["781","Topaz Very Dark","#A26D20"],["782","Topaz Dark","#AE7720"],["783","Topaz Medium","#CE9124"],["791","Cornflower Blue V D","#464563"],["792","Cornflower Blue Dark","#555B7B"],["793","Cornflower Blue Med","#707DA2"],["794","Cornflower Blue Light","#8F9CC1"],["796","Royal Blue Dark","#11416D"],["797","Royal Blue","#13477D"],["798","Delft Blue Dark","#466A8E"],["799","Delft Blue Medium","#748EB6"],["800","Delft Blue Pale","#C0CCDE"],["801","Coffee Brown Dk","#653919"],["803","Baby Blue Ult Vy Dk","#2C597C"],["806","Peacock Blue Dark","#3D95A5"],["807","Peacock Blue","#64ABBA"],["809","Delft Blue","#94A8C6"],["813","Blue Light","#A1C2D7"],["814","Garnet Dark","#7B001B"],["815","Garnet Medium","#87071F"],["816","Garnet","#970B23"],["817","Coral Red Very Dark","#BB051F"],["818","Baby Pink","#FFDFD9"],["819","Baby Pink Light","#FFEEEB"],["820","Royal Blue Very Dark","#0E365C"],["822","Beige Gray Light","#E7E2D3"],["823","Navy Blue Dark","#213063"],["824","Blue Very Dark","#396987"],["825","Blue Dark","#4781A5"],["826","Blue Medium","#6B9EBF"],["827","Blue Very Light","#BDDDED"],["828","Sky Blue Vy Lt","#C5E8ED"],["829","Golden Olive Vy Dk","#7E6B42"],["830","Golden Olive Dk","#8D784B"],["831","Golden Olive Md","#AA8F56"],["832","Golden Olive","#BD9B51"],["833","Golden Olive Lt","#C8AB6C"],["834","Golden Olive Vy Lt","#DBBE7F"],["838","Beige Brown Vy Dk","#594937"],["839","Beige Brown Dk","#675541"],["840","Beige Brown Med","#9A7C5C"],["841","Beige Brown Lt","#B69B7E"],["842","Beige Brown Vy Lt","#D1BAA1"],["844","Beaver Gray Ult Dk","#484848"],["869","Hazelnut Brown V Dk","#835E39"],["890","Pistachio Grn Ult V D","#174923"],["891","Carnation Dark","#FF5773"],["892","Carnation Medium","#FF798C"],["893","Carnation Light","#FC90A2"],["894","Carnation Very Light","#FFB2BB"],["895","Hunter Green Vy Dk","#1B5300"],["898","Coffee Brown Vy Dk","#492A13"],["899","Rose Medium","#F27688"],["900","Burnt Orange Dark","#D15807"],["902","Garnet Very Dark","#822637"],["904","Parrot Green V Dk","#557822"],["905","Parrot Green Dk","#628A28"],["906","Parrot Green Md","#7FB335"],["907","Parrot Green Lt","#C7E666"],["909","Emerald Green Vy Dk","#156F49"],["910","Emerald Green Dark","#187E56"],["911","Emerald Green Med","#189065"],["912","Emerald Green Lt","#1B9D6B"],["913","Nile Green Med","#6DAB77"],["915","Plum Dark","#820043"],["917","Plum Medium","#9B1359"],["918","Red Copper Dark","#82340A"],["919","Red Copper","#A64510"],["920","Copper Med","#AC5414"],["921","Copper","#C66218"],["922","Copper Light","#E27323"],["924","Gray Green Vy Dark","#566A6A"],["926","Gray Green Med","#98AEAE"],["927","Gray Green Light","#BDCBCB"],["928","Gray Green Vy Lt","#DDE3E3"],["930","Antique Blue Dark","#455C71"],["931","Antique Blue Medium","#6A859E"],["932","Antique Blue Light","#A2B5C6"],["934","Avocado Grn Black","#313919"],["935","Avocado Green Dk","#424D21"],["936","Avocado Grn V Dk","#4C5826"],["937","Avocado Green Md","#627133"],["938","Coffee Brown Ult Dk","#361F0E"],["939","Navy Blue Very Dark","#1B2853"],["943","Green Bright Md","#3D9384"],["945","Tawny","#FBD5BB"],["946","Burnt Orange Med","#EB6307"],["947","Burnt Orange","#FF7B4D"],["948","Peach Very Light","#FEE7DA"],["950","Desert Sand Light","#EED3C4"],["951","Tawny Light","#FFE2CF"],["954","Nile Green","#88BA91"],["955","Nile Green Light","#A2D6AD"],["956","Geranium","#FF9191"],["957","Geranium Pale","#FDB5B5"],["958","Sea Green Dark","#3EB6A1"],["959","Sea Green Med","#59C7B4"],["961","Dusty Rose Dark","#CF7373"],["962","Dusty Rose Medium","#E68A8A"],["963","Dusty Rose Ult Vy Lt","#FFD7D7"],["964","Sea Green Light","#A9E2D8"],["966","Jade Ultra Vy Lt","#B9D7C0"],["967","Apricot Very Light","#FFDED5"],["970","Pumpkin Light","#F78B13"],["971","Pumpkin","#F67F00"],["972","Canary Deep","#FFB515"],["973","Canary Bright","#FFE300"],["975","Golden Brown Dk","#914F12"],["976","Golden Brown Med","#C28142"],["977","Golden Brown Light","#DC9C56"],["986","Forest Green Vy Dk","#405230"],["987","Forest Green Dk","#587141"],["988","Forest Green Med","#738B5B"],["989","Forest Green","#8DA675"],["991","Aquamarine Dk","#477B6E"],["992","Aquamarine Lt","#6FAE9F"],["993","Aquamarine Vy Lt","#90C0B4"],["995","Electric Blue Dark","#2696B6"],["996","Electric Blue Medium","#30C2EC"],["3011","Khaki Green Dk","#898A58"],["3012","Khaki Green Md","#A6A75D"],["3013","Khaki Green Lt","#B9B982"],["3021","Brown Gray Vy Dk","#4F4B41"],["3022","Brown Gray Med","#8E9078"],["3023","Brown Gray Light","#B1AA97"],["3024","Brown Gray Vy Lt","#EBEAE7"],["3031","Mocha Brown Vy Dk","#4B3C2A"],["3032","Mocha Brown Med","#B39F8B"],["3033","Mocha Brown Vy Lt","#E3D8CC"],["3041","Antique Violet Medium","#956F7C"],["3042","Antique Violet Light","#B79DA7"],["3045","Yellow Beige Dk","#BC966A"],["3046","Yellow Beige Md","#D8BC9A"],["3047","Yellow Beige Lt","#E7D6C1"],["3051","Green Gray Dk","#5F6648"],["3052","Green Gray Md","#889268"],["3053","Green Gray","#9CA482"],["3064","Desert Sand","#C48E70"],["3072","Beaver Gray Vy Lt","#E6E8E8"],["3078","Golden Yellow Vy Lt","#FDF9CD"],["3325","Baby Blue Light","#B8D2E6"],["3326","Rose Light","#FBADB4"],["3328","Salmon Dark","#E36D6D"],["3340","Apricot Med","#FF836F"],["3341","Apricot","#FCAB98"],["3345","Hunter Green Dk","#1B5915"],["3346","Hunter Green","#406A3A"],["3347","Yellow Green Med","#71935C"],["3348","Yellow Green Lt","#CCD9B1"],["3350","Dusty Rose Ultra Dark","#BC4365"],["3354","Dusty Rose Light","#E4A6AC"],["3362","Pine Green Dk","#5E6B47"],["3363","Pine Green Md","#728256"],["3364","Pine Green","#83975F"],["3371","Black Brown","#1E1108"],["3607","Plum Light","#C54989"],["3608","Plum Very Light","#EA9CC4"],["3609","Plum Ultra Light","#F4AED5"],["3685","Mauve Very Dark","#881531"],["3687","Mauve","#C96B70"],["3688","Mauve Medium","#E7A9AC"],["3689","Mauve Light","#FBBFC2"],["3705","Melon Dark","#FF7992"],["3706","Melon Medium","#FFADBC"],["3708","Melon Light","#FFCBD5"],["3712","Salmon Medium","#F18787"],["3713","Salmon Very Light","#FFE2E2"],["3716","Dusty Rose Med Vy Lt","#FFBDBD"],["3721","Shell Pink Dark","#A14B51"],["3722","Shell Pink Med","#BC6C64"],["3726","Antique Mauve Dark","#9B5B66"],["3727","Antique Mauve Light","#DBA9B2"],["3731","Dusty Rose Very Dark","#DA6783"],["3733","Dusty Rose","#E8879B"],["3740","Antique Violet Dark","#785762"],["3743","Antique Violet Vy Lt","#D7CBD3"],["3746","Blue Violet Dark","#776B98"],["3747","Blue Violet Vy Lt","#D3D7ED"],["3750","Antique Blue Very Dk","#384C5E"],["3752","Antique Blue Very Lt","#C7D1DB"],["3753","Antique Blue Ult Vy Lt","#DBE2E9"],["3755","Baby Blue","#93B4CE"],["3756","Baby Blue Ult Vy Lt","#EEFCFC"],["3760","Wedgewood Med","#3E85A2"],["3761","Sky Blue Light","#ACD8E2"],["3765","Peacock Blue Vy Dk","#347F8C"],["3766","Peacock Blue Light","#99CFD9"],["3768","Gray Green Dark","#657F7F"],["3770","Tawny Vy Light","#FFEEE3"],["3771","Terra Cotta Ult Vy Lt","#F4BBA9"],["3772","Desert Sand Vy Dk","#A06C50"],["3773","Desert Sand Dark","#B67552"],["3774","Desert Sand Vy Lt","#F3E1D7"],["3776","Mahogany Light","#CF7939"],["3777","Terra Cotta Vy Dk","#863022"],["3778","Terra Cotta Light","#D98978"],["3779","Rosewood Ult Vy Lt","#F8CAC8"],["3781","Mocha Brown Dk","#6B5743"],["3782","Mocha Brown Lt","#D2BCA6"],["3787","Brown Gray Dark","#625D50"],["3790","Beige Gray Ult Dk","#7F6A55"],["3799","Pewter Gray Vy Dk","#424242"],["3801","Melon Very Dark","#E74967"],["3802","Antique Mauve Vy Dk","#714149"],["3803","Mauve Dark","#AB3357"],["3804","Cyclamen Pink Dark","#E02876"],["3805","Cyclamen Pink","#F3478B"],["3806","Cyclamen Pink Light","#FF8CAE"],["3807","Cornflower Blue","#60678C"],["3808","Turquoise Ult Vy Dk","#366970"],["3809","Turquoise Vy Dark","#3F7C85"],["3810","Turquoise Dark","#488E9A"],["3811","Turquoise Very Light","#BCE3E6"],["3812","Sea Green Vy Dk","#2F8C84"],["3813","Blue Green Lt","#B2D4BD"],["3814","Aquamarine","#508B7D"],["3815","Celadon Green Dk","#477759"],["3816","Celadon Green","#65A57D"],["3817","Celadon Green Lt","#99C3AA"],["3818","Emerald Grn Ult V Dk","#115A3B"],["3819","Moss Green Lt","#E0E868"],["3820","Straw Dark","#DFB65F"],["3821","Straw","#F3CE75"],["3822","Straw Light","#F6DC98"],["3823","Yellow Ultra Pale","#FFFDE3"],["3824","Apricot Light","#FECDC2"],["3825","Pumpkin Pale","#FDBD96"],["3826","Golden Brown","#AD7239"],["3827","Golden Brown Pale","#F7BB77"],["3828","Hazelnut Brown","#B78B61"],["3829","Old Gold Vy Dark","#A98204"],["3830","Terra Cotta","#B95544"],["3831","Raspberry Dark","#B32F48"],["3832","Raspberry Medium","#DB556E"],["3833","Raspberry Light","#EA8699"],["3834","Grape Dark","#72375D"],["3835","Grape Medium","#946083"],["3836","Grape Light","#BA91AA"],["3837","Lavender Ultra Dark","#6C3A6E"],["3838","Lavender Blue Dark","#5C7294"],["3839","Lavender Blue Med","#7B8EAB"],["3840","Lavender Blue Light","#B0C0DA"],["3841","Baby Blue Pale","#CDDFED"],["3842","Wedgewood Vry Dk","#32667C"],["3843","Electric Blue","#14AAD0"],["3844","Turquoise Bright Dark","#12AEBA"],["3845","Turquoise Bright Med","#04C4CA"],["3846","Turquoise Bright Light","#06E3E6"],["3847","Teal Green Dark","#347D75"],["3848","Teal Green Med","#559392"],["3849","Teal Green Light","#52B3A4"],["3850","Green Bright Dk","#378477"],["3851","Green Bright Lt","#49B3A1"],["3852","Straw Very Dark","#CD9D37"],["3853","Autumn Gold Dk","#F29746"],["3854","Autumn Gold Med","#F2AF68"],["3855","Autumn Gold Lt","#FAD396"],["3856","Mahogany Ult Vy Lt","#FFD3B5"],["3857","Rosewood Dark","#68251A"],["3858","Rosewood Med","#964A3F"],["3859","Rosewood Light","#BA8B7C"],["3860","Cocoa","#7D5D57"],["3861","Cocoa Light","#A68881"],["3862","Mocha Beige Dark","#8A6E4E"],["3863","Mocha Beige Med","#A4835C"],["3864","Mocha Beige Light","#CBB69C"],["3865","Winter White","#F9F7F1"],["3866","Mocha Brn Ult Vy Lt","#FAF6F0"],["Ecru","Ecru","#F0EADA"],["White","White","#FCFBF8"],["B5200","Snow White","#FFFFFF"]];
-
 (function(){
   var KEY='dpTrackerV1';
   /* =======================================================================
@@ -638,18 +648,29 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     return m;
   }
-  function hasLeftovers(code,used){
+  /* Three answers, not two — because "do I own this colour?" has a third,
+     familiar state: a bag with a dozen drills left in it. 1 = have plenty,
+     2 = running low, 0 = used up; no entry means the default above. */
+  function stashLevel(code,used){
     var s=state.stash?state.stash[code]:undefined;
-    if(s===1)return true;
-    if(s===0)return false;
-    return !!(used||usedColorSet())[code];
+    if(s===1)return 'have';
+    if(s===2)return 'low';
+    if(s===0)return 'out';
+    return (used||usedColorSet())[code]?'have':'out';
   }
-  function toggleLeftovers(code){
+  function hasLeftovers(code,used){return stashLevel(code,used)!=='out';}
+  function setLeftovers(code,level){
     if(!state.stash)state.stash={};
     var used=usedColorSet();
-    var want=!hasLeftovers(code,used);
-    if(want===!!used[code])delete state.stash[code];   /* the default already says this */
-    else state.stash[code]=want?1:0;
+    var def=used[code]?'have':'out';
+    if(level===def){delete state.stash[code];return;}   /* the default already says this */
+    state.stash[code]=(level==='have')?1:(level==='low'?2:0);
+  }
+  function stashIcon(level,html){
+    if(level==='out')return '';
+    var sym=(level==='low')?'⏳':'🧺';
+    var tip=(level==='low')?'Running low on this colour':'You have leftovers of this colour';
+    return html?(' <span title="'+tip+'">'+sym+'</span>'):(' '+sym);
   }
   function famOf(hex){
     hex=String(hex).replace('#','');
@@ -739,16 +760,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   /* ---------- storage ----------
      Main data and photos are stored separately:
      - main state (small, text only) under KEY
-     - each painting's photos under 'dpPhotos_<paintingId>' (own 5MB slot in Claude)
-     On PC the app uses IndexedDB (hundreds of MB) with localStorage as a last resort. */
-  function claudeStore(){
-    return Promise.resolve({
-      kind:'claude',
-      get:function(k){return window.storage.get(k).catch(function(){return null;});},
-      set:function(k,v){return window.storage.set(k,v);},
-      del:function(k){return window.storage.delete?window.storage.delete(k).catch(function(){}):Promise.resolve();}
-    });
-  }
+     - each painting's photos under 'dpPhotos_<paintingId>'
+     The app uses IndexedDB (hundreds of MB) with localStorage as a last resort. */
   function idbStore(){
     return new Promise(function(res,rej){
       if(!window.indexedDB){rej(new Error('no idb'));return;}
@@ -784,7 +797,6 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
   }
   function makeStore(){
-    if(window.storage&&window.storage.get&&window.storage.set)return claudeStore();
     return idbStore().catch(function(){
       try{return lsStore();}catch(e){return Promise.resolve(null);}
     });
@@ -823,40 +835,53 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     return s;
   }
   var saveT=null, lastSavedBody={};
+  function saveNow(){
+    saveT=null;
+    if(!STORE){warnOnce();return;}
+    try{
+      /* a project that exists can't stay tombstoned (restores and undo re-add ids) */
+      if(!state.gone)state.gone={};
+      state.paintings.forEach(function(p){if(state.gone[p.id])delete state.gone[p.id];});
+      /* write only the project bodies that actually changed */
+      state.paintings.forEach(function(p){
+        var body=paintBody(p);
+        if(lastSavedBody[p.id]===body)return;
+        lastSavedBody[p.id]=body;
+        STORE.set(paintKey(p.id),body).catch(function(){warnOnce();});
+      });
+      STORE.set(KEY, JSON.stringify(mainBlob()))
+        .then(function(){toast('Saved ✓',650);}).catch(function(){warnOnce();});
+    }catch(e){warnOnce();}
+  }
   function save(){
     clearTimeout(saveT);
-    saveT=setTimeout(function(){
-      if(!STORE){warnOnce();return;}
-      try{
-        /* a project that exists can't stay tombstoned (restores and undo re-add ids) */
-        if(!state.gone)state.gone={};
-        state.paintings.forEach(function(p){if(state.gone[p.id])delete state.gone[p.id];});
-        /* write only the project bodies that actually changed */
-        state.paintings.forEach(function(p){
-          var body=paintBody(p);
-          if(lastSavedBody[p.id]===body)return;
-          lastSavedBody[p.id]=body;
-          STORE.set(paintKey(p.id),body).catch(function(){warnOnce();});
-        });
-        STORE.set(KEY, JSON.stringify(mainBlob()))
-          .then(function(){toast('Saved ✓',650);}).catch(function(){warnOnce();});
-      }catch(e){warnOnce();}
-    },450);
+    saveT=setTimeout(saveNow,450);
   }
   var photoT={};
+  function savePhotosNow(pid){
+    delete photoT[pid];
+    if(!STORE)return;
+    var p=null;
+    for(var i=0;i<state.paintings.length;i++)if(state.paintings[i].id===pid)p=state.paintings[i];
+    if(!p)return;
+    var json=JSON.stringify(p.photos||[]);
+    if(json.length>4600000&&STORE.kind!=='idb')toast('This project’s photos are nearly at their 5MB limit — remove one or two',2600);
+    try{STORE.set(photoKey(pid), json).catch(function(){warnOnce();});}catch(e){warnOnce();}
+  }
   function savePhotos(pid){
     if(!STORE)return;
     var _pp=null; for(var _j=0;_j<state.paintings.length;_j++)if(state.paintings[_j].id===pid)_pp=state.paintings[_j];
     if(_pp){_pp.updatedAt=nowTs();save();}
     clearTimeout(photoT[pid]);
-    photoT[pid]=setTimeout(function(){
-      var p=null;
-      for(var i=0;i<state.paintings.length;i++)if(state.paintings[i].id===pid)p=state.paintings[i];
-      if(!p)return;
-      var json=JSON.stringify(p.photos||[]);
-      if(json.length>4600000&&STORE.kind!=='idb')toast('This project’s photos are nearly at their 5MB limit — remove one or two',2600);
-      try{STORE.set(photoKey(pid), json).catch(function(){warnOnce();});}catch(e){warnOnce();}
-    },450);
+    photoT[pid]=setTimeout(function(){savePhotosNow(pid);},450);
+  }
+  /* The debounce that keeps typing cheap also means the newest edit lives only
+     in a timer for half a second — and "type something, swipe the app away" is
+     a perfectly normal thing to do on a phone. So when the page is going away,
+     whatever is still waiting in a timer is written right now instead. */
+  function flushPendingSaves(){
+    if(saveT){clearTimeout(saveT);saveNow();}
+    Object.keys(photoT).forEach(function(pid){clearTimeout(photoT[pid]);savePhotosNow(pid);});
   }
   function deletePhotosKey(pid){
     if(STORE)try{STORE.del(photoKey(pid));}catch(e){}
@@ -920,7 +945,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     showUndoBar(msg,function(){
       var p=findPainting(pid);
       if(!p||p.photos.indexOf(photo)===-1){toast('Could not undo — the photo changed',1600);return;}
-      photo.d=oldD; savePhotos(pid);
+      photo.d=oldD; refreshThumb(photo,pid); savePhotos(pid);
       if(state.view==='paint'&&state.active===pid)renderPainting();
       toast('Restored original ✓',1200);
     });
@@ -944,7 +969,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(history[histIdx]===snap)return;
       history=history.slice(0,histIdx+1);
       history.push(snap);
-      if(history.length>40)history.shift();
+      /* 30 snapshots of the whole collection: each is the full text of every
+         project, so a bigger number buys deep history at real memory cost */
+      if(history.length>30)history.shift();
       histIdx=history.length-1;
       refreshUndoBtns();
     },350);
@@ -992,6 +1019,29 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(storageWarned)return; storageWarned=true;
     toast('Saving isn’t working right now — use Backup on the Overview page so nothing is lost',3200);
   }
+  /* A photo is only ever a data: image this app made itself. A pasted backup
+     code, though, is arbitrary text — and photo data is dropped into the page
+     as HTML (src="…", background-image:url('…')), so a stray quote or bracket
+     in it would break out of the attribute. Anything that isn't a clean data:
+     image is thrown away rather than rendered. */
+  function cleanImageData(d){
+    if(typeof d!=='string'||!/^data:image\//i.test(d))return '';
+    if(/["'<>()\\\s]/.test(d))return '';
+    return d;
+  }
+  function sanitizePhotos(p){
+    if(!p.photos){p.photos=[];return;}
+    p.photos=p.photos.filter(function(ph){
+      if(!ph||typeof ph!=='object')return false;
+      ph.d=cleanImageData(ph.d);
+      if(!ph.d)return false;
+      if(ph.t){ph.t=cleanImageData(ph.t);if(!ph.t)delete ph.t;}
+      /* photos from before they had names of their own get one, so things that
+         point at a photo (the page background) survive reordering */
+      if(!ph.id)ph.id=uid('ph');
+      return true;
+    });
+  }
   function normalize(s){
     if(!s.view)s.view='paintings';
     if(s.view==='overview'&&(!s.paintings||!s.paintings.length))s.view='paintings';
@@ -1032,7 +1082,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!p.finishes)p.finishes={};
       if(!p.colors)p.colors={};
       if(!p.spec)p.spec={};
-      if(!p.photos)p.photos=[];
+      sanitizePhotos(p);
       if(!('seller' in p))p.seller=null;
       if(!('rating' in p))p.rating=null;
       /* a rating typed before tags could work one out is still yours: it is
@@ -1345,6 +1395,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           if(pr&&pr.value){var arr=JSON.parse(pr.value);if(arr&&arr.length)p.photos=arr;}
           else if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
         }catch(e){if(inline)p.photos=inline;}
+        sanitizePhotos(p);
         if(--pend===0){if(migrated)save();cb();}
       }).catch(function(){
         if(inline){p.photos=inline;savePhotos(p.id);migrated=true;}
@@ -1410,13 +1461,28 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     list.forEach(function(p){
       STORE.get(photoKey(p.id)).then(function(pr){
         try{if(pr&&pr.value){var arr=JSON.parse(pr.value);if(arr&&arr.length){p.photos=arr;changed=true;}}}catch(e){}
+        sanitizePhotos(p);
         if(--pend===0)cb&&cb(changed);
       }).catch(function(){if(--pend===0)cb&&cb(changed);});
     });
   }
+  /* Ask the browser to treat this data as worth keeping. Without it, storage
+     is "best effort": a browser under pressure may clear it, and Safari throws
+     away all of a site's data after a week of not visiting. Granted or not,
+     the storage panel says which, so the user knows where they stand. */
+  var persisted=null;
+  function askPersist(){
+    try{
+      if(navigator.storage&&navigator.storage.persisted)
+        navigator.storage.persisted().then(function(g){if(g)persisted=true;}).catch(function(){});
+      if(navigator.storage&&navigator.storage.persist)
+        navigator.storage.persist().then(function(g){persisted=!!g;}).catch(function(){});
+    }catch(e){}
+  }
   function load(cb){
     loadAuth();
     openStore(function(){
+      askPersist();
       hydrate(function(){
         cb();
         historyInit();
@@ -1546,14 +1612,15 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var picks=[];
     state.paintings.forEach(function(p){
       (p.photos||[]).forEach(function(ph,i){
-        if(ph&&ph.d&&picks.length<24)picks.push({pid:p.id,i:i,d:ph.d,name:p.name});
+        if(ph&&ph.d&&picks.length<24)picks.push({pid:p.id,i:i,phid:ph.id||'',d:thumbSrc(ph),name:p.name});
       });
     });
     if(!picks.length)return '<div class="bk-note">No photos yet — add one to a project and it can go behind the page.</div>';
     var cur=state.bgPhoto||{};
     return '<div class="bk-btns" style="margin-top:8px;">'+picks.map(function(x){
-      return '<button class="bgswatch'+((cur.pid===x.pid&&(cur.i||0)===x.i)?' on':'')+'" data-bgpick="'+esc(x.pid)+'|'+x.i+
-        '" type="button" title="'+esc(x.name)+'" style="background-image:url(\''+x.d+'\')"></button>';
+      var on=cur.pid===x.pid&&((cur.phid&&x.phid)?cur.phid===x.phid:(cur.i||0)===x.i);
+      return '<button class="bgswatch'+(on?' on':'')+'" data-bgpick="'+esc(x.pid)+'|'+x.i+'|'+esc(x.phid)+
+        '" type="button" title="'+esc(x.name)+'" aria-label="Use a photo from '+esc(x.name)+' as the background" style="background-image:url(\''+x.d+'\')"></button>';
     }).join('')+'</div>';
   }
 
@@ -1580,7 +1647,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<div class="sm-row" style="margin-top:10px;">'+
           '<div class="sm-lbl"><span>Text &amp; button size</span><span id="fsVal">'+fontScale()+'%</span></div>'+
           '<div class="rating-row" style="gap:10px;">'+
-            '<input class="prog-range" id="fsRange" type="range" min="80" max="220" step="5" value="'+fontScale()+
+            '<input class="prog-range" id="fsRange" type="range" min="80" max="220" step="5" aria-label="Text and button size" value="'+fontScale()+
               '" style="flex:1;--fill:'+((fontScale()-80)/140*100)+'%;">'+
             '<button class="chipbtn" id="fsReset" type="button">Reset</button>'+
           '</div>'+
@@ -1664,6 +1731,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       a.download='diamond-painting-backup-'+(todayStr()||'today')+($('bkPhotos').checked?'':'-no-photos')+'.json';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+      try{localStorage.setItem('dpLastBkTs',String(nowTs()));}catch(_){}
       $('bkNote').textContent='Backup file saved (check your Downloads). To use it later, tap “Load from file”, then “Restore from code”.';
     });
     $('bkLoad').addEventListener('click',function(){
@@ -1773,7 +1841,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });});
     pg.querySelectorAll('[data-bgpick]').forEach(function(b){b.addEventListener('click',function(){
       var v=b.getAttribute('data-bgpick').split('|');
-      state.bgPhoto={pid:v[0],i:parseInt(v[1],10)||0}; state.bg='photo';
+      state.bgPhoto={pid:v[0],i:parseInt(v[1],10)||0,phid:v[2]||''}; state.bg='photo';
       applyBackground(); renderOverview(); save();
     });});
   }
@@ -1799,6 +1867,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       arr.unshift(entry);
       var removed=arr.slice(20); arr=arr.slice(0,20);
       st.set('dpBk_'+id,data).then(function(){
+        try{localStorage.setItem('dpLastBkTs',String(ts));}catch(_){}
         st.set(BKINDEX,JSON.stringify(arr)).then(function(){
           removed.forEach(function(e){try{st.del('dpBk_'+e.id);}catch(_){}});
           if(!auto)toast('Backup saved ✓',1200); cb&&cb();
@@ -1814,6 +1883,26 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(now-last<interval){cb&&cb();return;}
     try{localStorage.setItem('dpAutoBkTs',String(now));}catch(e){}
     saveBackup(false,function(){cb&&cb();},true);
+  }
+  /* A quiet reminder, not an alarm. Auto-backup is off by default and the cloud
+     is optional, so a collection can grow for months with nothing protecting it
+     and the app never saying a word. Once a fortnight without any backup (and
+     at most once a week), it says one sentence about where the button is. */
+  function maybeBackupNudge(){
+    if(cloudOn())return;
+    var worth=state.paintings.length>1||state.paintings.some(function(p){
+      return (p.photos&&p.photos.length)||Object.keys(p.colors||{}).length>0;
+    });
+    if(!worth)return;
+    var now=nowTs(),last=0,nagged=0,day=86400000;
+    try{last=parseInt(localStorage.getItem('dpLastBkTs')||'0',10)||0;}catch(e){}
+    try{nagged=parseInt(localStorage.getItem('dpBkNudgeTs')||'0',10)||0;}catch(e){}
+    if(now-last<14*day)return;
+    if(now-nagged<7*day)return;
+    try{localStorage.setItem('dpBkNudgeTs',String(now));}catch(e){}
+    toast(last
+      ? 'It’s been a while since your last backup — “Save a backup now” is on the ⌂ Overview page'
+      : 'No backup yet — “Save a backup now” on the ⌂ Overview page keeps your collection safe',5600);
   }
   function deleteBackup(id,cb){
     var st=bkStore(); if(!st){cb&&cb();return;}
@@ -1854,7 +1943,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var ps=state.paintings, n=ps.length;
     var byStatus={wishlist:0,progress:0,done:0};
     var byType={square:0,round:0,odd:0};
-    var rsum=0,rn=0,colors=0,spend=0,spendN=0;
+    var rsum=0,rn=0,colors=0,spend=0,spendN=0,wish=0,wishN=0;
     var byKind={diamond:0,pbn:0,drawing:0};
     ps.forEach(function(p){
       byKind[kindOf(p)]++;
@@ -1863,8 +1952,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var rr=ratingOf(p);
       if(rr!==null&&!isNaN(rr)){rsum+=rr;rn++;}
       colors+=Object.keys(p.colors||{}).length;
+      /* a price on a wishlist kit is money you might spend, not money you have —
+         adding the two together made the total lie in both directions */
       var pr=parsePrice(p.price);
-      if(!isNaN(pr)){spend+=pr;spendN++;}
+      if(!isNaN(pr)){if(p.status==='wishlist'){wish+=pr;wishN++;}else{spend+=pr;spendN++;}}
     });
     var avg=rn?(rsum/rn).toFixed(1):'—';
     var spendStr=spendN?spend.toFixed(2):'—';
@@ -1876,7 +1967,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       '<div class="bk-note" style="margin-top:8px;">'+
         KINDS.map(function(k){return k.sym+' '+k.label+' '+byKind[k.id];}).join(' · ')+
       '</div>'+
-      '<div class="bk-note" style="margin-top:4px;">Avg rating '+avg+' · diamond types: ■ '+byType.square+'  ● '+byType.round+'  ✦ '+byType.odd+' · '+colors+' colours selected in total'+(spendN?(' · total spend '+spendStr):'')+'</div>'+
+      '<div class="bk-note" style="margin-top:4px;">Avg rating '+avg+' · diamond types: ■ '+byType.square+'  ● '+byType.round+'  ✦ '+byType.odd+' · '+colors+' colours selected in total'+(spendN?(' · total spend '+spendStr):'')+(wishN?(' · wishlist would cost '+wish.toFixed(2)):'')+'</div>'+
       '<div class="bk-btns" style="margin-top:10px;"><button class="chipbtn" id="csvExport" type="button" title="One row per project — opens in Excel or Google Sheets">⬇ Export list as CSV (Excel)</button></div>'+
       '</div>';
   }
@@ -2008,7 +2099,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var labels=coverLabels(p);
     var h='<div class="ovphotos frame-'+(p.frame||'landscape')+'">';
     p.photos.slice(0,n).forEach(function(ph,i){
-      h+='<div class="ovphoto"><img src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'">'+
+      h+='<div class="ovphoto"><img src="'+thumbSrc(ph)+'" alt="'+esc(p.name)+(labels[i]?(' — '+labels[i]):'')+'" style="'+photoStyle(ph)+'">'+
         (labels[i]?'<span class="ovphoto-lbl">'+labels[i]+'</span>':'')+'</div>';
     });
     return h+'</div>';
@@ -2021,6 +2112,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var sub=cardSub(p,style==='tile'), prog=progHtml(p);
     var st=p.status&&STATUSMAP[p.status];
     var open='<div class="ovcard st-'+style+(st?' stripe':'')+(selectedIds[p.id]?' picked':'')+'" data-id="'+p.id+'"'+
+      ' role="button" tabindex="0" aria-label="'+esc(p.name)+(selectMode?(selectedIds[p.id]?' — ticked':' — not ticked'):'')+'"'+
       (st?' style="--stripe:'+st.fg+'"':'')+'>';
     var selBox=selectMode?('<span class="selbox'+(selectedIds[p.id]?' on':'')+'">'+(selectedIds[p.id]?'✓':'')+'</span>'):'';
     var badges=statusBadge(p)+ratingBadge(p)+(isDiamond(p)?badgeHtml(p.type):kindBadge(p));
@@ -2029,7 +2121,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       return open+
         /* the picture IS the tile, so tapping it opens the project rather than
            blowing the photo up full-screen the way it does on a wide card */
-        (p.photos&&p.photos.length?'<div class="tile-pic"><img src="'+p.photos[0].d+'" alt="" style="'+photoStyle(p.photos[0])+'">'+
+        (p.photos&&p.photos.length?'<div class="tile-pic"><img src="'+thumbSrc(p.photos[0])+'" alt="'+esc(p.name)+'" style="'+photoStyle(p.photos[0])+'">'+
           (selBox?'<span class="tile-sel">'+selBox+'</span>':'')+'</div>'
          :'<div class="tile-pic empty">'+(selBox?'<span class="tile-sel">'+selBox+'</span>':'')+'<span class="tile-none">no photo yet</span></div>')+
         '<div class="tile-body">'+
@@ -2146,7 +2238,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var out='';
     groups.forEach(function(g){
       var collapsed=!!collapsedGroups[g.label];
-      out+='<div class="section-lbl grp-hd" data-grp="'+encodeURIComponent(g.label)+'" style="cursor:pointer;user-select:none;">'+(collapsed?'▸':'▾')+' '+g.label+' <span style="color:var(--muted);font-weight:700;">'+g.items.length+'</span></div>';
+      out+='<div class="section-lbl grp-hd" data-grp="'+encodeURIComponent(g.label)+'" role="button" tabindex="0" aria-expanded="'+(collapsed?'false':'true')+'" style="cursor:pointer;user-select:none;">'+(collapsed?'▸':'▾')+' '+g.label+' <span style="color:var(--muted);font-weight:700;">'+g.items.length+'</span></div>';
       if(!collapsed)out+='<div class="'+listClass()+'">'+g.items.map(paintingCardHtml).join('')+'</div>';
     });
     return out;
@@ -2216,17 +2308,28 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(t.p.photos&&t.p.photos.length)savePhotos(t.p.id);
     toast('Restored “'+t.p.name+'” ✓',1400);
   }
-  function openLightbox(src){
+  function openLightbox(src,caption){
     var lb=document.createElement('div'); lb.className='lightbox';
-    var im=document.createElement('img'); im.src=src; lb.appendChild(im);
+    lb.setAttribute('role','dialog'); lb.setAttribute('aria-modal','true');
+    lb.setAttribute('aria-label',caption||'Photo'); lb.tabIndex=-1;
+    var wasFocused=document.activeElement;
+    var im=document.createElement('img'); im.src=src; im.alt=caption||''; lb.appendChild(im);
+    if(caption){
+      var cap=document.createElement('div'); cap.className='lb-cap'; cap.textContent=caption;
+      lb.appendChild(cap);
+    }
     function onKey(e){if(e.key==='Escape')close();}
-    function destroy(){lb.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';}
+    function destroy(){
+      lb.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';
+      try{if(wasFocused&&wasFocused.focus)wasFocused.focus();}catch(e){}
+    }
     function close(){destroy();}
     lb._destroy=destroy;
     lb.addEventListener('click',close);
     document.addEventListener('keydown',onKey);
     document.body.style.overflow='hidden';
     document.body.appendChild(lb);
+    try{lb.focus();}catch(e){}
   }
   /* Side by side, full screen. Tapping a picture has always blown up ONE of them,
      which is no use for the question these two pictures exist to answer: does
@@ -2243,6 +2346,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var solo=-1;
     var ov=document.createElement('div');
     ov.className='lightbox cmp';
+    ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+    ov.setAttribute('aria-label','Compare the two pictures'); ov.tabIndex=-1;
+    var wasFocused=document.activeElement;
     function draw(){
       ov.innerHTML='<div class="cmp-bar">'+
           '<button class="cmp-btn" data-a="flip" type="button">'+(stacked?'⇔ Side by side':'⇕ One above the other')+'</button>'+
@@ -2257,7 +2363,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '</div>'+
         '<div class="cmp-hint">'+(solo>=0?'Tap the picture to bring the other one back':'Tap a picture to see it on its own')+'</div>';
     }
-    function destroy(){ov.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';}
+    function destroy(){
+      ov.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';
+      try{if(wasFocused&&wasFocused.focus)wasFocused.focus();}catch(e){}
+    }
     function onKey(e){if(e.key==='Escape')destroy();}
     ov._destroy=destroy; /* so Back closes it, like the single-photo view */
     ov.addEventListener('click',function(e){
@@ -2274,6 +2383,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     document.body.style.overflow='hidden';
     draw();
     document.body.appendChild(ov);
+    try{ov.focus();}catch(e){}
   }
   function wirePaintingCards(){
     $('page').querySelectorAll('.ovcard').forEach(function(c){
@@ -2320,8 +2430,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     html+='<div class="ovsort toolrow">'+
       '<button class="chipbtn'+(toolsOpen?' on':'')+'" id="toolsBtn" type="button">'+(toolsOpen?'▾':'▸')+' Filters &amp; sorting'+
         (on.length&&!toolsOpen?' <span class="cnt" style="color:inherit">'+on.length+'</span>':'')+'</button>'+
-      '<button class="chipbtn ic" id="undoBtn" type="button" title="Undo">↶</button>'+
-      '<button class="chipbtn ic" id="redoBtn" type="button" title="Redo">↷</button>'+
+      '<button class="chipbtn ic" id="undoBtn" type="button" title="Undo" aria-label="Undo">↶</button>'+
+      '<button class="chipbtn ic" id="redoBtn" type="button" title="Redo" aria-label="Redo">↷</button>'+
       (clipboard.length?('<button class="chipbtn" id="pasteBtn" type="button">📋 Paste ('+clipboard.length+')</button>'):'')+
       (trash.length?('<button class="chipbtn" id="restoreBtn" type="button">♻ Restore ('+trash.length+')</button>'):'')+
       (selectMode?('<button class="chipbtn" id="copyBtn" type="button">⧉ Copy</button>'+
@@ -2375,7 +2485,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     pg.querySelectorAll('[data-g]').forEach(function(b){b.addEventListener('click',function(){state.pGroup=b.getAttribute('data-g');renderPaintings();save();});});
     pg.querySelectorAll('[data-kind]').forEach(function(b){b.addEventListener('click',function(){state.pKind=b.getAttribute('data-kind');renderPaintings();save();});});
     pg.querySelectorAll('[data-sf]').forEach(function(b){b.addEventListener('click',function(){state.pSearchField=b.getAttribute('data-sf');renderPaintings();save();});});
-    $('pq').addEventListener('input',function(e){pQuery=e.target.value;renderPaintingsList();});
+    var pqT=null;
+    $('pq').addEventListener('input',function(e){
+      pQuery=e.target.value;
+      clearTimeout(pqT); pqT=setTimeout(renderPaintingsList,150);
+    });
     if($('undoBtn'))$('undoBtn').addEventListener('click',doUndo);
     if($('redoBtn'))$('redoBtn').addEventListener('click',doRedo);
     if($('selBtn'))$('selBtn').addEventListener('click',function(){selectMode=!selectMode;if(!selectMode)selectedIds={};renderPaintings();});
@@ -2508,15 +2622,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var mainSize=JSON.stringify(strippedState()).length;
     var kind=STORE?STORE.kind:'none';
     var html='';
-    if(kind==='claude'){
-      html+=meterRow('Lists &amp; settings (own slot)',mainSize,SLOT);
-      state.paintings.forEach(function(p){
-        if(!p.photos||!p.photos.length)return;
-        var sz=JSON.stringify(p.photos).length;
-        html+=meterRow(esc(p.name)+' — '+p.photos.length+' photo'+(p.photos.length===1?'':'s'),sz,SLOT);
-      });
-      html+='<div class="bk-note">Each row has its own 5 MB slot — one painting filling up never affects the others.</div>';
-    } else if(kind==='idb'){
+    if(kind==='idb'){
       var totalPhotos=0, rows='';
       state.paintings.forEach(function(p){
         if(!p.photos||!p.photos.length)return;
@@ -2541,7 +2647,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var qn=$('quotaNote');
         if(qn&&est&&est.quota){
           qn.textContent='This browser gives the app about '+fmtBytes(est.quota)+' — '+
-            fmtBytes(est.usage||0)+' in use. Plenty of room.';
+            fmtBytes(est.usage||0)+' in use. Plenty of room.'+
+            (persisted===true
+              ? ' The browser has agreed to keep this data through storage clean-ups ✓'
+              : ' The browser has not promised to keep this data through storage clean-ups — a backup or cloud sync is your safety net.');
         }
       }).catch(function(){});
     }
@@ -2559,7 +2668,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      "larger than it needs to be" means it, rather than nagging about every
      good photo */
   var BIG_PHOTO=700*1024;
-  function photoBytes(ph){return (ph&&ph.d)?ph.d.length:0;}
+  function photoBytes(ph){return ph?(((ph.d&&ph.d.length)||0)+((ph.t&&ph.t.length)||0)):0;}
   function storageRows(){
     var rows=state.paintings.map(function(p){
       var photos=(p.photos||[]).reduce(function(s,ph){return s+photoBytes(ph);},0);
@@ -2570,12 +2679,14 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     return rows;
   }
   function photoLabel(p,i){
+    var ph=p.photos&&p.photos[i];
+    if(ph&&ph.c)return ph.c;   /* a caption the user wrote beats a generic name */
     var l=coverLabels(p);
     return l[i]||('Photo '+(i+1));
   }
   function renderStorageBreakdown(){
     var el=$('storBreak'); if(!el)return;
-    var head='<div class="section-lbl fsec-hd" id="storHd" style="margin:10px 0 4px;">'+
+    var head='<div class="section-lbl fsec-hd" id="storHd" role="button" tabindex="0" aria-expanded="'+(storOpen?'true':'false')+'" style="margin:10px 0 4px;">'+
       (storOpen?'▾':'▸')+' What’s using the space</div>';
     if(!storOpen){
       el.innerHTML=head+'<div class="bk-note" style="opacity:.7">Build '+esc(window.APP_VERSION||'unknown')+'</div>';
@@ -2593,7 +2704,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     h+='<div class="stlist">';
     rows.forEach(function(r){
       var pct=top?Math.round(r.total/top*100):0;
-      h+='<div class="strow'+(storSel===r.id?' open':'')+'" data-stp="'+esc(r.id)+'">'+
+      h+='<div class="strow'+(storSel===r.id?' open':'')+'" data-stp="'+esc(r.id)+'" role="button" tabindex="0" aria-expanded="'+(storSel===r.id?'true':'false')+'">'+
         '<span class="strow-n">'+(storSel===r.id?'▾':'▸')+' '+esc(r.name)+'</span>'+
         '<span class="strow-bar"><i style="width:'+pct+'%"></i></span>'+
         '<span class="strow-s">'+fmtBytes(r.total)+'</span></div>';
@@ -2604,8 +2715,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         else p.photos.forEach(function(ph,i){
           var b=photoBytes(ph);
           h+='<div class="stphoto">'+
-            '<img src="'+ph.d+'" alt="">'+
-            '<span class="stphoto-t"><b>'+esc(photoLabel(p,i))+'</b><br>'+fmtBytes(b)+'</span>'+
+            '<img src="'+thumbSrc(ph)+'" alt="'+esc(photoLabel(p,i))+'">'+
+            '<span class="stphoto-t"><b>'+esc(photoLabel(p,i))+'</b><br>'+fmtBytes(b)+(ph.ts?(' · added '+fmtDate(ph.ts)):'')+'</span>'+
             '<button class="pbtn" data-stopen="'+esc(r.id)+'|'+i+'" type="button">Open</button>'+
             (b>BIG_PHOTO?'<button class="pbtn" data-stshrink="'+esc(r.id)+'|'+i+'" type="button">↓ Make smaller</button>':'')+
             '</div>';
@@ -2659,7 +2770,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     importImage(blob,PHOTO_MAX,PHOTO_Q,function(d){
       if(!d){toast('That picture couldn’t be redrawn on this device — it is unchanged',3000);return;}
       if(d.length>=before){toast('That one is already as small as it goes',2200);return;}
-      ph.d=d; savePhotos(pid); save();
+      ph.d=d; refreshThumb(ph,pid); savePhotos(pid); save();
       /* the saving goes on the panel, not in a toast: saving the file pops its
          own "Saved ✓" a moment later and would wipe the numbers off the screen */
       storMsg='“'+p.name+'” · '+photoLabel(p,i)+': '+fmtBytes(before)+' → '+fmtBytes(d.length)+
@@ -2686,6 +2797,58 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
      of a fraction of a percent of the room. Photos already saved keep the detail
      they were saved with — this only changes what happens from now on. */
   var PHOTO_MAX=1200, PHOTO_Q=0.80;
+  /* ---- card thumbnails ----
+     The list pages show covers at around 100–200 CSS pixels, but they were
+     given the full 1200-wide photo to do it — forty projects meant tens of MB
+     of decoded image being re-parsed on every filter tap, which is exactly what
+     makes an older phone stutter. Each photo now carries a small copy (~15 KB)
+     for the places that only need a glance; the full photo is still what opens
+     in the lightbox, Compare, and the project page's big covers. */
+  var THUMB_MAX=360, THUMB_Q=0.72, THUMB_WORTH=60*1024;
+  function thumbSrc(ph){return (ph&&ph.t)||(ph&&ph.d)||'';}
+  function makeThumb(d,cb){
+    if(!d||d.length<THUMB_WORTH){cb('');return;}
+    loadImg(d,function(img){
+      if(!img){cb('');return;}
+      var w=img.naturalWidth||img.width||0,h=img.naturalHeight||img.height||0;
+      if(!w||!h||(w<=THUMB_MAX&&h<=THUMB_MAX)){cb('');return;}
+      var cv=scaleTransparent(img,w,h,THUMB_MAX);
+      if(canvasBlank(cv)){cb('');return;}
+      var t=flattenToJpeg(cv,THUMB_Q);
+      /* a thumbnail that isn't clearly smaller isn't earning its keep */
+      cb(t.length<d.length*0.7?t:'');
+    });
+  }
+  /* the photo just changed (crop, cut-out, shrink, undo) — its small copy is
+     now a picture of the past, so it is redone from the new original */
+  function refreshThumb(photo,pid,cb){
+    delete photo.t;
+    makeThumb(photo.d,function(t){
+      if(t){photo.t=t;if(pid)savePhotos(pid);}
+      cb&&cb();
+    });
+  }
+  /* photos saved before thumbnails existed get theirs made once, quietly, a
+     breath apart so an old phone never notices it happening */
+  function migrateThumbs(){
+    var queue=[];
+    state.paintings.forEach(function(p){
+      (p.photos||[]).forEach(function(ph){
+        if(ph&&ph.d&&!ph.t&&ph.d.length>THUMB_WORTH)queue.push({pid:p.id,ph:ph});
+      });
+    });
+    if(!queue.length)return;
+    var i=0;
+    function step(){
+      if(i>=queue.length)return;
+      var it=queue[i++];
+      makeThumb(it.ph.d,function(t){
+        if(t){it.ph.t=t;savePhotos(it.pid);}
+        setTimeout(step,120);
+      });
+    }
+    step();
+  }
   var photoDiag=[];
   function noteDiag(rec){rec.when=nowTs();photoDiag.unshift(rec);if(photoDiag.length>8)photoDiag.pop();}
   /* A timeline that outlives the page. The detailed records above live in memory
@@ -2898,6 +3061,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var d=flattenToJpeg(best.cv,quality);
       rec.ok=true; rec.out=best.cv.width+'×'+best.cv.height; rec.outBytes=d.length;
       rec.thumb=d; rec.partial=!!best.partial;
+      /* the small copy for cards is made here, from the canvas already in hand */
+      if(d.length>THUMB_WORTH&&(best.cv.width>THUMB_MAX||best.cv.height>THUMB_MAX)){
+        try{
+          var tcv=scaleTransparent(best.cv,best.cv.width,best.cv.height,THUMB_MAX);
+          if(!canvasBlank(tcv)){
+            var tj=flattenToJpeg(tcv,THUMB_Q);
+            if(tj.length<d.length*0.7)rec.small=tj;
+          }
+        }catch(e){}
+      }
       if(best.partial)note('nothing better came back, so kept the half-drawn one from '+best.how);
       /* half a picture plus a strict refusal means the file is short of data,
          not that the device struggled with it */
@@ -2994,7 +3167,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       }
       var p=findPainting(pid);
       if(!p){toast('That project is gone — photo not added',1800);return;}
-      var np={d:d,s:1};
+      var np={d:d,s:1,id:uid('ph'),ts:nowTs()};
+      if(rec&&rec.small)np.t=rec.small;
       var isActive=(state.active===pid);
       if(arrangeMode&&isActive){
         np.ax=lastPastePt?lastPastePt.x:38; np.ay=lastPastePt?lastPastePt.y:34;
@@ -3084,6 +3258,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   }
   function openPhotoCheck(){
     var ov=document.createElement('div'); ov.className='lightbox';
+    ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+    ov.setAttribute('aria-label','Photo check'); ov.tabIndex=-1;
+    var wasFocused=document.activeElement;
     ov.style.cursor='default'; ov.style.alignItems='flex-start'; ov.style.overflow='auto';
     var panel=document.createElement('div');
     panel.style.cssText='background:var(--panel);color:var(--ink);border-radius:14px;padding:14px;max-width:640px;width:100%;';
@@ -3120,7 +3297,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(shots.childNodes.length)panel.appendChild(shots);
     panel.appendChild(bar);
     ov.appendChild(panel);
-    function destroy(){ov.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';}
+    function destroy(){
+      ov.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';
+      try{if(wasFocused&&wasFocused.focus)wasFocused.focus();}catch(e){}
+    }
     function onKey(e){if(e.key==='Escape')destroy();}
     ov._destroy=destroy;
     close.addEventListener('click',destroy);
@@ -3134,6 +3314,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     document.addEventListener('keydown',onKey);
     document.body.style.overflow='hidden';
     document.body.appendChild(ov);
+    try{ov.focus();}catch(e){}
     selfTestSizes(function(tests){pre.textContent=photoReportText(tests);},
                   function(tests){pre.textContent=photoReportText(tests);});
   }
@@ -3222,6 +3403,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   /* drag-a-rectangle crop overlay */
   function openCrop(photo,cb){
     var ov=document.createElement('div'); ov.className='lightbox';
+    ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+    ov.setAttribute('aria-label','Crop this photo');
     ov.style.flexDirection='column'; ov.style.gap='10px'; ov.style.cursor='default';
     var hint=document.createElement('div'); hint.style.cssText='color:#fff;font-size:12.5px;font-weight:700;';
     hint.textContent='Drag on the image to choose the part to keep.';
@@ -3281,7 +3464,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var op=Math.round((ph.op==null?1:ph.op)*100);
     return '<div class="photo-btns arr-fade">'+
       '<span class="pd-lbl" style="margin:0;align-self:center;">Fade:</span>'+
-      '<input class="prog-range" id="arrOp" type="range" min="10" max="100" step="5" value="'+op+
+      '<input class="prog-range" id="arrOp" type="range" min="10" max="100" step="5" aria-label="Fade this photo" value="'+op+
         '" style="flex:1 1 130px;max-width:220px;--fill:'+((op-10)/90*100)+'%;">'+
       '<span id="arrOpVal" style="font-weight:800;font-size:12px;min-width:38px;">'+op+'%</span>'+
       '<button class="pbtn'+(ph.back?' on':'')+'" id="arrBack" type="button">'+
@@ -3641,7 +3824,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(needSel())return;
       var photo=p.photos[arrSel], before=photo.d;
       openCrop(photo,function(ok){
-        if(ok){renderPainting();savePhotos(p.id);pushHistory();showEditUndo(p.id,photo,before,'Cropped ✓');}
+        if(ok){refreshThumb(photo,p.id);renderPainting();savePhotos(p.id);pushHistory();showEditUndo(p.id,photo,before,'Cropped ✓');}
       });
     });
     $('arrCut').addEventListener('click',function(){
@@ -3650,7 +3833,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var photo=p.photos[arrSel], before=photo.d;
       setTimeout(function(){
         cutOutBackground(photo,function(ok){
-          if(ok){renderPainting();savePhotos(p.id);pushHistory();showEditUndo(p.id,photo,before,'Background cut out ✓');}
+          if(ok){refreshThumb(photo,p.id);renderPainting();savePhotos(p.id);pushHistory();showEditUndo(p.id,photo,before,'Background cut out ✓');}
           else toast('Could not cut this one out — works best on a plain/white background',2600);
         });
       },40);
@@ -3749,7 +3932,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       h+='<div class="grid compact" style="margin-top:8px;">'+m.map(function(x,i){
         var row=DMCMAP[x.code];
         var sub=x.already?'already in this painting':(x.from?('⚠ read “'+esc(x.from)+'”'):esc(row[1]));
-        return '<div class="card'+(x.on?' sel':'')+(x.already?' ro':'')+'" data-rev="'+i+'" style="'+
+        return '<div class="card'+(x.on?' sel':'')+(x.already?' ro':'')+'" data-rev="'+i+'"'+(x.already?'':' role="button" tabindex="0" aria-pressed="'+(x.on?'true':'false')+'"')+' style="'+
           (x.already?'opacity:.5;':'')+(x.from?'border-color:var(--star);':'')+'">'+
           '<div class="drill" style="background-color:'+row[2]+'"></div>'+
           '<div class="ctext"><div class="code">'+row[0]+'</div><div class="cname"'+
@@ -3872,7 +4055,10 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     if(isDraw&&p.photos.length>1){
       galleryHtml='<div class="section-lbl">Photos ('+p.photos.length+')</div><div class="vw-gallery">'+
         p.photos.slice(1).map(function(ph,i){
-          return '<img data-i="'+(i+1)+'" src="'+ph.d+'" alt="" style="'+photoStyle(ph)+'">';
+          return '<span class="vw-gitem">'+
+            '<img data-i="'+(i+1)+'" src="'+thumbSrc(ph)+'" alt="'+esc(ph.c||('Photo '+(i+2)))+'" style="'+photoStyle(ph)+'">'+
+            (ph.c?'<span class="vw-gcap">'+esc(ph.c)+'</span>':'')+
+          '</span>';
         }).join('')+'</div>';
     }
 
@@ -3945,7 +4131,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     if($('cmpBtn'))$('cmpBtn').addEventListener('click',function(){openCompare(p);});
     pg.querySelectorAll('.vw-side img,.vw-hero img,.vw-gallery img').forEach(function(im){
-      im.addEventListener('click',function(){openLightbox(im.src);});
+      im.addEventListener('click',function(){
+        /* the gallery shows the small copy — the lightbox always gets the original */
+        var i=parseInt(im.getAttribute('data-i'),10);
+        var ph=(i>=0&&p.photos[i])?p.photos[i]:null;
+        openLightbox(ph?ph.d:im.src,ph?(ph.c||''):'');
+      });
     });
     buildArrLayer(p);
   }
@@ -3970,8 +4161,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     p.photos.forEach(function(photo,i){
       var lbl=(lbls[i]?'<span class="pg-lbl">'+lbls[i]+'</span>':'');
       ph+='<div class="pg-item">'+lbl+
-        '<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+photo.d+'" alt="" style="'+photoStyle(photo)+'">'+
-        '<div class="delx" data-photox="'+i+'" title="Remove this photo">✕</div></div>';
+        '<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+thumbSrc(photo)+'" alt="'+esc(photoLabel(p,i))+'" role="button" tabindex="0" style="'+photoStyle(photo)+'">'+
+        '<div class="delx" data-photox="'+i+'" role="button" tabindex="0" title="Remove this photo" aria-label="Remove this photo">✕</div></div>';
     });
     ph+='</div>';
     ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
@@ -3998,26 +4189,31 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var selP=p.photos[selPhoto];
         var isCover=((selP.fit||'cover')!=='contain');
         toolsHtml+='<div class="pt-row">'+
-          '<div class="photo-preview frame-'+(p.frame||'landscape')+'"><span class="pv-lbl">Card</span><img src="'+selP.d+'" alt="" style="'+photoStyle(selP)+'"></div>'+
+          '<div class="photo-preview frame-'+(p.frame||'landscape')+'"><span class="pv-lbl">Card</span><img src="'+thumbSrc(selP)+'" alt="How this photo sits on the card" style="'+photoStyle(selP)+'"></div>'+
           '<div class="pt-btns">'+
             '<div class="photo-btns">'+
               '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill (crop)':'▤ Whole image')+'</button>'+
               '<button class="pbtn'+(selP.flip?' on':'')+'" id="phFlip" type="button">⇄ Flip</button>'+
-              (isCover?('<button class="pbtn" id="phPanL" type="button">←</button>'+
-                        '<button class="pbtn" id="phPanU" type="button">↑</button>'+
-                        '<button class="pbtn" id="phPanD" type="button">↓</button>'+
-                        '<button class="pbtn" id="phPanR" type="button">→</button>'):'')+
+              (isCover?('<button class="pbtn" id="phPanL" type="button" aria-label="Show more of the left side">←</button>'+
+                        '<button class="pbtn" id="phPanU" type="button" aria-label="Show more of the top">↑</button>'+
+                        '<button class="pbtn" id="phPanD" type="button" aria-label="Show more of the bottom">↓</button>'+
+                        '<button class="pbtn" id="phPanR" type="button" aria-label="Show more of the right side">→</button>'):'')+
               '<button class="pbtn" id="phSmaller" type="button">− Smaller</button>'+
               '<button class="pbtn" id="phBigger" type="button">＋ Bigger</button>'+
             '</div>'+
             '<div class="photo-btns">'+
               '<button class="pbtn" id="phSold" type="button">★ Sold (1st)</button>'+
               '<button class="pbtn" id="phResult" type="button">★ Result (2nd)</button>'+
-              '<button class="pbtn" id="phLeft" type="button">◀ order</button>'+
-              '<button class="pbtn" id="phRight" type="button">order ▶</button>'+
+              '<button class="pbtn" id="phLeft" type="button" aria-label="Move this photo earlier">◀ order</button>'+
+              '<button class="pbtn" id="phRight" type="button" aria-label="Move this photo later">order ▶</button>'+
               '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
               '<button class="pbtn" id="phClose" type="button">Close</button>'+
             '</div>'+
+            '<div class="photo-btns">'+
+              '<input id="phCaption" type="text" maxlength="80" placeholder="Caption — e.g. halfway there" value="'+esc(selP.c||'')+'"'+
+                ' aria-label="Caption for this photo" style="flex:1 1 160px;min-width:0;border:1.5px solid var(--line);border-radius:9px;padding:6px 9px;font-size:13px;background:var(--panel);color:var(--ink);outline:none;">'+
+            '</div>'+
+            (selP.ts?'<div class="photo-hint" style="margin-top:2px;">Added '+fmtDate(selP.ts)+(selP.c?'':' — a caption shows on the project page’s gallery and when the photo opens big')+'</div>':'')+
           '</div>'+
         '</div>';
       }
@@ -4089,7 +4285,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           '<div class="drill" style="background-color:'+esc(en.color||'#cccccc')+'"></div>'+
           '<div class="ctext"><div class="code">'+esc(en.label||('Colour '+(i+1)))+'</div>'+
           '<div class="cname">'+esc(en.color||'')+'</div></div>'+
-          '<div class="delx" data-palx="'+i+'">✕</div></div>';
+          '<div class="delx" data-palx="'+i+'" role="button" tabindex="0" title="Remove this colour" aria-label="Remove this colour">✕</div></div>';
       }).join('');
       paletteHtml='<div class="finbox">'+
         '<div class="fb-top"><span class="fb-lbl">Colours in this kit'+((p.palette||[]).length?(' ('+p.palette.length+')'):'')+'</span></div>'+
@@ -4131,8 +4327,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var chips='';
       lib.forEach(function(entry){
         var on=!!p.spec[f.id][entry.id];
-        chips+='<div class="card'+(on?' sel':'')+'" data-spec="'+f.id+'" data-eid="'+entry.id+'" style="padding:6px;">'+
-          specCardHtml(f.id,entry,'<div class="tick">✓</div>'+(editFin[f.id]?'<div class="delx" data-del="'+f.id+':'+entry.id+'">✕</div>':''))+
+        chips+='<div class="card'+(on?' sel':'')+'" data-spec="'+f.id+'" data-eid="'+entry.id+'" role="button" tabindex="0" aria-pressed="'+(on?'true':'false')+'" aria-label="'+esc(entry.text)+'" style="padding:6px;">'+
+          specCardHtml(f.id,entry,'<div class="tick">✓</div>'+(editFin[f.id]?'<div class="delx" data-del="'+f.id+':'+entry.id+'" role="button" tabindex="0" title="Remove from library" aria-label="Remove from library">✕</div>':''))+
           '</div>';
       });
       finBoxes+='<div class="finbox">'+
@@ -4155,8 +4351,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
           (p.arranged&&!arrangeMode?'<button class="chipbtn" id="arrEnter2" type="button" title="Arrange &amp; edit photos">⇱ Arrange</button>':'')+
           '<button class="chipbtn" id="modeToggle" type="button" title="Switch to view mode">👁 View</button>'+
-          '<button class="chipbtn" id="undoBtn2" type="button" title="Undo">↶</button>'+
-          '<button class="chipbtn" id="redoBtn2" type="button" title="Redo">↷</button>'+
+          '<button class="chipbtn" id="undoBtn2" type="button" title="Undo" aria-label="Undo">↶</button>'+
+          '<button class="chipbtn" id="redoBtn2" type="button" title="Redo" aria-label="Redo">↷</button>'+
         '</div>'+
         toolsHtml+
       '</div>'+
@@ -4177,7 +4373,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
               (autoRating(p)!==null?'<button class="pbtn" id="ratingAuto" type="button"'+(p.ratingOwn?'':' hidden')+'>↺ Use the tag score</button>':'')+
             '</div>'+
             '<div class="fb-hint" id="ratingWhy">'+ratingWhy(p)+'</div></div>'+
-          '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input class="prog-range" id="progRange" type="range" min="0" max="100" step="5" value="'+(p.progress||0)+'" style="flex:1;--fill:'+(p.progress||0)+'%;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
+          '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input class="prog-range" id="progRange" type="range" min="0" max="100" step="5" aria-label="Progress percent" value="'+(p.progress||0)+'" style="flex:1;--fill:'+(p.progress||0)+'%;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
           (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Price</div><input class="codeinput" id="priceInput" type="text" maxlength="20" placeholder="e.g. €25 or 25" value="'+esc(p.price||'')+'"></div>'):'')+
           '<div class="pd-row"><div class="pd-lbl">Dates</div><div class="selchips" style="gap:10px;">'+dateInputs+'</div></div>'+
           (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Seller'+listEditBtn('seller',state.sellers.length)+'</div><div class="selchips">'+sellerChips+'</div></div>'):'')+
@@ -4193,8 +4389,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         '<button class="chipbtn" id="copyColors" type="button">⧉ Copy colours</button>'):'')+
         '<button class="chipbtn" id="rename" type="button">Rename</button>'+
         '<button class="chipbtn" id="dupe" type="button">Duplicate</button>'+
-        '<button class="chipbtn" id="moveUp" type="button" title="Move earlier in the list">↑</button>'+
-        '<button class="chipbtn" id="moveDown" type="button" title="Move later in the list">↓</button>'+
+        '<button class="chipbtn" id="moveUp" type="button" title="Move earlier in the list" aria-label="Move earlier in the list">↑</button>'+
+        '<button class="chipbtn" id="moveDown" type="button" title="Move later in the list" aria-label="Move later in the list">↓</button>'+
         '<button class="chipbtn danger" id="del" type="button">Delete</button>'+
       '</div>'+
       '<div class="renamer'+(renaming?' show':'')+'" id="renamer">'+
@@ -4323,6 +4519,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     if(selPhoto>=0&&selPhoto<p.photos.length){
       if($('phClose'))$('phClose').addEventListener('click',function(){selPhoto=-1;renderPainting();});
+      /* applied as it's typed, no re-render — a redraw here would snatch the keyboard */
+      if($('phCaption'))$('phCaption').addEventListener('input',function(e){
+        var ph2=p.photos[selPhoto]; if(!ph2)return;
+        ph2.c=e.target.value; savePhotos(p.id);
+      });
       $('phSold').addEventListener('click',function(){
         var a=p.photos.splice(selPhoto,1)[0];p.photos.unshift(a);selPhoto=0;renderPainting();savePhotos(p.id);
       });
@@ -4683,7 +4884,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var selCodes=DMC.filter(function(r){return p.colors[r[0]];});
     if(!selCodes.length){pinsEl.innerHTML='';return;}
     pinsEl.innerHTML='<span class="pd-lbl" style="margin:0 4px 0 0;align-self:center;">Selected '+selCodes.length+':</span>'+
-      selCodes.map(function(r){return '<span class="pin" data-code="'+r[0]+'"><span class="dot" style="background:'+r[2]+'"></span>'+esc(r[0])+' ✕</span>';}).join('');
+      selCodes.map(function(r){return '<span class="pin" data-code="'+r[0]+'" role="button" tabindex="0" aria-label="Remove colour '+r[0]+'"><span class="dot" style="background:'+r[2]+'"></span>'+esc(r[0])+' ✕</span>';}).join('');
     pinsEl.querySelectorAll('.pin').forEach(function(pn){pn.addEventListener('click',function(){
       delete active().colors[pn.getAttribute('data-code')]; updateMeta(); renderTabs(); renderGrid(); saveEdit();
     });});
@@ -4702,8 +4903,8 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       shown++;
       /* the basket only says something new on colours this project doesn't use —
          on the ones it does it would be on every single selected card */
-      var basket=(!sel&&hasLeftovers(code,usedSet))?' <span title="You have leftovers of this colour">🧺</span>':'';
-      html+='<div class="card'+(sel?' sel':'')+'" data-code="'+code+'">'+
+      var basket=sel?'':stashIcon(stashLevel(code,usedSet),true);
+      html+='<div class="card'+(sel?' sel':'')+'" data-code="'+code+'" role="button" tabindex="0" aria-pressed="'+(sel?'true':'false')+'" aria-label="'+code+' '+esc(name)+'">'+
         '<div class="drill" style="background-color:'+hex+'"></div>'+
         '<div class="ctext"><div class="code">'+code+basket+'</div><div class="cname">'+esc(name)+'</div></div>'+
         '<div class="tick">✓</div></div>';
@@ -4718,6 +4919,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var pp=active();
       if(pp.colors[code]){delete pp.colors[code]; c.classList.remove('sel');}
       else {pp.colors[code]=1; c.classList.add('sel');}
+      c.setAttribute('aria-pressed',pp.colors[code]?'true':'false');
       updateMeta(); renderTabs(); refreshPins(); saveEdit();
     };
     updateMeta(shown);
@@ -4757,6 +4959,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       return rb-ra;
     });
   }
+  /* a tappable div announces itself as a button and lets a keyboard reach it */
+  function asButton(el,label,expanded){
+    el.setAttribute('role','button'); el.tabIndex=0;
+    if(label)el.setAttribute('aria-label',label);
+    if(expanded!==undefined)el.setAttribute('aria-expanded',expanded?'true':'false');
+  }
   function expanderEl(headHtml,owners){
     var ex=document.createElement('div');
     ex.className='expander';
@@ -4766,6 +4974,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       var it=document.createElement('div');
       it.className='exp-item';
       it.innerHTML='<span class="exp-name">'+esc(p.name)+'</span>'+ratingBadge(p)+badgeHtml(p.type);
+      asButton(it,'Open '+p.name);
       it.addEventListener('click',function(ev){
         ev.stopPropagation();
         navTo('paint',p.id);
@@ -4785,9 +4994,9 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     pg.innerHTML=
       '<div class="toolbar"><label class="search">🔎<input id="fq" type="text" inputmode="search" placeholder="Search a number, name, size or tag…" value="'+esc(findQuery)+'"></label>'+
         '<span class="fshapes">'+
-          '<button class="tbtn sq'+(findType==='square'?' on':'')+'" data-t="square" type="button" title="Count square-drill projects only">■</button>'+
-          '<button class="tbtn rd'+(findType==='round'?' on':'')+'" data-t="round" type="button" title="Count round-drill projects only">●</button>'+
-          '<button class="tbtn od'+(findType==='odd'?' on':'')+'" data-t="odd" type="button" title="Count odd-drill projects only">✦</button>'+
+          '<button class="tbtn sq'+(findType==='square'?' on':'')+'" data-t="square" type="button" title="Count square-drill projects only" aria-label="Count square-drill projects only" aria-pressed="'+(findType==='square')+'">■</button>'+
+          '<button class="tbtn rd'+(findType==='round'?' on':'')+'" data-t="round" type="button" title="Count round-drill projects only" aria-label="Count round-drill projects only" aria-pressed="'+(findType==='round')+'">●</button>'+
+          '<button class="tbtn od'+(findType==='odd'?' on':'')+'" data-t="odd" type="button" title="Count odd-drill projects only" aria-label="Count odd-drill projects only" aria-pressed="'+(findType==='odd')+'">✦</button>'+
         '</span>'+
         '<button class="chipbtn'+(findStash?' on':'')+'" id="fStash" type="button" title="Show only colours you have leftovers of">🧺 Leftovers only</button>'+
         '<button class="chipbtn'+(findPaste?' on':'')+'" id="fPaste" type="button" title="Paste a kit’s colour list and see what you already have">🧾 Check a kit list</button>'+
@@ -4814,7 +5023,13 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
       if(!findPaste){findPasteReview=null;findPasteText='';}
       renderFind();
     });
-    $('fq').addEventListener('input',function(e){findQuery=e.target.value;renderFindLists();});
+    /* rebuilding 454 colour cards on every keystroke makes typing feel sticky
+       on an old phone — a shared breath after the last key is invisible */
+    var fqT=null;
+    $('fq').addEventListener('input',function(e){
+      findQuery=e.target.value;
+      clearTimeout(fqT); fqT=setTimeout(renderFindLists,150);
+    });
     if(findPaste)fillFindPasteBox();
     renderFindLists();
   }
@@ -4855,7 +5070,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           var sub=it.x.from?('⚠ read “'+esc(it.x.from)+'”'):esc(row[1]);
           return '<div class="card ro" style="'+(it.x.from?'border-color:var(--star);':'')+'">'+
             '<div class="drill" style="background-color:'+row[2]+'"></div>'+
-            '<div class="ctext"><div class="code">'+row[0]+(hasLeftovers(row[0],usedSet)?' 🧺':'')+'</div><div class="cname"'+
+            '<div class="ctext"><div class="code">'+row[0]+stashIcon(stashLevel(row[0],usedSet),true)+'</div><div class="cname"'+
               (it.x.from?' style="color:var(--star);font-weight:700;"':'')+'>'+sub+'</div></div>'+
             '<div class="pcount'+(it.owners?'':' zero')+'">'+it.owners+'</div></div>';
         }).join('')+'</div>';
@@ -4895,7 +5110,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     save();
   }
   function findHead(key,label,count,color){
-    return '<div class="section-lbl fsec-hd" data-sec="'+esc(key)+'"'+(color?' style="color:'+color+'"':'')+'>'+
+    return '<div class="section-lbl fsec-hd" data-sec="'+esc(key)+'" role="button" tabindex="0" aria-expanded="'+(findClosed(key)?'false':'true')+'"'+(color?' style="color:'+color+'"':'')+'>'+
       (findClosed(key)?'▸':'▾')+' '+label+' <span class="fsec-n">'+count+'</span></div>';
   }
   function renderFindLists(){
@@ -4919,6 +5134,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var owners=paintingsWithSize(sz);
         var c=document.createElement('div');
         c.className='card'+(expandedSize===sz?' open':'');
+        asButton(c,sz+' cm — '+owners.length+' projects',expandedSize===sz);
         c.innerHTML='<div class="drill spec" style="background-color:var(--ink);font-size:11px;">▭</div>'+
           '<div class="ctext"><div class="code">'+esc(sz)+'</div><div class="cname">size</div></div>'+
           '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
@@ -4956,6 +5172,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var sgn=tagSign(tg);
         var c=document.createElement('div');
         c.className='card'+(expandedTag===tg?' open':'');
+        asButton(c,'Tag '+tg+' — '+owners.length+' projects',expandedTag===tg);
         c.innerHTML='<div class="drill spec" style="background-color:'+(sgn===1?'var(--rd)':(sgn===-1?'var(--bad)':'var(--unk)'))+
             ';font-size:12px;">'+(sgn===1?'＋':(sgn===-1?'−':'·'))+'</div>'+
           '<div class="ctext"><div class="code">'+esc(tg)+'</div><div class="cname">'+
@@ -4990,6 +5207,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var owners=state.paintings.filter(function(p){return p.media&&p.media[m];});
         var c=document.createElement('div');
         c.className='card'+(expandedMedia===m?' open':'');
+        asButton(c,m+' — '+owners.length+' projects',expandedMedia===m);
         c.innerHTML='<div class="drill spec" style="background-color:var(--accent);font-size:12px;">🖌</div>'+
           '<div class="ctext"><div class="code">'+esc(m)+'</div><div class="cname">media</div></div>'+
           '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
@@ -5025,6 +5243,7 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
         var kid=f.id+'|'+entry.id;
         var c=document.createElement('div');
         c.className='card'+(expandedSpec===kid?' open':'');
+        asButton(c,entry.text+' ('+f.label+') — '+owners.length+' paintings',expandedSpec===kid);
         c.innerHTML=specCardHtml(f.id,entry,'<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>');
         c.addEventListener('click',function(){
           expandedSpec=(expandedSpec===kid)?null:kid; expandedColor=null; expandedSize=null;
@@ -5056,15 +5275,16 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     DMC.forEach(function(row){
       var code=row[0], name=row[1], hex=row[2];
       if(q&&code.toLowerCase().indexOf(q)===-1&&name.toLowerCase().indexOf(q)===-1)return;
-      var got=hasLeftovers(code,usedSet);
+      var lvl=stashLevel(code,usedSet), got=lvl!=='out';
       if(findStash&&!got)return;
       shown++;
       var owners=ownersByCode[code]||[];
       var c=document.createElement('div');
       c.className='card'+(expandedColor===code?' open':'');
       c.setAttribute('data-code',code);
+      asButton(c,code+' '+name+' — in '+owners.length+' paintings',expandedColor===code);
       c.innerHTML='<div class="drill" style="background-color:'+hex+'"></div>'+
-        '<div class="ctext"><div class="code">'+code+(got?' <span title="You have leftovers of this colour">🧺</span>':'')+'</div><div class="cname">'+esc(name)+'</div></div>'+
+        '<div class="ctext"><div class="code">'+code+stashIcon(lvl,true)+'</div><div class="cname">'+esc(name)+'</div></div>'+
         '<div class="pcount'+(owners.length?'':' zero')+'">'+owners.length+'</div>';
       frag.appendChild(c);
       if(expandedColor===code){
@@ -5073,20 +5293,24 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
           ? code+' '+esc(name)+' is in '+owners.length+' painting'+(owners.length===1?'':'s')+typeTxt+':'
           : code+' '+esc(name)+' isn’t in any of your paintings'+typeTxt+'.';
         var ex=expanderEl(head,owners);
-        var sb=document.createElement('button');
-        sb.type='button';
-        sb.className='chipbtn'+(got?' on':'');
-        sb.style.marginTop='8px';
+        /* have / running low / used up — the third state is the one that
+           answers "should I order more of this before the next kit?" */
         var byDefault=(state.stash[code]===undefined);
-        sb.textContent=got
-          ? (byDefault?'🧺 In your leftovers (it’s in your projects) — tap if used up':'🧺 In your leftovers — tap if used up')
-          : (byDefault?'🧺 I have leftovers of this':'🧺 Marked used up — tap if you have some again');
-        sb.addEventListener('click',function(ev){
-          ev.stopPropagation();
-          toggleLeftovers(code);
-          save(); pushHistory(); renderFindLists();
+        var row=document.createElement('div');
+        row.className='bk-btns'; row.style.marginTop='8px'; row.style.alignItems='center';
+        row.innerHTML='<span class="pd-lbl" style="margin:0;">Leftovers:</span>'+
+          [['have','🧺 Have some'],['low','⏳ Running low'],['out','∅ None left']].map(function(o){
+            return '<button type="button" class="chipbtn'+(lvl===o[0]?' on':'')+'" data-stash="'+o[0]+'">'+o[1]+'</button>';
+          }).join('')+
+          (byDefault&&owners.length?'<span class="bk-note" style="margin:0;">(counted automatically — it’s in your projects)</span>':'');
+        row.querySelectorAll('[data-stash]').forEach(function(btn){
+          btn.addEventListener('click',function(ev){
+            ev.stopPropagation();
+            setLeftovers(code,btn.getAttribute('data-stash'));
+            save(); pushHistory(); renderFindLists();
+          });
         });
-        ex.appendChild(sb);
+        ex.appendChild(row);
         frag.appendChild(ex);
       }
     });
@@ -5142,11 +5366,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     });
     var inAny=0;
     Object.keys(ownersByCode).forEach(function(k){if(DMCMAP[k])inAny++;});
-    var inStash=0;
-    DMC.forEach(function(r){if(hasLeftovers(r[0],usedSet))inStash++;});
+    var inStash=0,lowN=0;
+    DMC.forEach(function(r){var lv=stashLevel(r[0],usedSet);if(lv!=='out'){inStash++;if(lv==='low')lowN++;}});
     $('fmeta').textContent='Showing '+shown+' of '+DMC.length+' colors · '+inAny+' are in your paintings'+
       (findType!=='any'?' ('+TYPES[findType].label.toLowerCase()+')':'')+
-      (inStash?' · 🧺 '+inStash+' in your leftovers':'');
+      (inStash?' · 🧺 '+inStash+' in your leftovers'+(lowN?' (⏳ '+lowN+' running low)':''):'');
     var e=$('femptyMsg');
     if(shown===0&&(findStash||!$('fspecials').children.length)){
       e.style.display='block';
@@ -5224,10 +5448,11 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function renderSizeCtl(){
     var el=$('sizeCtl'); if(!el)return;
     var phone=(widthClass()!=='wide');
-    el.innerHTML='<button class="szbtn" id="szDown" type="button" title="Smaller text">A−</button>'+
+    el.innerHTML='<button class="szbtn" id="szDown" type="button" title="Smaller text" aria-label="Smaller text">A−</button>'+
       '<span class="sznow" id="szNow">'+fontScale()+'%</span>'+
-      '<button class="szbtn" id="szUp" type="button" title="Bigger text">A+</button>'+
+      '<button class="szbtn" id="szUp" type="button" title="Bigger text" aria-label="Bigger text">A+</button>'+
       '<button class="szbtn'+(phone?' on':'')+'" id="szMode" type="button" title="'+
+        (phone?'Switch to the full, wide layout':'Switch to the narrow phone layout')+'" aria-label="'+
         (phone?'Switch to the full, wide layout':'Switch to the narrow phone layout')+'">'+(phone?'📱':'🖥')+'</button>';
     $('szDown').addEventListener('click',function(){setFontScale(fontScale()-10);});
     $('szUp').addEventListener('click',function(){setFontScale(fontScale()+10);});
@@ -5258,15 +5483,21 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   function firstPhotoRef(){
     for(var i=0;i<state.paintings.length;i++){
       var p=state.paintings[i];
-      if(p.photos&&p.photos.length)return {pid:p.id,i:0};
+      if(p.photos&&p.photos.length)return {pid:p.id,i:0,phid:p.photos[0].id||''};
     }
     return null;
   }
   function bgPhotoData(){
     var r=state.bgPhoto; if(!r)return '';
     var p=findPainting(r.pid); if(!p||!p.photos)return '';
-    var ph=p.photos[r.i||0];
-    return (ph&&ph.d)?ph.d:'';
+    var ph=null;
+    /* by the photo's own name first — reordering or deleting photos must not
+       quietly swap the background for a different picture */
+    if(r.phid)for(var i=0;i<p.photos.length;i++)if(p.photos[i].id===r.phid){ph=p.photos[i];break;}
+    if(!ph)ph=p.photos[r.i||0];
+    /* blurred right back and stretched across the screen — the small copy is
+       made for exactly this kind of glance */
+    return thumbSrc(ph);
   }
   function applyBackground(){
     var mode=bgMode();
@@ -5334,6 +5565,71 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     else renderPainting();
   }
 
+  /* ---------- when the app itself breaks ----------
+     The worst failure this app can have is a blank page with all the data still
+     inside it: one bad record from an old backup or an odd device, one thrown
+     error mid-render, and the user is locked out of their own collection. So a
+     render that throws lands here instead — a plain page that says what broke
+     and, more importantly, hands over the backup code so nothing is trapped. */
+  var crashing=false;
+  function showCrash(err){
+    if(crashing)return;   /* the crash page must not be able to crash-loop */
+    crashing=true;
+    try{if(window.console&&console.error)console.error(err);}catch(e){}
+    var pg=$('page')||document.body;
+    var msg=String((err&&err.message)||err||'unknown error');
+    var code='';
+    try{code=JSON.stringify(strippedState());}catch(e){}
+    pg.innerHTML=
+      '<div class="backup" style="margin-top:10px;">'+
+        '<div style="font-weight:800;font-size:16px;margin-bottom:6px;">Something went wrong showing this page</div>'+
+        '<div class="bk-note">The app hit an error it didn’t expect: <b>'+esc(msg)+'</b></div>'+
+        '<div class="bk-note" style="margin-top:6px;">Your projects are still saved on this device. Before anything else, save the backup below somewhere safe — then try again.</div>'+
+        '<div class="bk-btns" style="margin-top:10px;">'+
+          '<button class="chipbtn" id="crashRetry" type="button" style="color:#fff;background:var(--accent);border-color:var(--accent);">↻ Try again</button>'+
+          '<button class="chipbtn" id="crashFile" type="button">⬇ Download backup file</button>'+
+        '</div>'+
+        '<textarea id="crashCode" rows="5" readonly style="margin-top:10px;"></textarea>'+
+        '<div class="bk-note" id="crashNote">'+(code?'This code is your whole collection except photos — copy it anywhere (notes app, email to yourself).':'Reading the saved data…')+'</div>'+
+      '</div>';
+    function fillCode(v){var ta=$('crashCode');if(ta)ta.value=v||'';}
+    if(code)fillCode(code);
+    else if(LOCAL){
+      /* the in-memory state is what broke — read the stored copy directly */
+      LOCAL.get(KEY).then(function(r){
+        fillCode((r&&r.value)||'');
+        var n=$('crashNote'); if(n)n.textContent=(r&&r.value)?'This is the saved copy straight from storage — copy it anywhere safe.':'Nothing could be read from storage on this device.';
+      },function(){});
+    }
+    if($('crashRetry'))$('crashRetry').addEventListener('click',function(){
+      crashing=false;
+      render();
+    });
+    if($('crashFile'))$('crashFile').addEventListener('click',function(){
+      var v=($('crashCode')&&$('crashCode').value)||code;
+      try{var full=JSON.stringify(state);if(full&&full.length>v.length)v=full;}catch(e){}
+      if(!v){toast('Nothing to download yet',1600);return;}
+      var blob=new Blob([v],{type:'application/json'});
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='diamond-painting-rescue-'+(todayStr()||'today')+'.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+    });
+  }
+  function guarded(fn){
+    return function(){
+      try{return fn.apply(this,arguments);}
+      catch(err){showCrash(err);}
+    };
+  }
+  render=guarded(render);
+  renderPainting=guarded(renderPainting);
+  renderPaintings=guarded(renderPaintings);
+  renderFind=guarded(renderFind);
+  renderOverview=guarded(renderOverview);
+  renderSettings=guarded(renderSettings);
+
   $('fileInput').addEventListener('change',function(e){
     var files=e.target.files||[];
     plog('picker returned '+files.length+' file'+(files.length===1?'':'s'),
@@ -5342,6 +5638,19 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
     var pid=active().id;
     for(var i=0;i<files.length;i++)addImageFile(files[i],pid);
     e.target.value='';
+  });
+
+  /* Most of the tappable things on these pages are not real <button>s — colour
+     cards, project cards, fold-away headings. They carry role="button" and a
+     tabindex so a keyboard can reach them, and this one listener makes Enter
+     and Space press whatever the focus is on. */
+  document.addEventListener('keydown',function(e){
+    if(e.key!=='Enter'&&e.key!==' ')return;
+    var t=e.target;
+    if(t&&t.getAttribute&&t.getAttribute('role')==='button'&&t.tagName!=='BUTTON'&&t.tagName!=='INPUT'){
+      e.preventDefault();
+      t.click();
+    }
   });
 
   /* keyboard: Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z or Ctrl+Y = redo */
@@ -5355,11 +5664,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
   });
 
   /* pull newer cloud changes when the tab regains focus;
-     push any batched photo uploads before the tab goes away */
-  document.addEventListener('visibilitychange',function(){if(document.hidden)flushCloud();else syncNow();});
+     write any pending local saves and push batched photo uploads before the
+     tab goes away — pagehide is the last reliable moment on a phone */
+  document.addEventListener('visibilitychange',function(){if(document.hidden){flushPendingSaves();flushCloud();}else syncNow();});
   window.addEventListener('focus',function(){syncNow();});
   window.addEventListener('online',function(){syncNow();});
-  window.addEventListener('pagehide',function(){flushCloud();});
+  window.addEventListener('pagehide',function(){flushPendingSaves();flushCloud();});
 
   /* keep arranged photos in place when the window is resized or rotated */
   var resizeT=null;
@@ -5374,7 +5684,12 @@ const DMC=[["150","Dusty Rose Ult Vy Dk","#AB0249"],["151","Dusty Rose Vry Lt","
 
   plog('app started','');
   loadSizePref();
-  load(function(){render();replaceNav();});
+  load(function(){
+    render();replaceNav();
+    /* housekeeping that can wait until the app has settled on screen */
+    setTimeout(migrateThumbs,2500);
+    setTimeout(maybeBackupNudge,4000);
+  });
 })();
 </script>
 
