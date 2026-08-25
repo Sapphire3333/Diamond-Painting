@@ -681,8 +681,13 @@ try{
       if(meaningful)c.add++;
       c.colors+=Object.keys(p.colors||{}).length;
       if(!p.ach)p.ach={};
-      if(p.photos&&p.photos.length>=1){c.sold++;p.ach.sold=1;}
-      if(p.photos&&p.photos.length>=2){c.result++;p.ach.result=1;}
+      var nph=(p.photos&&p.photos.length)||0;
+      if(p.noSold){
+        if(nph>=1){c.result++;p.ach.result=1;}
+      } else {
+        if(nph>=1){c.sold++;p.ach.sold=1;}
+        if(nph>=2){c.result++;p.ach.result=1;}
+      }
       if(p.status==='done'||(p.progress||0)>=100){c.done++;p.ach.done=1;}
     });
     state.achv={c:c};
@@ -728,6 +733,9 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-08-25',items:[
+      '📸 A Result picture no longer needs a Sold one first: select a project’s only photo and tap ★ Result cover — the project simply has no Sold picture. ★ Sold cover switches it back.',
+    ]},
     {when:'2026-08-19 · achievements',items:[
       '🏆 Achievements — five awards that climb Bronze → Silver → Gold → Diamond, three stages per tier, with a level that grows as you earn them. Starting a project, adding diamond colours, giving a project its Sold and Result pictures, and finishing a painting all count — and everything you had already done counts from the start. Find them on this page, under the summary.',
     ]},
@@ -858,7 +866,15 @@ try{
     var k=KINDMAP[kindOf(p)];
     return '<span class="badge unk">'+k.sym+' '+k.label+'</span>';
   }
-  function coverLabels(p){return kindOf(p)==='drawing'?['Main','']:['Sold','Result'];}
+  /* Covers are positional — 1st photo Sold, 2nd Result — which quietly assumed
+     everyone photographs the kit before the work. Plenty of projects only have
+     a picture of the FINISHED painting: p.noSold says so, and then the first
+     photo IS the Result and there is no Sold picture at all. */
+  function coverLabels(p){
+    if(kindOf(p)==='drawing')return ['Main',''];
+    if(p&&p.noSold)return ['Result',''];
+    return ['Sold','Result'];
+  }
   function ratingWhy(p){
     var t=tagTally(p), a=autoRating(p);
     var made=t.n?('Your tags make it <b>'+a+'</b> — 5 to start, '+
@@ -1245,6 +1261,7 @@ try{
       if(!('arranged' in p))p.arranged=false;
       if(!('edit' in p))p.edit=true;
       if(!p.kind||!KINDMAP[p.kind])p.kind='diamond';   /* everything so far is a diamond painting */
+      if(!('noSold' in p))p.noSold=false;
       if(!p.ach)p.ach={};
       if(!p.media)p.media={};
       if(!p.palette)p.palette=[];
@@ -3560,10 +3577,14 @@ try{
           ? 'Only part of that photo came through — tap 🩺 Photo check'
           : 'Photo added ✓'),
         (rec&&(rec.damaged||rec.partial))?5200:900);
-      /* the first photo is the Sold cover, the second the Result — each counts
+      /* the first photo is the Sold cover, the second the Result — unless the
+         project has no Sold picture, when the first IS the Result. Each counts
          once per project, after the plain toast so a stage gets the last word */
       if(!p.ach)p.ach={};
-      if(!p.ach.sold&&p.photos.length>=1){p.ach.sold=1;achAdd('sold',1);}
+      if(p.noSold){
+        if(!p.ach.result&&p.photos.length>=1){p.ach.result=1;achAdd('result',1);}
+      }
+      else if(!p.ach.sold&&p.photos.length>=1){p.ach.sold=1;achAdd('sold',1);}
       else if(!p.ach.result&&p.photos.length>=2){p.ach.result=1;achAdd('result',1);}
     });
   }
@@ -3922,7 +3943,9 @@ try{
     /* view mode anchors the Sold and Result covers in the stage, so only the
        third photo onwards is free-floating there */
     var viewMode=(p.edit===false);
-    var startIdx=viewMode?2:0;
+    /* with no Sold picture only one photo is anchored in the stage, so the
+       free-floating ones start one place earlier */
+    var startIdx=viewMode?(p.noSold?1:2):0;
     /* a drawing shows every photo in its gallery, so nothing floats there */
     if(viewMode&&kindOf(p)==='drawing')return;
     if(viewMode){if(p.photos.length<=startIdx)return;}
@@ -4165,12 +4188,23 @@ try{
     $('arrAdd').addEventListener('click',function(){$('fileInput').click();});
     $('arrSold').addEventListener('click',function(){
       if(needSel())return;
+      p.noSold=false;
       var a=p.photos.splice(arrSel,1)[0]; p.photos.unshift(a); arrSel=0;
       renderPainting(); savePhotos(p.id); pushHistory(); toast('Set as Sold cover ✓',1300);
     });
     $('arrResult').addEventListener('click',function(){
       if(needSel())return;
-      var a=p.photos.splice(arrSel,1)[0]; var to=Math.min(1,p.photos.length);
+      if(p.photos.length===1){
+        p.noSold=!p.noSold;
+        if(p.noSold){
+          if(!p.ach)p.ach={};
+          if(!p.ach.result){p.ach.result=1;achAdd('result',1);}
+        }
+        renderPainting(); savePhotos(p.id); pushHistory();
+        toast(p.noSold?'This is the Result picture — the project simply has no Sold picture':'Back to being the Sold cover',2800);
+        return;
+      }
+      var a=p.photos.splice(arrSel,1)[0]; var to=Math.min(p.noSold?0:1,p.photos.length);
       p.photos.splice(to,0,a); arrSel=to;
       renderPainting(); savePhotos(p.id); pushHistory(); toast('Set as Result cover ✓',1300);
     });
@@ -4481,13 +4515,13 @@ try{
           '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
           '<button class="chipbtn" id="shareBtn" type="button" title="Turn this project into one picture to share">📤 Share</button>'+
           (p.photos.length>1?'<button class="chipbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
-          (!isDraw&&p.photos.length>2?('<button class="chipbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
+          (!isDraw&&p.photos.length>(p.noSold?1:2)?('<button class="chipbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
           '<button class="chipbtn" id="modeToggle" type="button" title="Switch to edit mode">📖🖋 Edit</button>'+
         '</div>'+
       '</div>'+
       '<div id="pageBody">'+
         '<div class="vw-stage">'+
-          (isDraw?heroHtml:sideHtml(0,'Sold'))+
+          (isDraw?heroHtml:(p.noSold?'':sideHtml(0,'Sold')))+
           '<div class="vw-card">'+
             '<div class="pd-name">'+esc(p.name)+'</div>'+
             '<div class="vw-badges">'+statusBadge(p)+ratingBadge(p)+(isDiamond(p)?badgeHtml(p.type):kindBadge(p))+'</div>'+
@@ -4497,7 +4531,7 @@ try{
             (tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag'+(tagSign(t)===1?' tg-pos':(tagSign(t)===-1?' tg-neg':''))+'">'+esc(capFirst(t))+'</span>';}).join('')+'</div>'):'')+
             prog+notesHtml+
           '</div>'+
-          (isDraw?'':sideHtml(1,'Result'))+
+          (isDraw?'':sideHtml(p.noSold?0:1,'Result'))+
         '</div>'+
         galleryHtml+colHtml+specHtml+
       '</div>'+
@@ -4558,7 +4592,9 @@ try{
       ? ('Tap a photo for its tools in the bar at the top, or its <b>✕</b> to remove it. '+
          (kindOf(p)==='drawing'
            ? 'The 1st photo is the big one on the project page; the rest become its gallery.'
-           : 'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards.')+
+           : (p.noSold
+              ? 'This project has no Sold picture — its 1st photo is the “Result”. Tap ★ Sold cover on a photo to change that.'
+              : 'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Only have a photo of the finished work? Select it and tap ★ Result cover.'))+
          ' Use ⇱ Arrange &amp; edit to place photos freely anywhere on this page.')
       : 'Add photos — on PC you can also paste (Ctrl+V) a copied image.'+(kindOf(p)==='drawing'
            ? ' The first becomes the big picture, the rest a gallery.'
@@ -4587,8 +4623,8 @@ try{
               '<button class="pbtn" id="phBigger" type="button">＋ Bigger</button>'+
             '</div>'+
             '<div class="photo-btns">'+
-              '<button class="pbtn" id="phSold" type="button">★ Sold (1st)</button>'+
-              '<button class="pbtn" id="phResult" type="button">★ Result (2nd)</button>'+
+              '<button class="pbtn'+((!p.noSold&&selPhoto===0)?' on':'')+'" id="phSold" type="button">★ Sold cover</button>'+
+              '<button class="pbtn'+((selPhoto===(p.noSold?0:1))?' on':'')+'" id="phResult" type="button">★ Result cover</button>'+
               '<button class="pbtn" id="phLeft" type="button" aria-label="Move this photo earlier">◀ order</button>'+
               '<button class="pbtn" id="phRight" type="button" aria-label="Move this photo later">order ▶</button>'+
               '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
@@ -4914,10 +4950,27 @@ try{
         ph2.c=e.target.value; savePhotos(p.id);
       });
       $('phSold').addEventListener('click',function(){
-        var a=p.photos.splice(selPhoto,1)[0];p.photos.unshift(a);selPhoto=0;renderPainting();savePhotos(p.id);
+        p.noSold=false;
+        var a=p.photos.splice(selPhoto,1)[0];p.photos.unshift(a);selPhoto=0;renderPainting();savePhotos(p.id);saveEdit();
+        toast('★ Set as the Sold cover ✓',1300);
       });
       $('phResult').addEventListener('click',function(){
-        var a=p.photos.splice(selPhoto,1)[0];var to=Math.min(1,p.photos.length);p.photos.splice(to,0,a);selPhoto=to;renderPainting();savePhotos(p.id);
+        /* the only photo can be the Result too — "I only photographed the
+           finished work" is a perfectly normal project */
+        if(p.photos.length===1){
+          p.noSold=!p.noSold;
+          if(p.noSold){
+            if(!p.ach)p.ach={};
+            if(!p.ach.result){p.ach.result=1;achAdd('result',1);}
+          }
+          renderPainting(); savePhotos(p.id); saveEdit();
+          toast(p.noSold?'★ This is the Result picture — the project simply has no Sold picture':'★ Back to being the Sold cover',2800);
+          return;
+        }
+        var a=p.photos.splice(selPhoto,1)[0];
+        var to=Math.min(p.noSold?0:1,p.photos.length);
+        p.photos.splice(to,0,a);selPhoto=to;renderPainting();savePhotos(p.id);
+        toast('★ Set as the Result cover ✓',1300);
       });
       $('phLeft').addEventListener('click',function(){
         if(selPhoto>0){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto-1,0,a);selPhoto--;renderPainting();savePhotos(p.id);}
