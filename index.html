@@ -474,12 +474,17 @@ try{
   .vw-side{flex:1 1 130px;min-width:0;position:relative;}
   .vw-card{flex:2.2 1 280px;min-width:0;background:var(--panel);border:1.5px solid var(--line);
     border-radius:14px;padding:12px;}
-  .vw-side img{width:100%;display:block;border-radius:12px;border:1.5px solid var(--line);
+  /* The Sold and Result pictures show whole here, at their own shape. They used
+     to be forced into the card frame — 4:3, 3:4 or square — and cropped to fill
+     it, so a tall photo lost its top and bottom and the only way to see the
+     picture you had actually taken was to open it full-screen. The frame still
+     shapes the small covers on the projects list, where every card has to be the
+     same size as its neighbours; this page has room to just show the photo. */
+  .vw-side img{width:100%;height:auto;display:block;border-radius:12px;border:1.5px solid var(--line);
     background:var(--unk-soft);cursor:zoom-in;box-shadow:0 2px 12px rgba(0,0,0,.18);}
-  .vw-side.frame-landscape img{aspect-ratio:4/3;}
-  .vw-side.frame-portrait img{aspect-ratio:3/4;}
-  .vw-side.frame-square img{aspect-ratio:1;}
-  .vw-side.frame-round img{aspect-ratio:1;border-radius:50%;}
+  /* round is the one frame that cannot show a rectangle whole — a circle is a
+     crop by definition — so choosing it still means choosing one */
+  .vw-side.frame-round img{aspect-ratio:1;object-fit:cover;border-radius:50%;}
   /* drawings: one big picture with the rest in a gallery underneath */
   .vw-hero{flex:1.4 1 300px;min-width:0;}
   .vw-hero img{width:100%;display:block;max-height:440px;border-radius:12px;border:1.5px solid var(--line);
@@ -803,7 +808,8 @@ try{
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
     {when:'2026-08-27 · photos stay on the page',items:[
-      '🖼 Photos in the <b>Photos</b> section show whole, at their own shape, instead of being trimmed to a square. A picture of a kit’s drills or a wide work-in-progress shot had its ends cut off, and opening it was the only way to see what it was.',
+      '🖼 The <b>Sold</b> and <b>Result</b> pictures on a project’s page show whole, at their own shape. They were being cropped to fit the card frame, so a tall photo lost its top and bottom and opening it full-screen was the only way to see the picture you had taken. The frame still shapes the small covers on the projects list, where every card has to match its neighbours.',
+      '🖼 Photos in the <b>Photos</b> section show whole too, instead of being trimmed to a square.',
       '↔️ A photo placed near the edge on a computer no longer hangs off the side of a phone. Its place was saved as a share of the page’s width, but it could be dragged as far as the <em>window</em> — and on a wide screen the page is a column with margins, so the edge of the window is well past the edge of the page. It now stops at the page, and layouts already saved are pulled back on when shown.',
     ]},
     {when:'2026-08-27 · Back behaves',items:[
