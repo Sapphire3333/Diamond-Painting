@@ -156,6 +156,20 @@ try{
   .exp-item:active{transform:scale(.99);}
   .exp-name{font-weight:800;font-size:14px;margin-right:auto;}
   .empty{margin:30px auto;text-align:center;color:var(--muted);font-size:15px;max-width:420px;}
+  /* Jump to the top or the bottom, from anywhere. Lives inside .dp-app so it
+     takes the dark-mode tokens and the A− / A+ text size like everything else,
+     and sits on the right so it never meets the toast or the undo bar, which are
+     both centred. Below the arranging bar's z-index on purpose — that bar owns
+     the bottom of the screen while it is up. */
+  .scrollnav{position:fixed;right:12px;bottom:14px;z-index:55;display:flex;flex-direction:column;
+    border-radius:12px;overflow:hidden;border:1.5px solid var(--line);background:var(--panel);
+    box-shadow:0 4px 16px rgba(0,0,0,.18);}
+  .scrollnav button{width:42px;height:38px;border:none;background:none;color:var(--ink);
+    font-size:17px;font-weight:800;line-height:1;padding:0;cursor:pointer;font-family:inherit;}
+  .scrollnav button+button{border-top:1px solid var(--line);}
+  .scrollnav button:hover{background:var(--accent-soft);color:var(--accent);}
+  .scrollnav button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}
+  .scrollnav.hide{display:none;}
   .toast{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
     padding:6px 14px;border-radius:999px;font-size:12px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90%;z-index:50;}
   .toast.show{opacity:.92;}
@@ -552,6 +566,10 @@ try{
     <div id="page"></div>
   </div>
   <div class="toast" id="toast"></div>
+  <div class="scrollnav" id="scrollNav" role="group" aria-label="Jump to the top or bottom of the page">
+    <button type="button" id="snTop" title="Jump to the top" aria-label="Jump to the top of the page">↑</button>
+    <button type="button" id="snBot" title="Jump to the bottom" aria-label="Jump to the bottom of the page">↓</button>
+  </div>
   <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
 </div>
 
@@ -776,6 +794,10 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-08-26 · getting about',items:[
+      '⬍ Two arrows sit in the bottom-right corner of every page and follow you as you scroll: ↑ for the top, ↓ for the bottom. A kit’s colour list runs to hundreds of rows, and the only way back to the tabs was to keep swiping.',
+      '↩ They step aside while the arranging bar is open, while a photo is full-screen, and for the few seconds an Undo offer is on screen — those all want the same corner more than the arrows do.',
+    ]},
     {when:'2026-08-26 · photos get a page of their own',items:[
       '🖼 A kit’s project page now has a <b>Photos</b> section, the way a drawing already did. Everything past the Sold and Result covers used to have nowhere to be there — it existed only as a loose picture you had to drag into place — so a photo of your progress simply did not show up unless you arranged it by hand.',
       '🔡 A photo can say what it is: Progress, Paints, Packaging, Framed, Detail, Other — and you can add your own, or remove any you do not want, the way sizes, sellers and tags already work. The label shows on the photo, where “Sold” and “Result” show.',
@@ -1143,11 +1165,15 @@ try{
     var span=document.createElement('span'); span.textContent=msg;
     var btn=document.createElement('button'); btn.textContent='Undo';
     btn.addEventListener('click',function(){
-      if(undoTimer)clearTimeout(undoTimer); bar.remove(); onUndo();
+      if(undoTimer)clearTimeout(undoTimer); bar.remove(); syncScrollNav(); onUndo();
     });
     bar.appendChild(span); bar.appendChild(btn);
     document.body.appendChild(bar);
-    undoTimer=setTimeout(function(){bar.remove();},7000);
+    /* The undo bar is centred and can grow to most of the screen's width, so on a
+       phone a long message reaches under the jump arrows. Undo is the more urgent
+       of the two and it is only here for seconds, so the arrows step aside. */
+    syncScrollNav();
+    undoTimer=setTimeout(function(){bar.remove();syncScrollNav();},7000);
   }
   function showUndo(painting,idx){
     showUndoBar('Deleted “'+painting.name+'”',function(){
@@ -1821,11 +1847,11 @@ try{
   }
   function enterArrange(){
     arrangeMode=true; arrSel=-1; selPhoto=-1;
-    renderPainting();
+    renderPainting(); syncScrollNav();
   }
   function exitArrange(){
     if(!arrangeMode)return;
-    arrangeMode=false; arrSel=-1; renderPainting();
+    arrangeMode=false; arrSel=-1; renderPainting(); syncScrollNav();
   }
   /* Overlays (full-screen photo, arrange mode) deliberately add NO history entry.
      Back closes them and immediately re-pushes the entry it consumed, so the stack
@@ -1835,7 +1861,7 @@ try{
   window.addEventListener('popstate',function(e){
     var lb=document.querySelector('.lightbox');
     if(lb){if(lb._destroy)lb._destroy();else lb.remove();pushNav();return;}
-    if(arrangeMode){arrangeMode=false;arrSel=-1;renderPainting();pushNav();return;}
+    if(arrangeMode){arrangeMode=false;arrSel=-1;renderPainting();syncScrollNav();pushNav();return;}
     var st=e.state||{};
     if(!st.dpView)return;
     if(st.dpActive&&state.paintings.some(function(p){return p.id===st.dpActive;}))state.active=st.dpActive;
@@ -6225,7 +6251,36 @@ try{
     else if(state.view==='find')renderFind();
     else if(state.view==='settings')renderSettings();
     else renderPainting();
+    syncScrollNav();
   }
+
+  /* ---------- jump to the top or the bottom ----------
+     Long pages here are genuinely long — a kit's colour list runs to hundreds of
+     rows — and the way back to the tabs was to keep swiping. */
+  function syncScrollNav(){
+    var el=$('scrollNav'); if(!el)return;
+    /* the arranging bar takes over the bottom of the screen while it is open, and
+       a photo opened full-screen takes over all of it */
+    var busy=!!document.querySelector('.arr-bar')||!!document.querySelector('.lightbox')||!!document.querySelector('.undobar');
+    el.classList.toggle('hide',busy);
+  }
+  function jumpScroll(toBottom){
+    var smooth=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var y=toBottom?Math.max(document.documentElement.scrollHeight,document.body.scrollHeight):0;
+    var from=scrollNow();
+    try{window.scrollTo({top:y,behavior:smooth?'smooth':'auto'});}
+    catch(e){window.scrollTo(0,y);}   /* older browsers ignore the options form */
+    /* A smooth scroll is animated by the compositor, and there are situations
+       where it never starts and reports no error — the button then does nothing
+       at all, which is worse than arriving without the gliding. If nothing has
+       moved shortly after asking, go there plainly instead. */
+    if(!smooth)return;
+    setTimeout(function(){
+      if(Math.abs(scrollNow()-from)<2&&Math.abs(from-y)>2)window.scrollTo(0,y);
+    },350);
+  }
+  if($('snTop'))$('snTop').addEventListener('click',function(){jumpScroll(false);});
+  if($('snBot'))$('snBot').addEventListener('click',function(){jumpScroll(true);});
 
   /* ---------- when the app itself breaks ----------
      The worst failure this app can have is a blank page with all the data still
