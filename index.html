@@ -488,7 +488,10 @@ try{
      force every picture to the same width and the size buttons would do nothing. */
   .vw-gallery{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;}
   .vw-gitem{position:relative;display:block;max-width:100%;}
-  .vw-gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);
+  /* the whole picture, at its own shape. A square crop meant a photo of a kit's
+     drills or a wide work-in-progress shot was shown with its ends cut off, and
+     the only way to see what it actually was was to open it. */
+  .vw-gallery img{width:100%;height:auto;border-radius:10px;border:1.5px solid var(--line);
     background:var(--unk-soft);cursor:zoom-in;display:block;}
   /* deliberately bigger than the edit-page thumbnails (56/96/160/240): this is
      the page you look at, not the page you work on */
@@ -799,6 +802,10 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-08-27 · photos stay on the page',items:[
+      '🖼 Photos in the <b>Photos</b> section show whole, at their own shape, instead of being trimmed to a square. A picture of a kit’s drills or a wide work-in-progress shot had its ends cut off, and opening it was the only way to see what it was.',
+      '↔️ A photo placed near the edge on a computer no longer hangs off the side of a phone. Its place was saved as a share of the page’s width, but it could be dragged as far as the <em>window</em> — and on a wide screen the page is a column with margins, so the edge of the window is well past the edge of the page. It now stops at the page, and layouts already saved are pulled back on when shown.',
+    ]},
     {when:'2026-08-27 · Back behaves',items:[
       '↩ Closing a full-screen or compared photo with Back no longer throws away your place. The browser remembers a scroll position against each step of its history and was putting you back at the top of a long colour list; the app now keeps the position itself.',
       '↩ Opening the app on the project it last showed, then pressing Back, used to leave the app altogether — there was nothing behind that project. Back now goes out to the projects list first, the way it reads as doing.',
@@ -4200,23 +4207,23 @@ try{
        so wait for the next render/resize when the real width is known */
     if(!hostW)return;
     var slot=0;
-    /* hostW comes from the element's own box, which the zoom leaves alone, while
-       a screen rectangle and the window width are both zoomed — so those two are
-       brought back into the same units before they're compared with it */
-    var z=appZoom();
-    var hostLeft=host.getBoundingClientRect().left/z;
-    var vw=(document.documentElement.clientWidth||hostW)/z;
+    /* every measurement below is in the page's own width, which the zoom leaves
+       alone — nothing here needs the window any more */
     p.photos.forEach(function(photo,i){
       if(i<startIdx)return;
       arrLayout(photo,slot++,hostW,viewMode);
       var im=document.createElement('img');
       im.className='arr-img'+(arrangeMode&&i===arrSel?' sel':'')+(arrangeMode?'':(' locked'+(i===selPhoto?' sel':'')));
       im.setAttribute('data-i',i); im.src=photo.d; im.alt='';
-      /* a photo placed against the edge of a wide monitor would sit entirely
-         off-screen on a phone, so keep a strip of it visible — display only,
-         the stored position is untouched */
+      /* Positions already saved from a wide screen can sit past the page's edge,
+         because until now a photo could be dragged out into the margin a monitor
+         has and a phone does not. Keeping "a strip of it visible" was the old
+         rule here and it was too generous — nine tenths of a picture off the side
+         still reads as broken. Anything that fits is pulled fully onto the page.
+         Display only: what is stored is left alone, so a layout is not quietly
+         rewritten by having been looked at on a phone. */
       var wpx=photo.aw/100*hostW, lpx=photo.ax/100*hostW;
-      lpx=Math.max(40-hostLeft-wpx,Math.min(vw-40-hostLeft,lpx));
+      lpx=(wpx>=hostW)?0:Math.max(0,Math.min(hostW-wpx,lpx));
       im.style.left=lpx+'px'; im.style.top=(photo.ay/100*hostW)+'px';
       im.style.width=photo.aw+'%'; im.style.transform='rotate('+photo.arot+'deg)';
       if(photo.op!=null&&photo.op<1)im.style.opacity=photo.op;
@@ -4351,14 +4358,15 @@ try{
           if(!r.width)return;
           var dx=(ev.clientX-startX)/r.width*100, dy=(ev.clientY-startY)/r.width*100;
           if(Math.abs(dx)>0.4||Math.abs(dy)>0.4)moved=true;
-          /* limits follow the window, not the 900px content column, so a photo can
-             be dragged right out to either screen edge — and no further, which is
-             what would otherwise add a horizontal scrollbar */
-          var vw=document.documentElement.clientWidth||r.width;
-          var minAx=-(r.left/r.width*100);
-          var maxAx=((vw-r.left)/r.width*100)-(photo.aw||28);
-          if(maxAx<minAx)maxAx=minAx;
-          photo.ax=Math.max(minAx,Math.min(maxAx,ax0+dx));
+          /* A photo's place is stored as a share of the page's own width, so the
+             limits have to be that same width — they used to be the window's.
+             On a wide screen the page is a column with margins either side, so
+             "as far as the window" meant up to 120% of the page, and 120% of a
+             phone's page is off the side of the phone. The picture you put at the
+             edge of the desk was half off the edge of the pocket. */
+          var maxAx=100-(photo.aw||28);
+          if(maxAx<0)maxAx=0;
+          photo.ax=Math.max(0,Math.min(maxAx,ax0+dx));
           photo.ay=Math.max(-30,ay0+dy);
           /* r.width is a screen measurement; a photo's left/top are its own box's
              units, so the zoom has to come back out on the way in */
