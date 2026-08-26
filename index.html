@@ -41,7 +41,7 @@ try{
 <style>
   :root{
     --bg:#F3F2F5; --panel:#FFFFFF; --ink:#26222E; --muted:#7A7486;
-    --line:#E4E1EA; --accent:#5B3FA8; --accent-soft:#EFEAFB;
+    --line:#E4E1EA; --accent:#5B3FA8; --accent-soft:#EFEAFB; --accent-ink:#5B3FA8;
     --sq:#2E6FBF; --sq-soft:#E7F0FB;
     --rd:#2F9E63; --rd-soft:#E6F6EE;
     --od:#B0398F; --od-soft:#F9E9F4;
@@ -51,7 +51,7 @@ try{
   }
   .dp-app.dark{
     --bg:#16141B; --panel:#221F2A; --ink:#ECE9F2; --muted:#9E98AC;
-    --line:#332F3D; --accent:#B49BF2; --accent-soft:#2E2646;
+    --line:#332F3D; --accent:#5B3FA8; --accent-soft:#2E2646; --accent-ink:#B49BF2;
     --sq:#6FA8E6; --sq-soft:#1E2A3A;
     --rd:#5FC98C; --rd-soft:#16301F;
     --od:#E084C4; --od-soft:#33172B;
@@ -80,7 +80,7 @@ try{
   .tab .cnt{color:var(--muted);font-weight:600;margin-left:6px;font-size:12px;}
   .tab.active{border-color:var(--accent);background:var(--accent);color:#fff;}
   .tab.active .cnt{color:#E4DBFA;}
-  .tab.add{border-style:dashed;color:var(--accent);background:transparent;font-weight:700;}
+  .tab.add{border-style:dashed;color:var(--accent-ink);background:transparent;font-weight:700;}
   .tab.home,.tab.find,.tab.paints{font-weight:700;}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
   .search{flex:1 1 200px;display:flex;align-items:center;background:var(--panel);border:1.5px solid var(--line);
@@ -88,7 +88,7 @@ try{
   .search input{border:none;outline:none;font-size:15px;flex:1;background:transparent;color:var(--ink);}
   .chipbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:12px;padding:9px 12px;
     font-size:14px;font-weight:600;cursor:pointer;color:var(--ink);}
-  .chipbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .chipbtn.on{background:var(--accent-soft);border-color:var(--accent-ink);color:var(--accent-ink);}
   .chipbtn.danger{color:#A8324B;}
   .chipbtn.confirm{background:#A8324B !important;border-color:#A8324B !important;color:#fff !important;}
   /* The name renames itself. A button that said "Rename" used to sit a thousand
@@ -99,10 +99,10 @@ try{
     border-radius:11px;padding:2px 8px 2px 7px;margin:-2px 0 0 -7px;font:inherit;color:inherit;text-align:left;
     cursor:text;overflow-wrap:anywhere;}
   .name-btn:hover,.name-btn:focus-visible{border-color:var(--line);background:var(--panel);outline:none;}
-  .name-btn:hover .name-pen,.name-btn:focus-visible .name-pen{opacity:1;color:var(--accent);}
+  .name-btn:hover .name-pen,.name-btn:focus-visible .name-pen{opacity:1;color:var(--accent-ink);}
   .name-pen{font-size:13px;font-weight:400;opacity:.45;flex:0 0 auto;}
   .pd-name.editing{display:flex;gap:7px;align-items:center;}
-  .name-input{flex:1;min-width:0;border:1.5px solid var(--accent);border-radius:11px;padding:4px 9px;
+  .name-input{flex:1;min-width:0;border:1.5px solid var(--accent-ink);border-radius:11px;padding:4px 9px;
     font-size:18px;font-weight:800;line-height:1.2;font-family:inherit;outline:none;}
   .name-ok{flex:0 0 auto;background:var(--accent);border:1.5px solid var(--accent);color:#fff;border-radius:11px;
     padding:5px 12px;font-size:15px;font-weight:800;cursor:pointer;}
@@ -129,7 +129,7 @@ try{
   .card{display:flex;align-items:center;gap:9px;background:var(--panel);border:1.5px solid var(--line);
     border-radius:12px;padding:8px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;position:relative;}
   .card:active{transform:scale(.985);}
-  .card.sel{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset;background:var(--accent-soft);}
+  .card.sel{border-color:var(--accent-ink);box-shadow:0 0 0 1.5px var(--accent-ink) inset;background:var(--accent-soft);}
   .card.open{border-color:var(--ink);}
   .drill{width:34px;height:34px;border-radius:8px;flex:0 0 auto;border:1px solid rgba(0,0,0,.14);
     background-image:linear-gradient(135deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 45%,rgba(0,0,0,.12) 100%);pointer-events:none;}
@@ -167,7 +167,7 @@ try{
   .scrollnav button{width:42px;height:38px;border:none;background:none;color:var(--ink);
     font-size:17px;font-weight:800;line-height:1;padding:0;cursor:pointer;font-family:inherit;}
   .scrollnav button+button{border-top:1px solid var(--line);}
-  .scrollnav button:hover{background:var(--accent-soft);color:var(--accent);}
+  .scrollnav button:hover{background:var(--accent-soft);color:var(--accent-ink);}
   .scrollnav button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}
   .scrollnav.hide{display:none;}
   .toast{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
@@ -187,7 +187,7 @@ try{
   .ovswatches{display:flex;gap:4px;margin-top:9px;flex-wrap:wrap;align-items:center;}
   .ovthumb{width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid var(--line);}
   .ovtags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
-  .ovtag{background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;}
+  .ovtag{background:var(--accent-soft);color:var(--accent-ink);font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;}
   .ovbody{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:4px;}
   .ovinfo{flex:1 1 150px;min-width:0;}
   .ovphotos{display:flex;gap:7px;flex-wrap:wrap;flex:0 0 auto;}
@@ -235,7 +235,7 @@ try{
   #bgArt.bg-photo{opacity:.30;filter:blur(9px) saturate(.85);transform:scale(1.08);}
   .bgswatch{width:52px;height:34px;border-radius:9px;border:2px solid var(--line);cursor:pointer;padding:0;
     background-size:cover;background-position:center;}
-  .bgswatch.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent);}
+  .bgswatch.on{border-color:var(--accent-ink);box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent-ink);}
   .acc-sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0;}
   .acc-sw.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink);}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;z-index:100;padding:18px;cursor:zoom-out;outline:none;}
@@ -269,7 +269,7 @@ try{
   .pin .dot{width:15px;height:15px;border-radius:50%;border:1px solid rgba(0,0,0,.15);}
   .selbox{width:20px;height:20px;border-radius:6px;border:2px solid var(--line);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;}
   .selbox.on{background:var(--accent);border-color:var(--accent);}
-  .ovcard.picked{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset;}
+  .ovcard.picked{border-color:var(--accent-ink);box-shadow:0 0 0 1.5px var(--accent-ink) inset;}
   /* ---- arrange mode ---- */
   .arr-layer{position:absolute;left:0;top:0;width:100%;pointer-events:none;z-index:30;}
   /* sent behind the page: under the cards and the words, above the page itself.
@@ -305,7 +305,7 @@ try{
   .fb-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;margin-bottom:8px;}
   .fb-addrow{display:flex;gap:7px;}
   .fb-addrow input{flex:1;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:14px;outline:none;min-width:0;}
-  .fb-addrow input:focus{border-color:var(--accent);}
+  .fb-addrow input:focus{border-color:var(--accent-ink);}
   .fb-hint{font-size:11px;color:var(--muted);margin-top:5px;}
   .section-lbl{font-size:13px;font-weight:700;color:var(--muted);margin:12px 2px 7px;}
   /* a heading you can fold, and the bar that jumps to one */
@@ -319,13 +319,13 @@ try{
   /* shapes sit with the search box, and say so loudly when one is on */
   .fshapes{display:flex;gap:5px;flex:0 0 auto;}
   .fshapes .tbtn{padding:7px 12px;font-size:15px;}
-  .fbanner{background:var(--accent-soft);color:var(--accent);border:1.5px solid var(--accent);border-radius:11px;
+  .fbanner{background:var(--accent-soft);color:var(--accent-ink);border:1.5px solid var(--accent-ink);border-radius:11px;
     padding:7px 12px;font-size:12.5px;font-weight:700;margin:0 2px 10px;cursor:pointer;}
   .backup{background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-top:6px;}
   .bk-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
   .backup textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:12px;
     font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--panel);outline:none;resize:vertical;}
-  .backup textarea:focus{border-color:var(--accent);}
+  .backup textarea:focus{border-color:var(--accent-ink);}
   .bk-note{font-size:12px;color:var(--muted);margin-top:6px;}
   /* painting header: photos left, details right */
   .phead{display:flex;gap:12px;background:var(--panel);border:1.5px solid var(--line);border-radius:14px;
@@ -335,7 +335,7 @@ try{
   .pg-item{position:relative;max-width:100%;min-width:0;}
   .pg-lbl{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.62);color:#fff;font-size:9px;font-weight:800;letter-spacing:.3px;padding:1px 6px;border-radius:999px;pointer-events:none;z-index:1;}
   .photo-grid img{border-radius:9px;object-fit:cover;border:2px solid var(--line);cursor:pointer;display:block;}
-  .photo-grid img.psel{border-color:var(--accent);}
+  .photo-grid img.psel{border-color:var(--accent-ink);}
   .photo-s0{width:56px;height:56px;}
   .photo-s1{width:96px;height:96px;}
   .photo-s2{width:160px;height:160px;}
@@ -346,7 +346,7 @@ try{
   .pbtn.danger{color:#A8324B;}
   .pbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
   .photo-preview{position:relative;margin-top:8px;max-width:260px;}
-  .photo-preview img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;border:1.5px solid var(--accent);background:var(--unk-soft);display:block;}
+  .photo-preview img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;border:1.5px solid var(--accent-ink);background:var(--unk-soft);display:block;}
   .photo-preview.frame-portrait img{aspect-ratio:3/4;}
   .photo-preview.frame-square img{aspect-ratio:1;}
   .photo-preview.frame-round img{aspect-ratio:1;border-radius:50%;}
@@ -356,7 +356,7 @@ try{
      had just tapped — 116px downward, out from under your finger, and then showed
      you fourteen identical buttons 154px above it. So the photo opens where it
      already is, at the shape it will be on the card, with four buttons under it. */
-  .pg-editor{position:relative;border:2px solid var(--accent);border-radius:13px;background:var(--panel);
+  .pg-editor{position:relative;border:2px solid var(--accent-ink);border-radius:13px;background:var(--panel);
     padding:7px;box-shadow:0 6px 20px -10px rgba(0,0,0,.35);width:360px;max-width:100%;}
   .ed-frame{position:relative;overflow:hidden;border-radius:9px;background:var(--unk-soft);aspect-ratio:4/3;}
   .pg-editor.frame-portrait .ed-frame{aspect-ratio:3/4;}
@@ -376,7 +376,7 @@ try{
   .phsz.on{background:var(--accent);border-color:var(--accent);color:#fff;}
   .ed-cap{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;
     background:var(--panel);color:var(--ink);outline:none;}
-  .ed-cap:focus{border-color:var(--accent);}
+  .ed-cap:focus{border-color:var(--accent-ink);}
   .photo-hint{font-size:11px;color:var(--muted);margin-top:5px;}
   .pdetails{flex:1;min-width:0;}
   .pd-name{font-size:18px;font-weight:800;line-height:1.2;margin-bottom:8px;overflow-wrap:anywhere;}
@@ -399,14 +399,14 @@ try{
   .selchip.on{background:var(--accent);border-color:var(--accent);color:#fff;}
   .addinline{display:flex;gap:6px;align-items:center;}
   .addinline input{border:1.5px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;outline:none;width:120px;}
-  .addinline input:focus{border-color:var(--accent);}
+  .addinline input:focus{border-color:var(--accent-ink);}
   .codeinput{border:1.5px solid var(--line);border-radius:9px;padding:6px 10px;font-size:14px;font-weight:600;
     outline:none;width:100%;max-width:260px;}
-  .codeinput:focus{border-color:var(--accent);}
+  .codeinput:focus{border-color:var(--accent-ink);}
   .rating-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
   .rating-row input{border:1.5px solid var(--line);border-radius:9px;padding:6px 9px;font-size:15px;font-weight:800;
     width:74px;outline:none;text-align:center;}
-  .rating-row input:focus{border-color:var(--accent);}
+  .rating-row input:focus{border-color:var(--accent-ink);}
   /* The browser's own slider draws its filled part only as far as the middle of
      the knob, so a bar set to 100% still ends a knob's width short of the end and
      reads as "about 95%". Drawing the fill ourselves — a hard stop at the value,
@@ -425,7 +425,7 @@ try{
   /* the one row that is always on screen, and the panel the other four fold into */
   .toolrow{margin-bottom:8px;}
   .chipbtn.ic{padding:9px 11px;font-size:15px;line-height:1;}
-  .toolsum{font-size:12.5px;color:var(--accent);font-weight:700;cursor:pointer;min-width:0;
+  .toolsum{font-size:12.5px;color:var(--accent-ink);font-weight:700;cursor:pointer;min-width:0;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 120px;}
   .toolpanel{border:1.5px solid var(--line);border-radius:12px;padding:10px 10px 2px;margin-bottom:10px;background:var(--panel);}
   .toolpanel .ovsort:last-child{margin-bottom:8px;}
@@ -663,12 +663,17 @@ try{
      is an editable list like sizes, sellers and tags. */
   var DEFAULT_PHOTO_LABELS=['progress','paints','packaging','framed','detail','other'];
   var ACCENTS=[
-    {id:'violet', name:'Violet', accent:'#5B3FA8', soft:'#EFEAFB', dsoft:'#2E2646'},
-    {id:'teal',   name:'Teal',   accent:'#0E8C8C', soft:'#DFF3F3', dsoft:'#123536'},
-    {id:'rose',   name:'Rose',   accent:'#C43D6E', soft:'#FBE7EF', dsoft:'#3A1B28'},
-    {id:'blue',   name:'Blue',   accent:'#2F6FBF', soft:'#E7F0FB', dsoft:'#152740'},
-    {id:'green',  name:'Green',  accent:'#2F9E63', soft:'#E6F6EE', dsoft:'#12301F'},
-    {id:'amber',  name:'Amber',  accent:'#B5731F', soft:'#FBF0DC', dsoft:'#332616'}
+    /* accent  — the solid fill, always dark enough to carry white text
+       soft/dsoft — the tinted background behind a chosen chip, per theme
+       dink    — the accent used as INK in dark mode. The solid colour cannot do
+                 that job: it is chosen to sit under white text, so on a dark
+                 background it is one dark on another and all but disappears. */
+    {id:'violet', name:'Violet', accent:'#5B3FA8', soft:'#EFEAFB', dsoft:'#2E2646', dink:'#B49BF2'},
+    {id:'teal',   name:'Teal',   accent:'#0E8C8C', soft:'#DFF3F3', dsoft:'#123536', dink:'#5FCFCF'},
+    {id:'rose',   name:'Rose',   accent:'#C43D6E', soft:'#FBE7EF', dsoft:'#3A1B28', dink:'#F291B2'},
+    {id:'blue',   name:'Blue',   accent:'#2F6FBF', soft:'#E7F0FB', dsoft:'#152740', dink:'#82B4F0'},
+    {id:'green',  name:'Green',  accent:'#2F9E63', soft:'#E6F6EE', dsoft:'#12301F', dink:'#6FD69C'},
+    {id:'amber',  name:'Amber',  accent:'#B5731F', soft:'#FBF0DC', dsoft:'#332616', dink:'#E3AC58'}
   ];
   var ACCENTMAP={}; ACCENTS.forEach(function(a){ACCENTMAP[a.id]=a;});
   var COLOR_FAMILIES=['Red','Orange','Yellow','Green','Teal','Blue','Purple','Pink','Brown','Neutral'];
@@ -2071,7 +2076,7 @@ try{
           '<button class="chipbtn" id="bkCopy" type="button">Copy</button>'+
           '<button class="chipbtn" id="bkFile" type="button">⬇ Download as file</button>'+
           '<button class="chipbtn" id="bkLoad" type="button">⬆ Load from file</button>'+
-          '<button class="chipbtn" id="bkRestore" type="button" style="color:var(--accent);border-color:var(--accent);">Restore from code</button>'+
+          '<button class="chipbtn" id="bkRestore" type="button" style="color:var(--accent-ink);border-color:var(--accent-ink);">Restore from code</button>'+
           '<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;font-weight:600;">'+
           '<input type="checkbox" id="bkPhotos" checked> include photos</label>'+
         '</div>'+
@@ -2249,7 +2254,7 @@ try{
     });
     var avg=rn?(rsum/rn).toFixed(1):'—';
     var spendStr=spendN?spend.toFixed(2):'—';
-    function stat(num,label){return '<div style="text-align:center;min-width:60px;flex:1 1 60px;"><div style="font-size:22px;font-weight:800;color:var(--accent);">'+num+'</div><div style="font-size:11px;color:var(--muted);">'+label+'</div></div>';}
+    function stat(num,label){return '<div style="text-align:center;min-width:60px;flex:1 1 60px;"><div style="font-size:22px;font-weight:800;color:var(--accent-ink);">'+num+'</div><div style="font-size:11px;color:var(--muted);">'+label+'</div></div>';}
     return '<div class="backup">'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
         stat(n,'projects')+stat(byStatus.done,'finished')+stat(byStatus.progress,'in progress')+stat(byStatus.wishlist,'wishlist')+
@@ -2307,7 +2312,7 @@ try{
             '<div style="font-weight:700;font-size:13px;">'+fmtDate(e.ts)+(e.auto?' <span style="color:var(--muted);font-weight:600;font-size:11px;">(auto)</span>':(e.safety?' <span style="color:var(--muted);font-weight:600;font-size:11px;">(saved just before a restore)</span>':''))+'</div>'+
             '<div style="font-size:11.5px;color:var(--muted);">'+(e.count||0)+' project'+((e.count===1)?'':'s')+' · '+fmtBytes(e.size||0)+(e.photos?' · 📷 photos':' · no photos')+'</div>'+
           '</div>'+
-          '<button class="chipbtn" data-restore="'+e.id+'" type="button" style="color:var(--accent);border-color:var(--accent);">Restore</button>'+
+          '<button class="chipbtn" data-restore="'+e.id+'" type="button" style="color:var(--accent-ink);border-color:var(--accent-ink);">Restore</button>'+
           '<button class="chipbtn danger" data-delbk="'+e.id+'" type="button">Delete</button>'+
         '</div>';
       });
@@ -3108,7 +3113,7 @@ try{
       h+='<div class="backup">'+
         '<div class="bk-note">This account already has data saved in the cloud. Which copy should win?</div>'+
         '<div class="bk-btns" style="margin-top:8px;">'+
-          '<button class="chipbtn" id="syUseCloud" type="button" style="color:var(--accent);border-color:var(--accent);">Use cloud data (replace this device)</button>'+
+          '<button class="chipbtn" id="syUseCloud" type="button" style="color:var(--accent-ink);border-color:var(--accent-ink);">Use cloud data (replace this device)</button>'+
           '<button class="chipbtn" id="syUploadThis" type="button">Upload this device (this device wins)</button>'+
         '</div>'+
         '<div class="bk-note" style="margin-top:6px;">Unsure? Save a backup below first so you keep a copy either way.</div>'+
@@ -3133,7 +3138,7 @@ try{
     h+='<div class="backup">'+
       '<div class="sm-lbl" style="font-weight:700;">✓ Signed in as '+esc(AUTH.email||'your account')+'</div>'+
       '<div class="bk-btns" style="margin-top:8px;align-items:center;">'+
-        '<button class="chipbtn" id="syPull" type="button" style="color:var(--accent);border-color:var(--accent);">Sync now</button>'+
+        '<button class="chipbtn" id="syPull" type="button" style="color:var(--accent-ink);border-color:var(--accent-ink);">Sync now</button>'+
         '<button class="chipbtn danger" id="syOff" type="button">Log out</button>'+
       '</div>'+
       '<div class="bk-note" style="margin-top:6px;">Log in with this same account on your other device. Changes sync automatically while the app is open.</div>'+
@@ -6233,7 +6238,12 @@ try{
     var boot=document.getElementById('themeBoot'); if(boot)boot.remove();
     try{
       var a=ACCENTMAP[state.accent]||ACCENTMAP.violet;
-      if(app){app.style.setProperty('--accent',a.accent);app.style.setProperty('--accent-soft',state.dark?a.dsoft:a.soft);}
+      /* these are set inline, which beats the stylesheet — so the dark palette's
+         own accent values never applied and the theme's ink has to be set here
+         too, or accent-coloured text stays the light theme's dark violet */
+      if(app){app.style.setProperty('--accent',a.accent);
+              app.style.setProperty('--accent-soft',state.dark?a.dsoft:a.soft);
+              app.style.setProperty('--accent-ink',state.dark?(a.dink||a.accent):a.accent);}
       document.documentElement.style.background=state.dark?'#16141B':'#F3F2F5';
       if(document.body)document.body.style.background=state.dark?'#16141B':'#F3F2F5';
       var mt=document.querySelector('meta[name="theme-color"]'); if(mt)mt.setAttribute('content',state.dark?'#16141B':'#F3F2F5');
