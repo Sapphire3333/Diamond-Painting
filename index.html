@@ -768,6 +768,8 @@ try{
   var APP_NEWS=[
     {when:'2026-08-26',items:[
       '🖼 A photo’s tools open on the photo itself, where you tapped it. They used to open in the bar at the top, which grew as they appeared and shoved the page — and the photo you had just tapped — 116 pixels downward, out from under your finger. Now nothing moves.',
+      '⬚ Crop and ✂ Cut out background moved to a photo’s own tools, under ⋯ More. They used to be reachable only while arranging, which meant a drawing — or any project with two photos or fewer — could not be cropped at all.',
+      '⇱ Arranging photos is now offered on the project page (👁 View) only. Doing it on the edit page threw the result away: the floating layout was deleted the moment you finished, and the project page anchors the Sold and Result covers wherever you had dragged them. Nothing you had already arranged has been touched.',
       '✓ Four buttons instead of fourteen: Done, the cover buttons, and ⋯ More for the rest. The little “Card” preview is gone because the open photo is shown at the shape it will take on the card — it is its own preview.',
       '⤺ Undo my changes puts a photo back exactly as it was when you opened it, so a crop or a flip you did not mean is no longer permanent.',
       '✏️ Rename a project by tapping its name. The Rename button used to sit a thousand pixels below the name it renamed, in the row that starts with the search box.',
@@ -2336,6 +2338,14 @@ try{
             '<button class="pbtn" id="phLeft" type="button" aria-label="Move this photo earlier">◀ order</button>'+
             '<button class="pbtn" id="phRight" type="button" aria-label="Move this photo later">order ▶</button>'+
             '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
+          '</div>'+
+          /* Crop and cutting out a background used to live in the arranging bar,
+             which is a strange home for two things that change one picture rather
+             than the layout — and it left them unreachable for a drawing, or for a
+             project with two photos or fewer, where arranging is not offered. */
+          '<div class="ed-ring">'+
+            '<button class="pbtn" id="phCrop" type="button">⬚ Crop</button>'+
+            '<button class="pbtn" id="phCut" type="button" title="Works best on a plain or white background">✂ Cut out background</button>'+
           '</div>'+
           '<div class="ed-sizes"><span class="pd-lbl" style="margin:0">Thumbnail size:</span>'+
             PH_SIZES.map(function(lb,si){
@@ -4010,10 +4020,10 @@ try{
          you do to one picture, and offering them with nothing selected would
          just be two more buttons that say "pick a photo first" */
       fadeRowHtml(p)+
+      /* arranging is only ever reached from the project page now, so there is one
+         situation to describe rather than two */
       '<div class="arr-hint">'+
-        (p.edit===false
-          ? 'The <b>Sold</b> and <b>Result</b> covers stay put — left and right of the details. Everything from the third photo on can be dragged anywhere on this page. '
-          : 'Drag photos anywhere on this page — beside the name, the rating, over the colour list, wherever. ')+
+        'The <b>Sold</b> and <b>Result</b> covers stay put — left and right of the details. Everything from the third photo on can be dragged anywhere on this page. '+
         'Tap one to select, then drag any <b>purple corner</b> to resize, or the <b>gold circle</b> to tilt (or use − / ＋ and ⟲ / ⟳). Paste (Ctrl+V) or ＋ Add drops a new image where you last tapped.</div>'+
       '</div>';
     return h;
@@ -4700,9 +4710,13 @@ try{
         '<div class="delx" data-photox="'+i+'" role="button" tabindex="0" title="Remove this photo" aria-label="Remove this photo">✕</div></div>';
     });
     ph+='</div>';
+    /* No ⇱ Arrange & edit here. Arranging from this page threw away everything you
+       did in it: the floating layer is deleted the moment you finish, and the
+       project page anchors the Sold and Result covers wherever you had dragged
+       them. Placing photos freely is offered on the project page — 👁 View —
+       where it is the layout you are actually looking at. */
     ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
       (p.photos.length>1?'<button class="pbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
-      (p.photos.length?('<button class="pbtn'+(arrangeMode?' on':'')+'" id="arrEnter" type="button">'+(arrangeMode?'✓ Done arranging':'⇱ Arrange &amp; edit')+'</button>'):'')+
       '<button class="pbtn" id="phCheck" type="button" title="Why did a photo come out black or refuse to load?">🩺 Photo check</button></div>';
     ph+='<div class="photo-hint">'+(p.photos.length
       ? ('Tap a photo to open it here with its tools, and <b>✓ Done</b> when you’ve finished with it — or tap its <b>✕</b> to remove it. '+
@@ -4711,7 +4725,7 @@ try{
            : (p.noSold
               ? 'This project has no Sold picture — its 1st photo is the “Result”. Tap ★ Sold cover on a photo to change that.'
               : 'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Only have a photo of the finished work? Select it and tap ★ Result cover.'))+
-         ' Use ⇱ Arrange &amp; edit to place photos freely anywhere on this page.')
+         ' To place photos freely on the page, switch to 👁 View and use ⇱ Move images.')
       : 'Add photos — on PC you can also paste (Ctrl+V) a copied image.'+(kindOf(p)==='drawing'
            ? ' The first becomes the big picture, the rest a gallery.'
            : ' The first two become the “Sold” and “Result” pictures on cards.'))+'</div>';
@@ -4853,7 +4867,6 @@ try{
         '<div class="paint-head">'+
           '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
           '<span id="headName" style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
-          (p.arranged&&!arrangeMode?'<button class="chipbtn" id="arrEnter2" type="button" title="Arrange &amp; edit photos">⇱ Arrange</button>':'')+
           '<button class="chipbtn" id="modeToggle" type="button" title="Switch to view mode">👁 View</button>'+
           '<button class="chipbtn" id="undoBtn2" type="button" title="Undo" aria-label="Undo">↶</button>'+
           '<button class="chipbtn" id="redoBtn2" type="button" title="Redo" aria-label="Redo">↷</button>'+
@@ -5002,9 +5015,7 @@ try{
     /* photos events */
     if($('phAdd'))$('phAdd').addEventListener('click',function(){plog('opened the photo picker','');$('fileInput').click();});
     if($('phCheck'))$('phCheck').addEventListener('click',openPhotoCheck);
-    if($('arrEnter'))$('arrEnter').addEventListener('click',function(){if(arrangeMode)exitArrange();else enterArrange();});
     if($('cmpBtn'))$('cmpBtn').addEventListener('click',function(){openCompare(p);});
-    if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){if(arrangeMode)exitArrange();else enterArrange();});
     if($('modeToggle'))$('modeToggle').addEventListener('click',function(){
       if(arrangeMode)arrangeMode=false;
       p.edit=false; renderPainting(); save();
@@ -5097,6 +5108,26 @@ try{
       if($('phPanR'))$('phPanR').addEventListener('click',function(){panSel(10,0);});
       if($('phPanU'))$('phPanU').addEventListener('click',function(){panSel(0,-10);});
       if($('phPanD'))$('phPanD').addEventListener('click',function(){panSel(0,10);});
+      if($('phCrop'))$('phCrop').addEventListener('click',function(){
+        var ph2=p.photos[selPhoto]; if(!ph2)return;
+        var before=ph2.d;
+        openCrop(ph2,function(ok){
+          if(ok){refreshThumb(ph2,p.id);renderPainting();savePhotos(p.id);pushHistory();
+                 showEditUndo(p.id,ph2,before,'Cropped ✓');}
+        });
+      });
+      if($('phCut'))$('phCut').addEventListener('click',function(){
+        var ph2=p.photos[selPhoto]; if(!ph2)return;
+        toast('Cutting out background…',1200);
+        var before=ph2.d;
+        setTimeout(function(){
+          cutOutBackground(ph2,function(ok){
+            if(ok){refreshThumb(ph2,p.id);renderPainting();savePhotos(p.id);pushHistory();
+                   showEditUndo(p.id,ph2,before,'Background cut out ✓');}
+            else toast('Could not cut this one out — works best on a plain/white background',2600);
+          });
+        },40);
+      });
       if($('phDel'))$('phDel').addEventListener('click',function(){
         if(!twoTap('phdel',$('phDel'),'✕ remove?'))return;
         var at=selPhoto, removed=p.photos.splice(selPhoto,1)[0];
