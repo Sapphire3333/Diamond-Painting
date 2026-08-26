@@ -2323,8 +2323,10 @@ try{
                that doesn't exist was tolerable among fourteen; among four it isn't. */
             (kindOf(p)==='drawing'
               ? '<button class="pbtn'+(i===0?' on':'')+'" id="phSold" type="button">★ Main picture</button>'
-              : ('<button class="pbtn'+((!p.noSold&&i===0)?' on':'')+'" id="phSold" type="button">★ Sold cover</button>'+
-                 '<button class="pbtn'+((i===(p.noSold?0:1))?' on':'')+'" id="phResult" type="button">★ Result cover</button>'))+
+              /* short labels: on a phone "★ Sold cover" and "★ Result cover" pushed
+                 this four-button row onto a second line all by themselves */
+              : ('<button class="pbtn'+((!p.noSold&&i===0)?' on':'')+'" id="phSold" type="button" title="Make this the Sold cover">★ Sold</button>'+
+                 '<button class="pbtn'+((i===(p.noSold?0:1))?' on':'')+'" id="phResult" type="button" title="Make this the Result cover">★ Result</button>'))+
             (photoChanged(ph)?'<button class="pbtn restore" id="phRestore" type="button">⤺ Undo my changes</button>':'')+
             '<button class="pbtn more" id="phMore" type="button">'+(phMore?'⋯ Less':'⋯ More')+'</button>'+
           '</div>'+
@@ -4009,8 +4011,8 @@ try{
         '<button class="pbtn" id="arrTiltR" type="button">⟳ Tilt</button>'+
       '</div>'+
       '<div class="photo-btns">'+
-        '<button class="pbtn" id="arrSold" type="button">★ Sold cover</button>'+
-        '<button class="pbtn" id="arrResult" type="button">★ Result cover</button>'+
+        '<button class="pbtn" id="arrSold" type="button" title="Make this the Sold cover">★ Sold</button>'+
+        '<button class="pbtn" id="arrResult" type="button" title="Make this the Result cover">★ Result</button>'+
         '<button class="pbtn" id="arrCrop" type="button">⬚ Crop</button>'+
         '<button class="pbtn" id="arrCut" type="button">✂ Cut out background</button>'+
         '<button class="pbtn" id="arrReset" type="button">⤺ Reset layout</button>'+
@@ -4723,8 +4725,8 @@ try{
          (kindOf(p)==='drawing'
            ? 'The 1st photo is the big one on the project page; the rest become its gallery.'
            : (p.noSold
-              ? 'This project has no Sold picture — its 1st photo is the “Result”. Tap ★ Sold cover on a photo to change that.'
-              : 'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Only have a photo of the finished work? Select it and tap ★ Result cover.'))+
+              ? 'This project has no Sold picture — its 1st photo is the “Result”. Tap ★ Sold on a photo to change that.'
+              : 'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Only have a photo of the finished work? Select it and tap ★ Result.'))+
          ' To place photos freely on the page, switch to 👁 View and use ⇱ Move images.')
       : 'Add photos — on PC you can also paste (Ctrl+V) a copied image.'+(kindOf(p)==='drawing'
            ? ' The first becomes the big picture, the rest a gallery.'
