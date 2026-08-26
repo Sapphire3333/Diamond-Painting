@@ -251,11 +251,6 @@ try{
   /* wraps only when there isn't room, which at big text sizes there isn't —
      a row that can't wrap pushes the whole page sideways */
   .paint-head{padding:6px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .photo-tools{border-top:1px solid var(--line);padding-top:6px;}
-  .pt-row{display:flex;gap:10px;align-items:flex-start;}
-  .pt-btns{flex:1 1 auto;min-width:0;}
-  .photo-tools .photo-preview{max-width:104px;margin-top:0;flex:0 0 auto;}
-  .photo-tools .photo-btns{margin-top:4px;}
   .pins{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 6px;}
   .pin{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--line);border-radius:999px;padding:2px 8px 2px 3px;font-size:11.5px;font-weight:800;cursor:pointer;background:var(--panel);}
   .pin .dot{width:15px;height:15px;border-radius:50%;border:1px solid rgba(0,0,0,.15);}
@@ -323,8 +318,8 @@ try{
   .phead{display:flex;gap:12px;background:var(--panel);border:1.5px solid var(--line);border-radius:14px;
     padding:12px;margin-bottom:10px;align-items:flex-start;}
   .photos{flex:0 1 42%;min-width:96px;}
-  .photo-grid{display:flex;flex-wrap:wrap;gap:6px;}
-  .pg-item{position:relative;}
+  .photo-grid{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;}
+  .pg-item{position:relative;max-width:100%;min-width:0;}
   .pg-lbl{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.62);color:#fff;font-size:9px;font-weight:800;letter-spacing:.3px;padding:1px 6px;border-radius:999px;pointer-events:none;z-index:1;}
   .photo-grid img{border-radius:9px;object-fit:cover;border:2px solid var(--line);cursor:pointer;display:block;}
   .photo-grid img.psel{border-color:var(--accent);}
@@ -343,6 +338,32 @@ try{
   .photo-preview.frame-square img{aspect-ratio:1;}
   .photo-preview.frame-round img{aspect-ratio:1;border-radius:50%;}
   .pv-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;pointer-events:none;}
+  /* A photo's tools used to open in the sticky bar at the top of the page. That bar
+     grew by 116px as they appeared, which shoved the page — and the very photo you
+     had just tapped — 116px downward, out from under your finger, and then showed
+     you fourteen identical buttons 154px above it. So the photo opens where it
+     already is, at the shape it will be on the card, with four buttons under it. */
+  .pg-editor{position:relative;border:2px solid var(--accent);border-radius:13px;background:var(--panel);
+    padding:7px;box-shadow:0 6px 20px -10px rgba(0,0,0,.35);width:360px;max-width:100%;}
+  .ed-frame{position:relative;overflow:hidden;border-radius:9px;background:var(--unk-soft);aspect-ratio:4/3;}
+  .pg-editor.frame-portrait .ed-frame{aspect-ratio:3/4;}
+  .pg-editor.frame-square .ed-frame{aspect-ratio:1;}
+  .pg-editor.frame-round .ed-frame{aspect-ratio:1;border-radius:50%;}
+  .ed-frame img{width:100%;height:100%;display:block;}
+  .ed-rows{display:flex;flex-direction:column;gap:5px;margin-top:7px;}
+  .ed-ring{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+  /* the way out is the most important control here, so it is the one that is filled */
+  .pbtn.done{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:800;}
+  .pbtn.restore{border-color:var(--star);color:var(--star);}
+  .pbtn.more{border-style:dashed;color:var(--muted);}
+  .ed-sizes{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+  /* not .szbtn — that class already belongs to the text-size buttons in the header */
+  .phsz{border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;
+    padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;}
+  .phsz.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .ed-cap{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;
+    background:var(--panel);color:var(--ink);outline:none;}
+  .ed-cap:focus{border-color:var(--accent);}
   .photo-hint{font-size:11px;color:var(--muted);margin-top:5px;}
   .pdetails{flex:1;min-width:0;}
   .pd-name{font-size:18px;font-weight:800;line-height:1.2;margin-bottom:8px;overflow-wrap:anywhere;}
@@ -745,6 +766,12 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-08-26',items:[
+      '🖼 A photo’s tools open on the photo itself, where you tapped it. They used to open in the bar at the top, which grew as they appeared and shoved the page — and the photo you had just tapped — 116 pixels downward, out from under your finger. Now nothing moves.',
+      '✓ Four buttons instead of fourteen: Done, the cover buttons, and ⋯ More for the rest. The little “Card” preview is gone because the open photo is shown at the shape it will take on the card — it is its own preview.',
+      '⤺ Undo my changes puts a photo back exactly as it was when you opened it, so a crop or a flip you did not mean is no longer permanent.',
+      '✏️ Rename a project by tapping its name. The Rename button used to sit a thousand pixels below the name it renamed, in the row that starts with the search box.',
+    ]},
     {when:'2026-08-25',items:[
       '📸 A Result picture no longer needs a Sold one first: select a project’s only photo and tap ★ Result cover — the project simply has no Sold picture. ★ Sold cover switches it back.',
     ]},
@@ -793,6 +820,10 @@ try{
   var history=[], histIdx=-1, histT=null, photoCache={}, clipboard=[], trash=[];
   var selectMode=false, selectedIds={};
   var arrangeMode=false, arrSel=-1, cropOn=false, cropRect=null, lastPastePt=null;
+  /* phMore: the rarely-used half of a photo's tools, folded away until asked for.
+     phSnap: how the open photo looked when it was opened, so ⤺ Undo my changes has
+     somewhere to go back to — before this there was no way back from a bad crop. */
+  var phMore=false, phSnap=null;
   var syncPhase='';   /* '' normal, 'choose' after enabling when cloud already has data */
   var DMCMAP={}; DMC.forEach(function(r){DMCMAP[r[0]]=r;});
   var DMCLOWER={}; DMC.forEach(function(r){DMCLOWER[r[0].toLowerCase()]=r[0];});
@@ -1718,7 +1749,7 @@ try{
       render(); save(); pushHistory(); pushNav(); scrollTo(0);
     },false);
   }
-  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;expandedTag=null;expandedMedia=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
+  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;expandedTag=null;expandedMedia=null;selPhoto=-1;phMore=false;phSnap=null;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
     showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;chartPick=false;
     findPaste=false;findPasteText='';findPasteReview=null;}
 
@@ -2243,6 +2274,78 @@ try{
     var px=(photo.posX==null?50:photo.posX);
     var py=(photo.posY==null?50:photo.posY);
     return 'object-fit:'+fit+';object-position:'+px+'% '+py+'%;'+(photo.flip?'transform:scaleX(-1);':'');
+  }
+  /* what ⤺ Undo my changes goes back to */
+  function photoSnap(ph){
+    return ph?{fit:ph.fit,posX:ph.posX,posY:ph.posY,flip:ph.flip,s:ph.s}:null;
+  }
+  function photoChanged(ph){
+    if(!ph||!phSnap)return false;
+    return (ph.fit||'cover')!==(phSnap.fit||'cover')||
+           (ph.posX==null?50:ph.posX)!==(phSnap.posX==null?50:phSnap.posX)||
+           (ph.posY==null?50:ph.posY)!==(phSnap.posY==null?50:phSnap.posY)||
+           (ph.flip?1:0)!==(phSnap.flip?1:0)||
+           (ph.s==null?1:ph.s)!==(phSnap.s==null?1:phSnap.s);
+  }
+  var PH_SIZES=['S','M','L','XL'];
+  function openPhotoEditor(i){
+    if(selPhoto===i){closePhotoEditor();return;}
+    selPhoto=i; phMore=false;
+    phSnap=photoSnap(active()&&active().photos?active().photos[i]:null);
+    renderPainting();
+  }
+  function closePhotoEditor(){
+    selPhoto=-1; phMore=false; phSnap=null;
+    renderPainting();
+  }
+  /* The open photo, shown at the shape it will take on the card — which is why the
+     little "Card" preview that used to sit in the tools bar is gone: the photo you
+     are working on IS the preview now. Four buttons show; the rest wait behind
+     ⋯ More, because fourteen at once was the complaint that started this. */
+  function photoEditorHtml(p,i){
+    var ph=p.photos[i]; if(!ph)return '';
+    var isCover=((ph.fit||'cover')!=='contain');
+    var frame=p.frame||'landscape';
+    var lbls=coverLabels(p);
+    return '<div class="pg-item">'+
+      (lbls[i]?'<span class="pg-lbl" style="top:11px;left:11px;z-index:3;">'+lbls[i]+'</span>':'')+
+      '<div class="pg-editor frame-'+frame+'">'+
+        '<div class="ed-frame">'+
+          '<img src="'+(ph.d||thumbSrc(ph))+'" alt="'+esc(photoLabel(p,i))+'" style="'+photoStyle(ph)+'">'+
+        '</div>'+
+        '<div class="ed-rows">'+
+          '<div class="ed-ring">'+
+            '<button class="pbtn done" id="phDone" type="button">✓ Done</button>'+
+            /* a drawing has no Sold and Result covers — its 1st photo is simply the
+               big one, and the rest are its gallery. Two buttons naming something
+               that doesn't exist was tolerable among fourteen; among four it isn't. */
+            (kindOf(p)==='drawing'
+              ? '<button class="pbtn'+(i===0?' on':'')+'" id="phSold" type="button">★ Main picture</button>'
+              : ('<button class="pbtn'+((!p.noSold&&i===0)?' on':'')+'" id="phSold" type="button">★ Sold cover</button>'+
+                 '<button class="pbtn'+((i===(p.noSold?0:1))?' on':'')+'" id="phResult" type="button">★ Result cover</button>'))+
+            (photoChanged(ph)?'<button class="pbtn restore" id="phRestore" type="button">⤺ Undo my changes</button>':'')+
+            '<button class="pbtn more" id="phMore" type="button">'+(phMore?'⋯ Less':'⋯ More')+'</button>'+
+          '</div>'+
+          (phMore?('<div class="ed-ring">'+
+            '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill (crop)':'▤ Whole image')+'</button>'+
+            '<button class="pbtn'+(ph.flip?' on':'')+'" id="phFlip" type="button">⇄ Flip</button>'+
+            (isCover?('<button class="pbtn" id="phPanL" type="button" aria-label="Show more of the left side">←</button>'+
+                      '<button class="pbtn" id="phPanU" type="button" aria-label="Show more of the top">↑</button>'+
+                      '<button class="pbtn" id="phPanD" type="button" aria-label="Show more of the bottom">↓</button>'+
+                      '<button class="pbtn" id="phPanR" type="button" aria-label="Show more of the right side">→</button>'):'')+
+            '<button class="pbtn" id="phLeft" type="button" aria-label="Move this photo earlier">◀ order</button>'+
+            '<button class="pbtn" id="phRight" type="button" aria-label="Move this photo later">order ▶</button>'+
+            '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
+          '</div>'+
+          '<div class="ed-sizes"><span class="pd-lbl" style="margin:0">Thumbnail size:</span>'+
+            PH_SIZES.map(function(lb,si){
+              return '<button class="phsz'+((ph.s==null?1:ph.s)===si?' on':'')+'" data-phsize="'+si+'" type="button">'+lb+'</button>';
+            }).join('')+
+          '</div>'):'')+
+          '<input class="ed-cap" id="phCaption" type="text" maxlength="80" placeholder="Caption — e.g. halfway there" value="'+esc(ph.c||'')+'" aria-label="Caption for this photo">'+
+          (phMore&&ph.ts?'<div class="photo-hint" style="margin-top:0;">Added '+fmtDate(ph.ts)+(ph.c?'':' — a caption shows on the project page’s gallery and when the photo opens big')+'</div>':'')+
+        '</div>'+
+      '</div></div>';
   }
   /* ---------- how a project looks in the list ----------
      Four shapes of the same card. They exist side by side so the choice can be
@@ -4590,9 +4693,10 @@ try{
     var lbls=coverLabels(p);
     var ph='<div class="photo-grid"'+(arrangeMode?' style="visibility:hidden"':'')+'>';
     p.photos.forEach(function(photo,i){
+      if(i===selPhoto&&!arrangeMode){ ph+=photoEditorHtml(p,i); return; }
       var lbl=(lbls[i]?'<span class="pg-lbl">'+lbls[i]+'</span>':'');
       ph+='<div class="pg-item">'+lbl+
-        '<img class="photo-s'+(photo.s||1)+(i===selPhoto?' psel':'')+'" data-i="'+i+'" src="'+thumbSrc(photo)+'" alt="'+esc(photoLabel(p,i))+'" role="button" tabindex="0" style="'+photoStyle(photo)+'">'+
+        '<img class="photo-s'+(photo.s||1)+'" data-i="'+i+'" src="'+thumbSrc(photo)+'" alt="'+esc(photoLabel(p,i))+'" role="button" tabindex="0" style="'+photoStyle(photo)+'">'+
         '<div class="delx" data-photox="'+i+'" role="button" tabindex="0" title="Remove this photo" aria-label="Remove this photo">✕</div></div>';
     });
     ph+='</div>';
@@ -4601,7 +4705,7 @@ try{
       (p.photos.length?('<button class="pbtn'+(arrangeMode?' on':'')+'" id="arrEnter" type="button">'+(arrangeMode?'✓ Done arranging':'⇱ Arrange &amp; edit')+'</button>'):'')+
       '<button class="pbtn" id="phCheck" type="button" title="Why did a photo come out black or refuse to load?">🩺 Photo check</button></div>';
     ph+='<div class="photo-hint">'+(p.photos.length
-      ? ('Tap a photo for its tools in the bar at the top, or its <b>✕</b> to remove it. '+
+      ? ('Tap a photo to open it here with its tools, and <b>✓ Done</b> when you’ve finished with it — or tap its <b>✕</b> to remove it. '+
          (kindOf(p)==='drawing'
            ? 'The 1st photo is the big one on the project page; the rest become its gallery.'
            : (p.noSold
@@ -4613,50 +4717,17 @@ try{
            : ' The first two become the “Sold” and “Result” pictures on cards.'))+'</div>';
     if(arrangeMode)ph+=arrangeUiHtml(p); /* fixed bottom bar — takes no space in the flow */
 
-    /* Photo tools + card frame live in the sticky top bar, so photos placed on the
-       page can never cover them (and they never cover your photos either). */
+    /* The card frame belongs to the project, not to any one photo, so it stays put
+       whether or not a photo is open — and it sits with the photos rather than in
+       the sticky bar, which no longer carries photo tools at all. */
     var toolsHtml='';
     if(!arrangeMode&&p.photos.length){
-      toolsHtml+='<div class="photo-tools">';
-      if(selPhoto>=0&&selPhoto<p.photos.length){
-        var selP=p.photos[selPhoto];
-        var isCover=((selP.fit||'cover')!=='contain');
-        toolsHtml+='<div class="pt-row">'+
-          '<div class="photo-preview frame-'+(p.frame||'landscape')+'"><span class="pv-lbl">Card</span><img src="'+thumbSrc(selP)+'" alt="How this photo sits on the card" style="'+photoStyle(selP)+'"></div>'+
-          '<div class="pt-btns">'+
-            '<div class="photo-btns">'+
-              '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill (crop)':'▤ Whole image')+'</button>'+
-              '<button class="pbtn'+(selP.flip?' on':'')+'" id="phFlip" type="button">⇄ Flip</button>'+
-              (isCover?('<button class="pbtn" id="phPanL" type="button" aria-label="Show more of the left side">←</button>'+
-                        '<button class="pbtn" id="phPanU" type="button" aria-label="Show more of the top">↑</button>'+
-                        '<button class="pbtn" id="phPanD" type="button" aria-label="Show more of the bottom">↓</button>'+
-                        '<button class="pbtn" id="phPanR" type="button" aria-label="Show more of the right side">→</button>'):'')+
-              '<button class="pbtn" id="phSmaller" type="button">− Smaller</button>'+
-              '<button class="pbtn" id="phBigger" type="button">＋ Bigger</button>'+
-            '</div>'+
-            '<div class="photo-btns">'+
-              '<button class="pbtn'+((!p.noSold&&selPhoto===0)?' on':'')+'" id="phSold" type="button">★ Sold cover</button>'+
-              '<button class="pbtn'+((selPhoto===(p.noSold?0:1))?' on':'')+'" id="phResult" type="button">★ Result cover</button>'+
-              '<button class="pbtn" id="phLeft" type="button" aria-label="Move this photo earlier">◀ order</button>'+
-              '<button class="pbtn" id="phRight" type="button" aria-label="Move this photo later">order ▶</button>'+
-              '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
-              '<button class="pbtn" id="phClose" type="button">Close</button>'+
-            '</div>'+
-            '<div class="photo-btns">'+
-              '<input id="phCaption" type="text" maxlength="80" placeholder="Caption — e.g. halfway there" value="'+esc(selP.c||'')+'"'+
-                ' aria-label="Caption for this photo" style="flex:1 1 160px;min-width:0;border:1.5px solid var(--line);border-radius:9px;padding:6px 9px;font-size:13px;background:var(--panel);color:var(--ink);outline:none;">'+
-            '</div>'+
-            (selP.ts?'<div class="photo-hint" style="margin-top:2px;">Added '+fmtDate(selP.ts)+(selP.c?'':' — a caption shows on the project page’s gallery and when the photo opens big')+'</div>':'')+
-          '</div>'+
-        '</div>';
-      }
-      toolsHtml+='<div class="ovsort" style="margin-top:4px;"><span class="pd-lbl" style="margin:0">Card frame:</span>'+
+      ph+='<div class="ovsort" style="margin-top:8px;"><span class="pd-lbl" style="margin:0">Card frame:</span>'+
         '<button class="chipbtn'+(p.frame==='landscape'?' on':'')+'" data-frame="landscape" type="button">▭ Landscape</button>'+
         '<button class="chipbtn'+(p.frame==='portrait'?' on':'')+'" data-frame="portrait" type="button">▯ Portrait</button>'+
         '<button class="chipbtn'+(p.frame==='square'?' on':'')+'" data-frame="square" type="button">◻ Square</button>'+
         '<button class="chipbtn'+(p.frame==='round'?' on':'')+'" data-frame="round" type="button">◯ Round</button>'+
       '</div>';
-      toolsHtml+='</div>';
     }
 
     var kd=kindOf(p);
@@ -4939,11 +5010,10 @@ try{
       p.edit=false; renderPainting(); save();
     });
     if(arrangeMode){ /* the draggable layer + its toolbar are wired in buildArrLayer() */ } else {
-    pg.querySelectorAll('.photo-grid img').forEach(function(im){
+    pg.querySelectorAll('.photo-grid img[data-i]').forEach(function(im){
       im.addEventListener('click',function(){
         var i=parseInt(im.getAttribute('data-i'),10);
-        selPhoto=(selPhoto===i)?-1:i;
-        renderPainting();
+        openPhotoEditor(i);
       });
     });
     pg.querySelectorAll('[data-photox]').forEach(function(x){
@@ -4958,18 +5028,35 @@ try{
       });
     });
     if(selPhoto>=0&&selPhoto<p.photos.length){
-      if($('phClose'))$('phClose').addEventListener('click',function(){selPhoto=-1;renderPainting();});
+      /* ✓ Done is the way out. "Tap somewhere else" was not one: a way out you have
+         to be told about is no way out at all. */
+      if($('phDone'))$('phDone').addEventListener('click',closePhotoEditor);
+      if($('phMore'))$('phMore').addEventListener('click',function(){phMore=!phMore;renderPainting();});
+      if($('phRestore'))$('phRestore').addEventListener('click',function(){
+        var ph2=p.photos[selPhoto]; if(!ph2||!phSnap)return;
+        ph2.fit=phSnap.fit; ph2.posX=phSnap.posX; ph2.posY=phSnap.posY;
+        ph2.flip=phSnap.flip; ph2.s=phSnap.s;
+        renderPainting(); savePhotos(p.id);
+        toast('⤺ Put back the way it was',1300);
+      });
+      pg.querySelectorAll('[data-phsize]').forEach(function(b){
+        b.addEventListener('click',function(){
+          var ph2=p.photos[selPhoto]; if(!ph2)return;
+          ph2.s=parseInt(b.getAttribute('data-phsize'),10);
+          renderPainting(); savePhotos(p.id);
+        });
+      });
       /* applied as it's typed, no re-render — a redraw here would snatch the keyboard */
       if($('phCaption'))$('phCaption').addEventListener('input',function(e){
         var ph2=p.photos[selPhoto]; if(!ph2)return;
         ph2.c=e.target.value; savePhotos(p.id);
       });
-      $('phSold').addEventListener('click',function(){
+      if($('phSold'))$('phSold').addEventListener('click',function(){
         p.noSold=false;
         var a=p.photos.splice(selPhoto,1)[0];p.photos.unshift(a);selPhoto=0;renderPainting();savePhotos(p.id);saveEdit();
         toast('★ Set as the Sold cover ✓',1300);
       });
-      $('phResult').addEventListener('click',function(){
+      if($('phResult'))$('phResult').addEventListener('click',function(){
         /* the only photo can be the Result too — "I only photographed the
            finished work" is a perfectly normal project */
         if(p.photos.length===1){
@@ -4987,22 +5074,17 @@ try{
         p.photos.splice(to,0,a);selPhoto=to;renderPainting();savePhotos(p.id);
         toast('★ Set as the Result cover ✓',1300);
       });
-      $('phLeft').addEventListener('click',function(){
+      /* everything from here down lives behind ⋯ More, so it may not be on the page */
+      if($('phLeft'))$('phLeft').addEventListener('click',function(){
         if(selPhoto>0){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto-1,0,a);selPhoto--;renderPainting();savePhotos(p.id);}
       });
-      $('phRight').addEventListener('click',function(){
+      if($('phRight'))$('phRight').addEventListener('click',function(){
         if(selPhoto<p.photos.length-1){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto+1,0,a);selPhoto++;renderPainting();savePhotos(p.id);}
       });
-      if($('phSmaller'))$('phSmaller').addEventListener('click',function(){
-        var ph2=p.photos[selPhoto]; ph2.s=Math.max(0,(ph2.s==null?1:ph2.s)-1); renderPainting(); savePhotos(p.id);
-      });
-      if($('phBigger'))$('phBigger').addEventListener('click',function(){
-        var ph2=p.photos[selPhoto]; ph2.s=Math.min(3,(ph2.s==null?1:ph2.s)+1); renderPainting(); savePhotos(p.id);
-      });
-      $('phFit').addEventListener('click',function(){
+      if($('phFit'))$('phFit').addEventListener('click',function(){
         var ph2=p.photos[selPhoto]; ph2.fit=((ph2.fit||'cover')==='contain')?'cover':'contain'; renderPainting(); savePhotos(p.id);
       });
-      $('phFlip').addEventListener('click',function(){
+      if($('phFlip'))$('phFlip').addEventListener('click',function(){
         var ph2=p.photos[selPhoto]; ph2.flip=ph2.flip?0:1; renderPainting(); savePhotos(p.id);
       });
       function panSel(dx,dy){
@@ -5015,10 +5097,10 @@ try{
       if($('phPanR'))$('phPanR').addEventListener('click',function(){panSel(10,0);});
       if($('phPanU'))$('phPanU').addEventListener('click',function(){panSel(0,-10);});
       if($('phPanD'))$('phPanD').addEventListener('click',function(){panSel(0,10);});
-      $('phDel').addEventListener('click',function(){
+      if($('phDel'))$('phDel').addEventListener('click',function(){
         if(!twoTap('phdel',$('phDel'),'✕ remove?'))return;
         var at=selPhoto, removed=p.photos.splice(selPhoto,1)[0];
-        selPhoto=-1; renderPainting(); savePhotos(p.id);
+        selPhoto=-1; phMore=false; phSnap=null; renderPainting(); savePhotos(p.id);
         showPhotoUndo(p.id,removed,at,'Photo removed');
       });
     }
