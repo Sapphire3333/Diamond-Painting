@@ -91,9 +91,21 @@ try{
   .chipbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
   .chipbtn.danger{color:#A8324B;}
   .chipbtn.confirm{background:#A8324B !important;border-color:#A8324B !important;color:#fff !important;}
-  .renamer{display:none;gap:8px;align-items:center;margin-bottom:10px;}
-  .renamer.show{display:flex;}
-  .renamer input{flex:1;border:1.5px solid var(--accent);border-radius:12px;padding:9px 12px;font-size:15px;outline:none;min-width:0;}
+  /* The name renames itself. A button that said "Rename" used to sit a thousand
+     pixels below the name it renamed, in a row that opens with a search box —
+     so the one control for it read as part of the colour-list tooling. Now the
+     title IS the box: click it and type. */
+  .name-btn{display:inline-flex;align-items:center;gap:7px;max-width:100%;background:none;border:1.5px solid transparent;
+    border-radius:11px;padding:2px 8px 2px 7px;margin:-2px 0 0 -7px;font:inherit;color:inherit;text-align:left;
+    cursor:text;overflow-wrap:anywhere;}
+  .name-btn:hover,.name-btn:focus-visible{border-color:var(--line);background:var(--panel);outline:none;}
+  .name-btn:hover .name-pen,.name-btn:focus-visible .name-pen{opacity:1;color:var(--accent);}
+  .name-pen{font-size:13px;font-weight:400;opacity:.45;flex:0 0 auto;}
+  .pd-name.editing{display:flex;gap:7px;align-items:center;}
+  .name-input{flex:1;min-width:0;border:1.5px solid var(--accent);border-radius:11px;padding:4px 9px;
+    font-size:18px;font-weight:800;line-height:1.2;font-family:inherit;outline:none;}
+  .name-ok{flex:0 0 auto;background:var(--accent);border:1.5px solid var(--accent);color:#fff;border-radius:11px;
+    padding:5px 12px;font-size:15px;font-weight:800;cursor:pointer;}
   .typerow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
   .typerow .lbl{font-size:13px;color:var(--muted);font-weight:600;}
   .tbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 13px;
@@ -406,7 +418,7 @@ try{
   .stphoto{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .stphoto img{width:46px;height:36px;object-fit:cover;border-radius:7px;border:1px solid var(--line);flex:0 0 auto;}
   .stphoto-t{font-size:11.5px;color:var(--muted);line-height:1.35;flex:1 1 90px;min-width:0;}
-  .renamer input,.codeinput,.rating-row input,.addinline input,.fb-addrow input{background:var(--panel);color:var(--ink);}
+  .name-input,.codeinput,.rating-row input,.addinline input,.fb-addrow input{background:var(--panel);color:var(--ink);}
   /* buttons don't inherit text color — set it so they stay readable in dark mode
      (more specific rules like .pbtn.danger, .selchip.on and inline styles still win) */
   .tbtn,.fbtn,.pbtn,.selchip{color:var(--ink);}
@@ -4769,7 +4781,7 @@ try{
       '<div class="paint-sticky">'+
         '<div class="paint-head">'+
           '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
-          '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
+          '<span id="headName" style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
           (p.arranged&&!arrangeMode?'<button class="chipbtn" id="arrEnter2" type="button" title="Arrange &amp; edit photos">⇱ Arrange</button>':'')+
           '<button class="chipbtn" id="modeToggle" type="button" title="Switch to view mode">👁 View</button>'+
           '<button class="chipbtn" id="undoBtn2" type="button" title="Undo" aria-label="Undo">↶</button>'+
@@ -4781,7 +4793,16 @@ try{
       '<div class="phead">'+
         '<div class="photos">'+ph+'</div>'+
         '<div class="pdetails">'+
-          '<div class="pd-name">'+esc(p.name)+'</div>'+
+          (renaming
+            ? ('<div class="pd-name editing">'+
+                 '<input class="name-input" id="renameInput" type="text" maxlength="60" placeholder="Project name" aria-label="Project name">'+
+                 '<button class="name-ok" id="renameSave" type="button" title="Save the name">✓</button>'+
+               '</div>')
+            : ('<div class="pd-name">'+
+                 '<button class="name-btn" id="nameBtn" type="button" title="Click to rename this project">'+
+                   esc(p.name)+'<span class="name-pen" aria-hidden="true">✎</span>'+
+                 '</button>'+
+               '</div>'))+
           '<div class="pd-row"><div class="pd-lbl">Kind of project</div><div class="selchips">'+kindChips+'</div></div>'+
           '<div class="pd-row"><div class="pd-lbl">Status</div><div class="selchips">'+statusChips+'</div></div>'+
           (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Kit code</div>'+
@@ -4808,17 +4829,11 @@ try{
         (isDiamond(p)?('<button class="chipbtn'+(state.onlySel?' on':'')+'" id="onlySel" type="button">Selected only</button>'+
         '<button class="chipbtn" id="pasteList" type="button">＋ Paste list</button>'+
         '<button class="chipbtn" id="copyColors" type="button">⧉ Copy colours</button>'):'')+
-        '<button class="chipbtn" id="rename" type="button">Rename</button>'+
         '<button class="chipbtn" id="dupe" type="button">Duplicate</button>'+
         '<button class="chipbtn" id="shareBtn" type="button" title="Turn this project into one picture to share">📤 Share</button>'+
         '<button class="chipbtn" id="moveUp" type="button" title="Move earlier in the list" aria-label="Move earlier in the list">↑</button>'+
         '<button class="chipbtn" id="moveDown" type="button" title="Move later in the list" aria-label="Move later in the list">↓</button>'+
         '<button class="chipbtn danger" id="del" type="button">Delete</button>'+
-      '</div>'+
-      '<div class="renamer'+(renaming?' show':'')+'" id="renamer">'+
-        '<input id="renameInput" type="text" maxlength="60" placeholder="Project name">'+
-        '<button class="chipbtn" id="renameSave" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">Save name</button>'+
-        '<button class="chipbtn" id="renameCancel" type="button">Cancel</button>'+
       '</div>'+
       paletteHtml+
       (isDiamond(p)?(
@@ -5184,9 +5199,8 @@ try{
     /* base controls */
     $('q').addEventListener('input',function(e){query=e.target.value;renderGrid();});
     if($('onlySel'))$('onlySel').addEventListener('click',function(){state.onlySel=!state.onlySel;renderPainting();save();});
-    $('rename').addEventListener('click',function(){
-      renaming=!renaming;
-      if(renaming){renameOrig=p.name;renameFocus=true;}
+    if($('nameBtn'))$('nameBtn').addEventListener('click',function(){
+      renaming=true; renameOrig=p.name; renameFocus=true;
       renderPainting();
     });
     function cancelRename(){
@@ -5194,32 +5208,40 @@ try{
       renaming=false; renameFocus=false; renameOrig=null;
       renderPainting(); saveEdit();
     }
-    $('renameSave').addEventListener('click',function(){
-      var v=$('renameInput').value.trim();
+    function commitRename(){
+      if(!renaming)return;
+      var box=$('renameInput'); var v=box?box.value.trim():'';
       if(v)active().name=v;
       renaming=false; renameFocus=false; renameOrig=null;
       render(); saveEdit();
-    });
-    $('renameCancel').addEventListener('click',cancelRename);
-    $('renameInput').value=p.name;
-    /* focus once, when the box opens. Every tap elsewhere in the project redraws
-       this page, and focusing on each redraw meant the keyboard kept springing
-       back to the name and the page jumped to the top. */
-    if(renaming&&renameFocus){renameFocus=false;$('renameInput').focus();$('renameInput').select();}
-    /* The name is applied as it's typed, so leaving the page — or tapping any
-       other field, which redraws and used to reset this box — can no longer
-       throw the typed name away. Cancel puts back the name it started with. */
-    $('renameInput').addEventListener('input',function(e){
-      var v=e.target.value.trim();
-      if(!v)return; /* an empty box is not a name; the old one stands until you type one */
-      active().name=v;
-      var nm=pg.querySelector('.pd-name'); if(nm)nm.textContent=v;
-      saveEdit();
-    });
-    $('renameInput').addEventListener('keydown',function(e){
-      if(e.key==='Enter')$('renameSave').click();
-      if(e.key==='Escape')cancelRename();
-    });
+    }
+    if($('renameSave'))$('renameSave').addEventListener('click',commitRename);
+    if($('renameInput')){
+      $('renameInput').value=p.name;
+      /* focus once, when the box opens. Every tap elsewhere in the project redraws
+         this page, and focusing on each redraw meant the keyboard kept springing
+         back to the name and the page jumped to the top. */
+      if(renameFocus){renameFocus=false;$('renameInput').focus();$('renameInput').select();}
+      /* The name is applied as it's typed, so leaving the page — or tapping any
+         other field, which redraws and used to reset this box — can no longer
+         throw the typed name away. Escape puts back the name it started with. */
+      $('renameInput').addEventListener('input',function(e){
+        var v=e.target.value.trim();
+        if(!v)return; /* an empty box is not a name; the old one stands until you type one */
+        active().name=v;
+        /* the live echo goes to the name in the top bar — the one in the page is
+           now the box itself, and writing into it would eat what's being typed */
+        var hn=$('headName'); if(hn)hn.textContent=v;
+        saveEdit();
+      });
+      $('renameInput').addEventListener('keydown',function(e){
+        if(e.key==='Enter')commitRename();
+        if(e.key==='Escape')cancelRename();
+      });
+      /* clicking away is a finish, not an abandonment — the box has no Cancel of
+         its own any more, so leaving it must keep what's on screen */
+      $('renameInput').addEventListener('blur',commitRename);
+    }
     pg.querySelectorAll('.tbtn').forEach(function(b){
       b.addEventListener('click',function(){
         var t=b.getAttribute('data-t');
