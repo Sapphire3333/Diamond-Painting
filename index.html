@@ -228,7 +228,6 @@ try{
   .lightbox img{max-width:100%;max-height:100%;min-height:0;border-radius:10px;object-fit:contain;}
   .lb-cap{color:#fff;font-size:13px;font-weight:700;text-align:center;max-width:90%;flex:0 0 auto;}
   /* a caption sits on its gallery tile without stealing the tap */
-  .vw-gitem{position:relative;display:block;}
   .vw-gcap{position:absolute;left:6px;right:6px;bottom:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;}
   /* ---- two pictures at once ----
      Lives outside the app's own box like the single-photo view, so its colours
@@ -471,9 +470,15 @@ try{
   .vw-hero{flex:1.4 1 300px;min-width:0;}
   .vw-hero img{width:100%;display:block;max-height:440px;border-radius:12px;border:1.5px solid var(--line);
     background:var(--unk-soft);cursor:zoom-in;box-shadow:0 2px 14px rgba(0,0,0,.2);}
-  .vw-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px;}
+  /* A row rather than a grid, because the four sizes are per photo: a grid would
+     force every picture to the same width and the size buttons would do nothing. */
+  .vw-gallery{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;}
+  .vw-gitem{position:relative;display:block;max-width:100%;}
   .vw-gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);
     background:var(--unk-soft);cursor:zoom-in;display:block;}
+  /* deliberately bigger than the edit-page thumbnails (56/96/160/240): this is
+     the page you look at, not the page you work on */
+  .vw-g0{width:120px;} .vw-g1{width:190px;} .vw-g2{width:300px;} .vw-g3{width:440px;}
   /* ---- text size cluster, in the title row of every tab ---- */
   .dp-title .ttl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
   .sizectl{display:flex;align-items:center;gap:4px;margin-left:auto;flex:0 0 auto;}
@@ -634,6 +639,11 @@ try{
   function usesMedia(p){var k=kindOf(p);return k==='pbn'||k==='drawing';}
   var DEFAULT_MEDIA=['prismacolor pencils','ohuhu markers','acrylic','watercolour','gouache',
     'coloured pencils','fineliner','gel pens','pastels','digital'];
+  /* What a photo is OF. "Sold" and "Result" are decided by a photo's position —
+     1st and 2nd — but everything after had no way to say what it was, so a
+     picture of your progress and a picture of the drills looked the same. This
+     is an editable list like sizes, sellers and tags. */
+  var DEFAULT_PHOTO_LABELS=['progress','paints','packaging','framed','detail','other'];
   var ACCENTS=[
     {id:'violet', name:'Violet', accent:'#5B3FA8', soft:'#EFEAFB', dsoft:'#2E2646'},
     {id:'teal',   name:'Teal',   accent:'#0E8C8C', soft:'#DFF3F3', dsoft:'#123536'},
@@ -766,6 +776,12 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-08-26 · photos get a page of their own',items:[
+      '🖼 A kit’s project page now has a <b>Photos</b> section, the way a drawing already did. Everything past the Sold and Result covers used to have nowhere to be there — it existed only as a loose picture you had to drag into place — so a photo of your progress simply did not show up unless you arranged it by hand.',
+      '🔡 A photo can say what it is: Progress, Paints, Packaging, Framed, Detail, Other — and you can add your own, or remove any you do not want, the way sizes, sellers and tags already work. The label shows on the photo, where “Sold” and “Result” show.',
+      '↔️ The size you give a photo now counts on the project page, not only while editing — and it is bigger there: S, M, L and XL come out at 120, 190, 300 and 440 pixels wide instead of the 56 to 240 of the editing strip.',
+      '⇱ Move images still lifts a project’s photos out onto the page freely. ⤺ Reset layout puts them back into the Photos section.',
+    ]},
     {when:'2026-08-26',items:[
       '🖼 A photo’s tools open on the photo itself, where you tapped it. They used to open in the bar at the top, which grew as they appeared and shoved the page — and the photo you had just tapped — 116 pixels downward, out from under your finger. Now nothing moves.',
       '⬚ Crop and ✂ Cut out background moved to a photo’s own tools, under ⋯ More. They used to be reachable only while arranging, which meant a drawing — or any project with two photos or fewer — could not be cropped at all.',
@@ -803,7 +819,7 @@ try{
     active:'p1', onlySel:false, view:'paintings',
     specials:{}, sellers:[], tags:DEFAULT_TAGS.slice(), sizes:DEFAULT_SIZES.slice(), stash:{}, gone:{}, ovSort:'added', pGroup:'none', pSearchField:'all', pTools:false,
     autoBackup:'off', dark:false, density:'full', cardStyle:'roomy', accent:'violet', bg:'none', bgPhoto:null,
-    media:DEFAULT_MEDIA.slice(), pKind:'all', lastKind:'diamond'
+    media:DEFAULT_MEDIA.slice(), photoLabels:DEFAULT_PHOTO_LABELS.slice(), pKind:'all', lastKind:'diamond'
   };
   /* Text size and phone/full layout belong to the DEVICE, not to the collection:
      a phone wants 140% where the monitor wants 100%, and these two would fight
@@ -919,6 +935,14 @@ try{
     if(kindOf(p)==='drawing')return ['Main',''];
     if(p&&p.noSold)return ['Result',''];
     return ['Sold','Result'];
+  }
+  /* The badge on a photo. Being a cover is decided by position and wins; every
+     other photo shows whatever it was labelled, and nothing if it wasn't. */
+  function photoBadge(p,i){
+    var cov=coverLabels(p);
+    if(cov[i])return cov[i];
+    var ph=p.photos&&p.photos[i];
+    return (ph&&ph.lbl)?capFirst(ph.lbl):'';
   }
   function ratingWhy(p){
     var t=tagTally(p), a=autoRating(p);
@@ -1161,7 +1185,7 @@ try{
   function dataSnapshot(){
     return JSON.stringify({
       paintings:state.paintings.map(function(p){var c={};for(var k in p){if(k!=='photos')c[k]=p[k];}return c;}),
-      specials:state.specials, sellers:state.sellers, tags:state.tags, sizes:state.sizes, media:state.media, stash:state.stash
+      specials:state.specials, sellers:state.sellers, tags:state.tags, sizes:state.sizes, media:state.media, photoLabels:state.photoLabels, stash:state.stash
     });
   }
   function cachePhotos(){state.paintings.forEach(function(p){if(p.photos)photoCache[p.id]=p.photos;});}
@@ -1201,7 +1225,7 @@ try{
        body key; photos stay cached so redo can bring everything straight back */
     var nowIds={}; state.paintings.forEach(function(p){nowIds[p.id]=1;});
     oldIds.forEach(function(id){if(!nowIds[id])deletePaintKey(id);});
-    state.specials=d.specials||{}; state.sellers=d.sellers||[]; state.tags=d.tags||[]; state.sizes=d.sizes||[]; state.media=d.media||[]; state.stash=d.stash||{};
+    state.specials=d.specials||{}; state.sellers=d.sellers||[]; state.tags=d.tags||[]; state.sizes=d.sizes||[]; state.media=d.media||[]; state.photoLabels=(d.photoLabels&&d.photoLabels.length)?d.photoLabels:DEFAULT_PHOTO_LABELS.slice(); state.stash=d.stash||{};
     normalize(state);
     var stillThere=state.paintings.some(function(p){return p.id===keepActive;});
     state.active=stillThere?keepActive:(state.paintings[0]?state.paintings[0].id:'');
@@ -1248,6 +1272,9 @@ try{
     });
   }
   function normalize(s){
+    /* every save made before photo labels existed gets the starting list rather
+       than an empty row of nothing */
+    if(!s.photoLabels||!s.photoLabels.length)s.photoLabels=DEFAULT_PHOTO_LABELS.slice();
     if(!s.view)s.view='paintings';
     if(s.view==='overview'&&(!s.paintings||!s.paintings.length))s.view='paintings';
     if(!s.pGroup)s.pGroup='none';
@@ -2349,10 +2376,22 @@ try{
             '<button class="pbtn" id="phCrop" type="button">⬚ Crop</button>'+
             '<button class="pbtn" id="phCut" type="button" title="Works best on a plain or white background">✂ Cut out background</button>'+
           '</div>'+
-          '<div class="ed-sizes"><span class="pd-lbl" style="margin:0">Thumbnail size:</span>'+
+          '<div class="ed-sizes"><span class="pd-lbl" style="margin:0">Size:</span>'+
             PH_SIZES.map(function(lb,si){
               return '<button class="phsz'+((ph.s==null?1:ph.s)===si?' on':'')+'" data-phsize="'+si+'" type="button">'+lb+'</button>';
             }).join('')+
+          '</div>'+
+          /* what the photo is of — the covers are still decided by position, so
+             this row is for everything that isn't one */
+          '<div class="ed-sizes"><span class="pd-lbl" style="margin:0">This photo is'+
+            (state.photoLabels.length?(' <button class="fb-edit" data-editlist="plabel" type="button">'+(editLists.plabel?'done':'edit list')+'</button>'):'')+':</span>'+
+            state.photoLabels.map(function(L){
+              var on=((ph.lbl||'')===L);
+              return '<button class="phsz'+(on&&!editLists.plabel?' on':'')+'" data-phlabel="'+esc(L)+'" type="button"'+
+                (editLists.plabel?' style="color:#A8324B;border-color:#A8324B;"':'')+'>'+
+                (editLists.plabel?'✕ ':'')+esc(capFirst(L))+'</button>';
+            }).join('')+
+            '<span class="addinline"><input id="newPhLabel" type="text" maxlength="24" placeholder="＋ new label"><button class="pbtn" id="addPhLabel" type="button">Add</button></span>'+
           '</div>'):'')+
           '<input class="ed-cap" id="phCaption" type="text" maxlength="80" placeholder="Caption — e.g. halfway there" value="'+esc(ph.c||'')+'" aria-label="Caption for this photo">'+
           (phMore&&ph.ts?'<div class="photo-hint" style="margin-top:0;">Added '+fmtDate(ph.ts)+(ph.c?'':' — a caption shows on the project page’s gallery and when the photo opens big')+'</div>':'')+
@@ -4075,7 +4114,12 @@ try{
     var startIdx=viewMode?(p.noSold?1:2):0;
     /* a drawing shows every photo in its gallery, so nothing floats there */
     if(viewMode&&kindOf(p)==='drawing')return;
-    if(viewMode){if(p.photos.length<=startIdx)return;}
+    if(viewMode){
+      if(p.photos.length<=startIdx)return;
+      /* until a project has actually been arranged its extra photos live in the
+         Photos section below, so floating them too would show each one twice */
+      if(!p.arranged&&!arrangeMode)return;
+    }
     /* edit mode floats photos only while arranging — otherwise every photo is in
        the thumbnail strip, and showing both would duplicate each one */
     else if(!arrangeMode)return;
@@ -4353,7 +4397,7 @@ try{
         if(i>=from)arrLayout(photo,slot++,hw,vm);
       });
       p.arranged=false; arrangeMode=false; arrSel=-1;
-      renderPainting(); savePhotos(p.id); saveEdit(); toast('Back to the normal photo strip ✓',1600);
+      renderPainting(); savePhotos(p.id); saveEdit(); toast('Back to the Photos section ✓',1600);
     });
     $('arrDel').addEventListener('click',function(){
       if(needSel())return;
@@ -4595,12 +4639,25 @@ try{
     }
     var heroHtml=(isDraw&&p.photos[0])
       ? '<div class="vw-hero"><img data-i="0" src="'+p.photos[0].d+'" alt="" style="'+heroStyle(p.photos[0])+'"></div>' : '';
+    /* Photos beyond the covers used to have nowhere to be on this page unless
+       they were a drawing's: on a kit they only existed as free-floating images,
+       sized by dragging, so the S/M/L/XL you chose in edit mode changed nothing
+       here. Now every kind gets the section, and the size is the size you picked.
+       A project you have arranged keeps its free layout instead — that is what
+       ⇱ Move images is for, and it would be strange to show the same photo twice. */
     var galleryHtml='';
-    if(isDraw&&p.photos.length>1){
-      galleryHtml='<div class="section-lbl">Photos ('+p.photos.length+')</div><div class="vw-gallery">'+
-        p.photos.slice(1).map(function(ph,i){
-          return '<span class="vw-gitem">'+
-            '<img data-i="'+(i+1)+'" src="'+thumbSrc(ph)+'" alt="'+esc(ph.c||('Photo '+(i+2)))+'" style="'+photoStyle(ph)+'">'+
+    var galleryFrom=isDraw?1:(p.noSold?1:2);
+    /* a drawing's photos are always in the section; a kit's are there until the
+       project is arranged, and while you are arranging they are up on the page
+       in your hands, so the section stands down rather than showing them twice */
+    var showGallery=isDraw||(!p.arranged&&!arrangeMode);
+    if(p.photos.length>galleryFrom&&showGallery){
+      galleryHtml='<div class="section-lbl">Photos ('+(p.photos.length-galleryFrom)+')</div><div class="vw-gallery">'+
+        p.photos.slice(galleryFrom).map(function(ph,i){
+          var idx=i+galleryFrom, badge=photoBadge(p,idx);
+          return '<span class="vw-gitem vw-g'+(ph.s==null?1:ph.s)+'">'+
+            (badge?'<span class="pg-lbl">'+esc(badge)+'</span>':'')+
+            '<img data-i="'+idx+'" src="'+(ph.d||thumbSrc(ph))+'" alt="'+esc(ph.c||('Photo '+(idx+1)))+'" style="'+photoStyle(ph)+'">'+
             (ph.c?'<span class="vw-gcap">'+esc(ph.c)+'</span>':'')+
           '</span>';
         }).join('')+'</div>';
@@ -4702,11 +4759,10 @@ try{
        the floating layer, which is undiscoverable and can be off-screen on a phone.
        Each thumbnail carries its own ✕ so removing one doesn't depend on finding
        the tools bar. The free layout is shown while arranging and in view mode. */
-    var lbls=coverLabels(p);
     var ph='<div class="photo-grid"'+(arrangeMode?' style="visibility:hidden"':'')+'>';
     p.photos.forEach(function(photo,i){
       if(i===selPhoto&&!arrangeMode){ ph+=photoEditorHtml(p,i); return; }
-      var lbl=(lbls[i]?'<span class="pg-lbl">'+lbls[i]+'</span>':'');
+      var lbl=(photoBadge(p,i)?'<span class="pg-lbl">'+esc(photoBadge(p,i))+'</span>':'');
       ph+='<div class="pg-item">'+lbl+
         '<img class="photo-s'+(photo.s||1)+'" data-i="'+i+'" src="'+thumbSrc(photo)+'" alt="'+esc(photoLabel(p,i))+'" role="button" tabindex="0" style="'+photoStyle(photo)+'">'+
         '<div class="delx" data-photox="'+i+'" role="button" tabindex="0" title="Remove this photo" aria-label="Remove this photo">✕</div></div>';
@@ -5058,6 +5114,33 @@ try{
           ph2.s=parseInt(b.getAttribute('data-phsize'),10);
           renderPainting(); savePhotos(p.id);
         });
+      });
+      pg.querySelectorAll('[data-phlabel]').forEach(function(b){
+        b.addEventListener('click',function(){
+          var L=b.getAttribute('data-phlabel');
+          if(editLists.plabel){
+            if(!twoTap('rmplbl'+L,b,'✕ remove?'))return;
+            state.photoLabels=state.photoLabels.filter(function(x){return x!==L;});
+            state.paintings.forEach(function(pp){
+              (pp.photos||[]).forEach(function(q){if(q.lbl===L)delete q.lbl;});
+            });
+            renderPainting(); saveEdit(); toast('Label removed from every photo',1600);
+            return;
+          }
+          var ph2=p.photos[selPhoto]; if(!ph2)return;
+          if(ph2.lbl===L)delete ph2.lbl; else ph2.lbl=L;   /* tapping it again clears it */
+          renderPainting(); savePhotos(p.id); saveEdit();
+        });
+      });
+      if($('addPhLabel'))$('addPhLabel').addEventListener('click',function(){
+        var v=($('newPhLabel').value||'').trim().toLowerCase();
+        if(!v)return;
+        if(state.photoLabels.indexOf(v)===-1)state.photoLabels.push(v);
+        var ph2=p.photos[selPhoto]; if(ph2)ph2.lbl=v;
+        renderPainting(); savePhotos(p.id); saveEdit();
+      });
+      if($('newPhLabel'))$('newPhLabel').addEventListener('keydown',function(e){
+        if(e.key==='Enter')$('addPhLabel').click();
       });
       /* applied as it's typed, no re-render — a redraw here would snatch the keyboard */
       if($('phCaption'))$('phCaption').addEventListener('input',function(e){
