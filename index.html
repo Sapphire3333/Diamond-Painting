@@ -799,6 +799,10 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-08-27 · Back behaves',items:[
+      '↩ Closing a full-screen or compared photo with Back no longer throws away your place. The browser remembers a scroll position against each step of its history and was putting you back at the top of a long colour list; the app now keeps the position itself.',
+      '↩ Opening the app on the project it last showed, then pressing Back, used to leave the app altogether — there was nothing behind that project. Back now goes out to the projects list first, the way it reads as doing.',
+    ]},
     {when:'2026-08-26 · getting about',items:[
       '⬍ Two arrows sit in the bottom-right corner of every page and follow you as you scroll: ↑ for the top, ↓ for the bottom. A kit’s colour list runs to hundreds of rows, and the only way back to the tabs was to keep swiping.',
       '↩ They step aside while the arranging bar is open, while a photo is full-screen, and for the few seconds an Undo offer is on screen — those all want the same corner more than the arrows do.',
@@ -1825,6 +1829,26 @@ try{
   }
   function pushNav(extra){try{window.history.pushState(navState(extra),'');}catch(e){}}
   function replaceNav(){try{window.history.replaceState(navState(),'');}catch(e){}}
+  /* The browser remembers a scroll position against each history entry and puts
+     you back there when you go back. That is right for ordinary web pages and
+     wrong here, because closing a full-screen photo is done by going back — and
+     the entry being returned to remembers the top of the page, so shutting a
+     photo threw away your place in a long colour list. This app already puts the
+     scroll where it belongs on every move of its own, so the browser is told to
+     keep its hands off. */
+  try{if('scrollRestoration' in window.history)window.history.scrollRestoration='manual';}catch(e){}
+  /* Reopening the app lands on whatever was last open, which is usually a
+     project — and a project reached that way had nothing behind it, so Back left
+     the app instead of going to the list. One entry for the list is laid down
+     underneath, so Back goes where it reads as going: out to the projects. */
+  function seedNav(){
+    if(state.view==='paintings'){replaceNav();return;}
+    var realView=state.view;
+    state.view='paintings';
+    replaceNav();
+    state.view=realView;
+    pushNav();
+  }
   /* Opening a project only swaps what is inside the page — the window keeps the
      distance it was scrolled to. So tapping a project near the bottom of a long
      list opened it already scrolled most of the way down, and the further down
@@ -6412,7 +6436,7 @@ try{
   plog('app started','');
   loadSizePref();
   load(function(){
-    render();replaceNav();
+    render();seedNav();
     /* housekeeping that can wait until the app has settled on screen */
     setTimeout(migrateThumbs,2500);
     setTimeout(maybeBackupNudge,4000);
