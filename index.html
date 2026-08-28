@@ -362,7 +362,11 @@ try{
   .pg-editor.frame-portrait .ed-frame{aspect-ratio:3/4;}
   .pg-editor.frame-square .ed-frame{aspect-ratio:1;}
   .pg-editor.frame-round .ed-frame{aspect-ratio:1;border-radius:50%;}
-  .ed-frame img{width:100%;height:100%;display:block;-webkit-user-drag:none;user-select:none;}
+  /* pointer-events:none — the FRAME must catch the drag, not the picture. When the
+     picture caught it, the browser's own drag-the-image-somewhere ghost took over
+     a few pixels in and cancelled ours; -webkit-user-drag suppressed that only in
+     Chrome-family browsers, so in Firefox the photo would move millimetres at best. */
+  .ed-frame img{width:100%;height:100%;display:block;pointer-events:none;-webkit-user-drag:none;user-select:none;}
   /* pannable = a Fill-the-frame photo, which has hidden edges to drag into view.
      touch-action:none keeps a finger-drag from scrolling the page instead. */
   .ed-frame.pannable{cursor:grab;touch-action:none;}
@@ -5326,6 +5330,9 @@ try{
         }
         fillDiag();
         if(!img.complete)img.addEventListener('load',fillDiag);
+        /* belt for the CSS braces above: if a native drag ever does begin here,
+           refuse it rather than letting it cancel our pointer mid-pull */
+        fr.addEventListener('dragstart',function(e){e.preventDefault();});
         fr.addEventListener('pointerdown',function(e){
           dragging=true; moved=false; lx=e.clientX; ly=e.clientY;
           try{fr.setPointerCapture(e.pointerId);}catch(err){}
