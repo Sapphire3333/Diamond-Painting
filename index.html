@@ -362,13 +362,29 @@ try{
   .pg-editor.frame-portrait .ed-frame{aspect-ratio:3/4;}
   .pg-editor.frame-square .ed-frame{aspect-ratio:1;}
   .pg-editor.frame-round .ed-frame{aspect-ratio:1;border-radius:50%;}
-  .ed-frame img{width:100%;height:100%;display:block;}
+  .ed-frame img{width:100%;height:100%;display:block;-webkit-user-drag:none;user-select:none;}
+  /* pannable = a Fill-the-frame photo, which has hidden edges to drag into view.
+     touch-action:none keeps a finger-drag from scrolling the page instead. */
+  .ed-frame.pannable{cursor:grab;touch-action:none;}
+  .ed-frame.pannable:active{cursor:grabbing;}
+  .ed-frame.pannable:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .ed-drag-hint{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);
+    background:rgba(38,34,46,.72);color:#fff;font-size:12px;font-weight:600;
+    padding:5px 11px;border-radius:999px;white-space:nowrap;pointer-events:none;}
   .ed-rows{display:flex;flex-direction:column;gap:5px;margin-top:7px;}
   .ed-ring{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+  /* the tools are sorted under quiet headings by what they touch; remove sits
+     apart at the bottom in quieter clothes, so it can't be mistaken for Flip */
+  .ed-grp{border-top:1px solid var(--line);padding-top:6px;margin-top:2px;}
+  .ed-grp-lbl{display:block;font-size:10.5px;font-weight:800;letter-spacing:.4px;color:var(--muted);
+    text-transform:uppercase;margin:0 0 5px 1px;}
+  .ed-top{display:flex;gap:5px;align-items:center;justify-content:space-between;flex-wrap:wrap;}
+  .ed-bottom{display:flex;justify-content:flex-end;border-top:1px solid var(--line);padding-top:6px;margin-top:2px;}
+  .pbtn.quiet-danger{border-color:transparent;color:var(--bad);font-weight:600;font-size:12px;}
+  .pbtn.quiet-danger:hover,.pbtn.quiet-danger:focus-visible{border-color:var(--bad);}
   /* the way out is the most important control here, so it is the one that is filled */
   .pbtn.done{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:800;}
   .pbtn.restore{border-color:var(--star);color:var(--star);}
-  .pbtn.more{border-style:dashed;color:var(--muted);}
   .ed-sizes{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
   /* not .szbtn — that class already belongs to the text-size buttons in the header */
   .phsz{border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;
@@ -807,6 +823,12 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-08-28 · the photo tools make sense',items:[
+      '🗂 A photo’s tools are sorted under small headings by what they touch — Cover, In the frame, The picture itself, In the gallery, What it shows — instead of one pile of identical buttons where ✕ remove dressed exactly like ⇄ Flip. Everything shows at once; ⋯ More is gone.',
+      '✋ Drag the photo in its frame to choose what shows. The four nudge arrows are gone — the picture follows your finger (or the arrow keys, once the frame is tapped).',
+      '▣ “Fill (crop)” is now called “Fill the frame”, so it stops sharing a name with ⬚ Crop — the one that really does cut the picture.',
+      '✕ Remove this photo moved to the bottom of the tools, in quieter clothes, away from the buttons you tap all the time.',
+    ]},
     {when:'2026-08-27 · photos stay on the page',items:[
       '🖼 The <b>Sold</b> and <b>Result</b> pictures on a project’s page show whole, at their own shape. They were being cropped to fit the card frame, so a tall photo lost its top and bottom and opening it full-screen was the only way to see the picture you had taken. The frame still shapes the small covers on the projects list, where every card has to match its neighbours.',
       '🖼 Photos in the <b>Photos</b> section show whole too, instead of being trimmed to a square.',
@@ -882,10 +904,9 @@ try{
   var history=[], histIdx=-1, histT=null, photoCache={}, clipboard=[], trash=[];
   var selectMode=false, selectedIds={};
   var arrangeMode=false, arrSel=-1, cropOn=false, cropRect=null, lastPastePt=null;
-  /* phMore: the rarely-used half of a photo's tools, folded away until asked for.
-     phSnap: how the open photo looked when it was opened, so ⤺ Undo my changes has
+  /* phSnap: how the open photo looked when it was opened, so ⤺ Undo my changes has
      somewhere to go back to — before this there was no way back from a bad crop. */
-  var phMore=false, phSnap=null;
+  var phSnap=null;
   var syncPhase='';   /* '' normal, 'choose' after enabling when cloud already has data */
   var DMCMAP={}; DMC.forEach(function(r){DMCMAP[r[0]]=r;});
   var DMCLOWER={}; DMC.forEach(function(r){DMCLOWER[r[0].toLowerCase()]=r[0];});
@@ -1826,7 +1847,7 @@ try{
       render(); save(); pushHistory(); pushNav(); scrollTo(0);
     },false);
   }
-  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;expandedTag=null;expandedMedia=null;selPhoto=-1;phMore=false;phSnap=null;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
+  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;expandedTag=null;expandedMedia=null;selPhoto=-1;phSnap=null;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
     showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;chartPick=false;
     findPaste=false;findPasteText='';findPasteReview=null;}
 
@@ -2387,71 +2408,77 @@ try{
   var PH_SIZES=['S','M','L','XL'];
   function openPhotoEditor(i){
     if(selPhoto===i){closePhotoEditor();return;}
-    selPhoto=i; phMore=false;
+    selPhoto=i;
     phSnap=photoSnap(active()&&active().photos?active().photos[i]:null);
     renderPainting();
   }
   function closePhotoEditor(){
-    selPhoto=-1; phMore=false; phSnap=null;
+    selPhoto=-1; phSnap=null;
     renderPainting();
   }
   /* The open photo, shown at the shape it will take on the card — which is why the
      little "Card" preview that used to sit in the tools bar is gone: the photo you
-     are working on IS the preview now. Four buttons show; the rest wait behind
-     ⋯ More, because fourteen at once was the complaint that started this. */
+     are working on IS the preview now. The tools sit under quiet headings sorted by
+     what they touch: the cover slot, how the photo sits in its frame, edits that
+     rewrite the picture, its place in the gallery, and what it shows. They used to
+     be one pile of identical pills half-hidden behind ⋯ More — ✕ remove dressed
+     exactly like ⇄ Flip — and the picture was steered with four nudge buttons;
+     now the photo itself is dragged, the way every phone gallery has taught. */
   function photoEditorHtml(p,i){
     var ph=p.photos[i]; if(!ph)return '';
     var isCover=((ph.fit||'cover')!=='contain');
     var frame=p.frame||'landscape';
     var lbls=coverLabels(p);
+    /* the drag hint shows only while the photo still sits at its default centre —
+       once you have placed it (this time or any earlier time), you know the trick */
+    var untouched=(ph.posX==null||ph.posX===50)&&(ph.posY==null||ph.posY===50);
     return '<div class="pg-item">'+
       (lbls[i]?'<span class="pg-lbl" style="top:11px;left:11px;z-index:3;">'+lbls[i]+'</span>':'')+
       '<div class="pg-editor frame-'+frame+'">'+
-        '<div class="ed-frame">'+
+        '<div class="ed-frame'+(isCover?' pannable" id="phFrame" tabindex="0" role="application" aria-label="The photo. Drag it, or use the arrow keys, to choose what shows in the frame."':'"')+'>'+
           '<img src="'+(ph.d||thumbSrc(ph))+'" alt="'+esc(photoLabel(p,i))+'" style="'+photoStyle(ph)+'">'+
+          (isCover&&untouched?'<div class="ed-drag-hint">✋ Drag to choose what shows</div>':'')+
         '</div>'+
         '<div class="ed-rows">'+
-          '<div class="ed-ring">'+
+          '<div class="ed-top">'+
             '<button class="pbtn done" id="phDone" type="button">✓ Done</button>'+
-            /* a drawing has no Sold and Result covers — its 1st photo is simply the
-               big one, and the rest are its gallery. Two buttons naming something
-               that doesn't exist was tolerable among fourteen; among four it isn't. */
+            (photoChanged(ph)?'<button class="pbtn restore" id="phRestore" type="button">⤺ Undo my changes</button>':'')+
+          '</div>'+
+          /* a drawing has no Sold and Result covers — its 1st photo is simply the
+             big one, and the rest are its gallery */
+          '<div class="ed-grp"><span class="ed-grp-lbl">'+(kindOf(p)==='drawing'?'Main picture':'Cover')+'</span><div class="ed-ring">'+
             (kindOf(p)==='drawing'
               ? '<button class="pbtn'+(i===0?' on':'')+'" id="phSold" type="button">★ Main picture</button>'
-              /* short labels: on a phone "★ Sold cover" and "★ Result cover" pushed
-                 this four-button row onto a second line all by themselves */
               : ('<button class="pbtn'+((!p.noSold&&i===0)?' on':'')+'" id="phSold" type="button" title="Make this the Sold cover">★ Sold</button>'+
                  '<button class="pbtn'+((i===(p.noSold?0:1))?' on':'')+'" id="phResult" type="button" title="Make this the Result cover">★ Result</button>'))+
-            (photoChanged(ph)?'<button class="pbtn restore" id="phRestore" type="button">⤺ Undo my changes</button>':'')+
-            '<button class="pbtn more" id="phMore" type="button">'+(phMore?'⋯ Less':'⋯ More')+'</button>'+
-          '</div>'+
-          (phMore?('<div class="ed-ring">'+
-            '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill (crop)':'▤ Whole image')+'</button>'+
+          '</div></div>'+
+          /* nothing here changes the picture — only how it sits. It used to say
+             "Fill (crop)", which made it sound like ⬚ Crop below, the one that
+             really does cut the picture. */
+          '<div class="ed-grp"><span class="ed-grp-lbl">In the frame</span><div class="ed-ring">'+
+            '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill the frame':'▤ Whole image')+'</button>'+
             '<button class="pbtn'+(ph.flip?' on':'')+'" id="phFlip" type="button">⇄ Flip</button>'+
-            (isCover?('<button class="pbtn" id="phPanL" type="button" aria-label="Show more of the left side">←</button>'+
-                      '<button class="pbtn" id="phPanU" type="button" aria-label="Show more of the top">↑</button>'+
-                      '<button class="pbtn" id="phPanD" type="button" aria-label="Show more of the bottom">↓</button>'+
-                      '<button class="pbtn" id="phPanR" type="button" aria-label="Show more of the right side">→</button>'):'')+
-            '<button class="pbtn" id="phLeft" type="button" aria-label="Move this photo earlier">◀ order</button>'+
-            '<button class="pbtn" id="phRight" type="button" aria-label="Move this photo later">order ▶</button>'+
-            '<button class="pbtn danger" id="phDel" type="button">✕ remove</button>'+
-          '</div>'+
+          '</div></div>'+
           /* Crop and cutting out a background used to live in the arranging bar,
              which is a strange home for two things that change one picture rather
              than the layout — and it left them unreachable for a drawing, or for a
              project with two photos or fewer, where arranging is not offered. */
-          '<div class="ed-ring">'+
+          '<div class="ed-grp"><span class="ed-grp-lbl">The picture itself</span><div class="ed-ring">'+
             '<button class="pbtn" id="phCrop" type="button">⬚ Crop</button>'+
             '<button class="pbtn" id="phCut" type="button" title="Works best on a plain or white background">✂ Cut out background</button>'+
-          '</div>'+
-          '<div class="ed-sizes"><span class="pd-lbl" style="margin:0">Size:</span>'+
+          '</div></div>'+
+          '<div class="ed-grp"><span class="ed-grp-lbl">In the gallery</span><div class="ed-ring">'+
+            '<button class="pbtn" id="phLeft" type="button" aria-label="Move this photo earlier">◀ order</button>'+
+            '<button class="pbtn" id="phRight" type="button" aria-label="Move this photo later">order ▶</button>'+
+            '<span class="pd-lbl" style="margin:0 0 0 4px;">Size:</span>'+
             PH_SIZES.map(function(lb,si){
               return '<button class="phsz'+((ph.s==null?1:ph.s)===si?' on':'')+'" data-phsize="'+si+'" type="button">'+lb+'</button>';
             }).join('')+
-          '</div>'+
+          '</div></div>'+
           /* what the photo is of — the covers are still decided by position, so
              this row is for everything that isn't one */
-          '<div class="ed-sizes"><span class="pd-lbl" style="margin:0">This photo is'+
+          '<div class="ed-grp"><span class="ed-grp-lbl">What it shows</span>'+
+          '<div class="ed-sizes" style="margin-bottom:5px;"><span class="pd-lbl" style="margin:0">This photo is'+
             (state.photoLabels.length?(' <button class="fb-edit" data-editlist="plabel" type="button">'+(editLists.plabel?'done':'edit list')+'</button>'):'')+':</span>'+
             state.photoLabels.map(function(L){
               var on=((ph.lbl||'')===L);
@@ -2460,9 +2487,11 @@ try{
                 (editLists.plabel?'✕ ':'')+esc(capFirst(L))+'</button>';
             }).join('')+
             '<span class="addinline"><input id="newPhLabel" type="text" maxlength="24" placeholder="＋ new label"><button class="pbtn" id="addPhLabel" type="button">Add</button></span>'+
-          '</div>'):'')+
+          '</div>'+
           '<input class="ed-cap" id="phCaption" type="text" maxlength="80" placeholder="Caption — e.g. halfway there" value="'+esc(ph.c||'')+'" aria-label="Caption for this photo">'+
-          (phMore&&ph.ts?'<div class="photo-hint" style="margin-top:0;">Added '+fmtDate(ph.ts)+(ph.c?'':' — a caption shows on the project page’s gallery and when the photo opens big')+'</div>':'')+
+          (ph.ts?'<div class="photo-hint" style="margin-top:5px;">Added '+fmtDate(ph.ts)+(ph.c?'':' — a caption shows on the project page’s gallery and when the photo opens big')+'</div>':'')+
+          '</div>'+
+          '<div class="ed-bottom"><button class="pbtn quiet-danger" id="phDel" type="button">✕ Remove this photo</button></div>'+
         '</div>'+
       '</div></div>';
   }
@@ -5169,7 +5198,6 @@ try{
       /* ✓ Done is the way out. "Tap somewhere else" was not one: a way out you have
          to be told about is no way out at all. */
       if($('phDone'))$('phDone').addEventListener('click',closePhotoEditor);
-      if($('phMore'))$('phMore').addEventListener('click',function(){phMore=!phMore;renderPainting();});
       if($('phRestore'))$('phRestore').addEventListener('click',function(){
         var ph2=p.photos[selPhoto]; if(!ph2||!phSnap)return;
         ph2.fit=phSnap.fit; ph2.posX=phSnap.posX; ph2.posY=phSnap.posY;
@@ -5239,7 +5267,6 @@ try{
         p.photos.splice(to,0,a);selPhoto=to;renderPainting();savePhotos(p.id);
         toast('★ Set as the Result cover ✓',1300);
       });
-      /* everything from here down lives behind ⋯ More, so it may not be on the page */
       if($('phLeft'))$('phLeft').addEventListener('click',function(){
         if(selPhoto>0){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto-1,0,a);selPhoto--;renderPainting();savePhotos(p.id);}
       });
@@ -5252,16 +5279,69 @@ try{
       if($('phFlip'))$('phFlip').addEventListener('click',function(){
         var ph2=p.photos[selPhoto]; ph2.flip=ph2.flip?0:1; renderPainting(); savePhotos(p.id);
       });
-      function panSel(dx,dy){
-        var ph2=p.photos[selPhoto];
-        ph2.posX=Math.max(0,Math.min(100,(ph2.posX==null?50:ph2.posX)+dx));
-        ph2.posY=Math.max(0,Math.min(100,(ph2.posY==null?50:ph2.posY)+dy));
-        renderPainting(); savePhotos(p.id);
-      }
-      if($('phPanL'))$('phPanL').addEventListener('click',function(){panSel(-10,0);});
-      if($('phPanR'))$('phPanR').addEventListener('click',function(){panSel(10,0);});
-      if($('phPanU'))$('phPanU').addEventListener('click',function(){panSel(0,-10);});
-      if($('phPanD'))$('phPanD').addEventListener('click',function(){panSel(0,10);});
+      /* Drag the photo in its frame to choose what shows. This writes the same
+         posX/posY the four nudge arrows used to, but the picture follows the
+         finger. The style is set directly while the pointer moves — a full
+         redraw per movement would throw away the pointer capture mid-drag —
+         and the page redraws once on release, which is when ⤺ Undo my changes
+         gets its chance to appear. Arrow keys do the same for a keyboard, with
+         the redraw held back until the frame loses focus so a held key is not
+         interrupted; the frame is refocused after, so nudging can continue. */
+      (function(){
+        var fr=$('phFrame'); if(!fr)return;
+        var ph2=p.photos[selPhoto], img=fr.querySelector('img');
+        if((ph2.fit||'cover')==='contain')return;
+        var dragging=false,moved=false,lx=0,ly=0,kbT=null;
+        function slack(){
+          var iw=img.naturalWidth, ih=img.naturalHeight;
+          if(!iw||!ih)return {x:0,y:0};
+          var r=fr.getBoundingClientRect();
+          var k=Math.max(r.width/iw,r.height/ih);
+          return {x:iw*k-r.width, y:ih*k-r.height};
+        }
+        /* px,py in position-percent, already in "the picture moves this way" terms */
+        function nudge(px,py){
+          if(px)ph2.posX=Math.max(0,Math.min(100,(ph2.posX==null?50:ph2.posX)+px));
+          if(py)ph2.posY=Math.max(0,Math.min(100,(ph2.posY==null?50:ph2.posY)+py));
+          img.setAttribute('style',photoStyle(ph2));
+          var h=fr.querySelector('.ed-drag-hint'); if(h)h.remove();
+        }
+        fr.addEventListener('pointerdown',function(e){
+          dragging=true; moved=false; lx=e.clientX; ly=e.clientY;
+          try{fr.setPointerCapture(e.pointerId);}catch(err){}
+        });
+        fr.addEventListener('pointermove',function(e){
+          if(!dragging)return;
+          var sl=slack(), dx=e.clientX-lx, dy=e.clientY-ly;
+          lx=e.clientX; ly=e.clientY;
+          if((sl.x>1&&dx)||(sl.y>1&&dy)){
+            /* a flipped photo is mirrored on screen, so its posX runs the other way */
+            nudge(sl.x>1?-dx/sl.x*100*(ph2.flip?-1:1):0, sl.y>1?-dy/sl.y*100:0);
+            moved=true;
+          }
+        });
+        function drop(){
+          if(!dragging)return;
+          dragging=false;
+          if(moved){renderPainting();savePhotos(p.id);}
+        }
+        fr.addEventListener('pointerup',drop);
+        fr.addEventListener('pointercancel',drop);
+        fr.addEventListener('keydown',function(e){
+          var m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+          if(!m)return;
+          e.preventDefault();
+          var sl=slack();
+          /* the key moves the picture the way a drag in that direction would */
+          nudge(sl.x>1?-m[0]*5*(ph2.flip?-1:1):0, sl.y>1?-m[1]*5:0);
+          savePhotos(p.id);
+          clearTimeout(kbT);
+          kbT=setTimeout(function(){
+            renderPainting();
+            var f2=$('phFrame'); if(f2)f2.focus();
+          },700);
+        });
+      })();
       if($('phCrop'))$('phCrop').addEventListener('click',function(){
         var ph2=p.photos[selPhoto]; if(!ph2)return;
         var before=ph2.d;
@@ -5285,7 +5365,7 @@ try{
       if($('phDel'))$('phDel').addEventListener('click',function(){
         if(!twoTap('phdel',$('phDel'),'✕ remove?'))return;
         var at=selPhoto, removed=p.photos.splice(selPhoto,1)[0];
-        selPhoto=-1; phMore=false; phSnap=null; renderPainting(); savePhotos(p.id);
+        selPhoto=-1; phSnap=null; renderPainting(); savePhotos(p.id);
         showPhotoUndo(p.id,removed,at,'Photo removed');
       });
     }
