@@ -89,7 +89,7 @@ try{
   .chipbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:12px;padding:9px 12px;
     font-size:14px;font-weight:600;cursor:pointer;color:var(--ink);}
   .chipbtn.on{background:var(--accent-soft);border-color:var(--accent-ink);color:var(--accent-ink);}
-  .chipbtn.danger{color:#A8324B;}
+  .chipbtn.danger{color:var(--bad);}
   .chipbtn.confirm{background:#A8324B !important;border-color:#A8324B !important;color:#fff !important;}
   /* The name renames itself. A button that said "Rename" used to sit a thousand
      pixels below the name it renamed, in a row that opens with a search box —
@@ -343,7 +343,7 @@ try{
   .photo-btns{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;position:relative;z-index:35;}
   .pbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:9px;padding:5px 9px;
     font-size:13px;font-weight:700;cursor:pointer;}
-  .pbtn.danger{color:#A8324B;}
+  .pbtn.danger{color:var(--bad);}
   .pbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
   .photo-preview{position:relative;margin-top:8px;max-width:260px;}
   .photo-preview img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;border:1.5px solid var(--accent-ink);background:var(--unk-soft);display:block;}
@@ -2443,11 +2443,6 @@ try{
           '<img src="'+(ph.d||thumbSrc(ph))+'" alt="'+esc(photoLabel(p,i))+'" style="'+photoStyle(ph)+'">'+
           (isCover&&untouched?'<div class="ed-drag-hint">✋ Drag to choose what shows</div>':'')+
         '</div>'+
-        /* TEMPORARY readout while a drag bug is hunted: on Sinamona's machine the
-           drag moves a photo millimetres when it should sweep it, and it cannot be
-           reproduced here. These are the numbers the drag divides by — a screenshot
-           of this line says which of them is lying. Remove once the answer is in. */
-        (isCover?'<div class="photo-hint" id="phDiag" style="margin-top:3px;font-family:ui-monospace,Consolas,monospace;"></div>':'')+
         '<div class="ed-rows">'+
           '<div class="ed-top">'+
             '<button class="pbtn done" id="phDone" type="button">✓ Done</button>'+
@@ -2492,7 +2487,7 @@ try{
             state.photoLabels.map(function(L){
               var on=((ph.lbl||'')===L);
               return '<button class="phsz'+(on&&!editLists.plabel?' on':'')+'" data-phlabel="'+esc(L)+'" type="button"'+
-                (editLists.plabel?' style="color:#A8324B;border-color:#A8324B;"':'')+'>'+
+                (editLists.plabel?' style="color:var(--bad);border-color:var(--bad);"':'')+'>'+
                 (editLists.plabel?'✕ ':'')+esc(capFirst(L))+'</button>';
             }).join('')+
             '<span class="addinline"><input id="newPhLabel" type="text" maxlength="24" placeholder="＋ new label"><button class="pbtn" id="addPhLabel" type="button">Add</button></span>'+
@@ -3275,7 +3270,7 @@ try{
   }
   function meterRow(label,used,cap){
     var pct=cap?Math.min(100,Math.round(used/cap*100)):0;
-    var col=pct>=90?'#A8324B':(pct>=70?'#B98A2F':'var(--accent)');
+    var col=pct>=90?'var(--bad)':(pct>=70?'var(--star)':'var(--accent)');
     return '<div class="sm-row"><div class="sm-lbl"><span>'+label+'</span><span>'+fmtBytes(used)+
       (cap?' of '+fmtBytes(cap):'')+'</span></div>'+
       (cap?'<div class="sm-bar"><div class="sm-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')+
@@ -4919,7 +4914,7 @@ try{
     function listEditBtn(key,has){
       return has?(' <button class="fb-edit" data-editlist="'+key+'" type="button">'+(editLists[key]?'done':'edit list')+'</button>'):'';
     }
-    var rmStyle=' style="color:#A8324B;border-color:#A8324B;"';
+    var rmStyle=' style="color:var(--bad);border-color:var(--bad);"';
     var szEdit=!!editLists.size, sizeChips='';
     state.sizes.forEach(function(sz){
       var on=(p.size===sz);
@@ -5314,22 +5309,7 @@ try{
           if(py)ph2.posY=Math.max(0,Math.min(100,(ph2.posY==null?50:ph2.posY)+py));
           img.setAttribute('style',photoStyle(ph2));
           var h=fr.querySelector('.ed-drag-hint'); if(h)h.remove();
-          fillDiag();
         }
-        /* feeds the temporary readout under the frame — see photoEditorHtml */
-        var diag=$('phDiag');
-        function fillDiag(){
-          if(!diag)return;
-          var r=fr.getBoundingClientRect(), sl=slack();
-          diag.textContent='photo '+img.naturalWidth+'×'+img.naturalHeight+
-            (img.complete?'':' (still loading)')+
-            ' · frame '+Math.round(r.width)+'×'+Math.round(r.height)+
-            ' · spare '+Math.round(sl.x)+'×'+Math.round(sl.y)+' px'+
-            ' · at '+Math.round(ph2.posX==null?50:ph2.posX)+'%, '+Math.round(ph2.posY==null?50:ph2.posY)+'%'+
-            ' · text '+fontScale()+'%';
-        }
-        fillDiag();
-        if(!img.complete)img.addEventListener('load',fillDiag);
         /* belt for the CSS braces above: if a native drag ever does begin here,
            refuse it rather than letting it cancel our pointer mid-pull */
         fr.addEventListener('dragstart',function(e){e.preventDefault();});
