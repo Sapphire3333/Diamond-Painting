@@ -49,7 +49,7 @@ try{
     --star:#B98A2F; --star-soft:#F8EFDC;
     --bad:#A8324B; --bad-soft:#F8E6EA;
   }
-  .dp-app.dark{
+  .dp-app.dark,.sheet-ov.dark{
     --bg:#16141B; --panel:#221F2A; --ink:#ECE9F2; --muted:#9E98AC;
     --line:#332F3D; --accent:#5B3FA8; --accent-soft:#2E2646; --accent-ink:#B49BF2;
     --sq:#6FA8E6; --sq-soft:#1E2A3A;
@@ -358,31 +358,50 @@ try{
   .photo-preview.frame-square img{aspect-ratio:1;}
   .photo-preview.frame-round img{aspect-ratio:1;border-radius:50%;}
   .pv-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;pointer-events:none;}
-  /* A photo's tools used to open in the sticky bar at the top of the page. That bar
-     grew by 116px as they appeared, which shoved the page — and the very photo you
-     had just tapped — 116px downward, out from under your finger, and then showed
-     you fourteen identical buttons 154px above it. So the photo opens where it
-     already is, at the shape it will be on the card, with four buttons under it. */
-  .pg-editor{position:relative;border:2px solid var(--accent-ink);border-radius:13px;background:var(--panel);
-    padding:7px;box-shadow:0 6px 20px -10px rgba(0,0,0,.35);width:360px;max-width:100%;}
-  .ed-frame{position:relative;overflow:hidden;border-radius:9px;background:var(--unk-soft);aspect-ratio:4/3;}
-  .pg-editor.frame-portrait .ed-frame{aspect-ratio:3/4;}
-  .pg-editor.frame-square .ed-frame{aspect-ratio:1;}
-  .pg-editor.frame-round .ed-frame{aspect-ratio:1;border-radius:50%;}
-  /* pointer-events:none — the FRAME must catch the drag, not the picture. When the
-     picture caught it, the browser's own drag-the-image-somewhere ghost took over
-     a few pixels in and cancelled ours; -webkit-user-drag suppressed that only in
-     Chrome-family browsers, so in Firefox the photo would move millimetres at best. */
-  .ed-frame img{width:100%;height:100%;display:block;pointer-events:none;-webkit-user-drag:none;user-select:none;}
-  /* pannable = a Fill-the-frame photo, which has hidden edges to drag into view.
-     touch-action:none keeps a finger-drag from scrolling the page instead. */
-  .ed-frame.pannable{cursor:grab;touch-action:none;}
-  .ed-frame.pannable:active{cursor:grabbing;}
-  .ed-frame.pannable:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-  .ed-drag-hint{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);
-    background:rgba(38,34,46,.72);color:#fff;font-size:12px;font-weight:600;
-    padding:5px 11px;border-radius:999px;white-space:nowrap;pointer-events:none;}
-  .ed-rows{display:flex;flex-direction:column;gap:5px;margin-top:7px;}
+  /* ---- the photo sheet: one photo, every tool for it, over the whole screen ----
+     It is a .lightbox so that Back closes it like the full-screen photo, and it
+     lives outside the app's box like that does — so the theme's dark palette is
+     given to .sheet-ov.dark above, and openPhotoSheet copies the app's zoom and
+     accent across. The stage is a canvas: the crop, the straighten, the cut-out
+     and the card frame's mask are all drawn onto it from the photo's settings. */
+  .sheet-ov{display:block;padding:0;cursor:default;overflow:auto;background:rgba(18,15,26,.82);-webkit-overflow-scrolling:touch;}
+  .sheet{background:var(--panel);color:var(--ink);width:100%;max-width:760px;margin:0 auto;padding:10px 12px 18px;min-height:100%;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;}
+  /* outside the app's box, so the app's border-box sizing has to be repeated
+     here — without it the padding sat outside the width and the sheet was 24px
+     wider than a phone */
+  .sheet,.sheet *{box-sizing:border-box;}
+  .sh-stage{position:relative;width:100%;aspect-ratio:4/3;max-height:58vh;border-radius:10px;overflow:hidden;
+    touch-action:none;user-select:none;-webkit-user-select:none;
+    background:repeating-conic-gradient(var(--unk-soft) 0 25%,var(--panel) 0 50%) 0 0/18px 18px;}
+  .sh-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .sh-stage.frame{cursor:grab;} .sh-stage.frame:active{cursor:grabbing;} .sh-stage.cut{cursor:crosshair;}
+  .sh-hint{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);background:rgba(38,34,46,.72);color:#fff;
+    font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;white-space:nowrap;pointer-events:none;
+    max-width:95%;overflow:hidden;text-overflow:ellipsis;}
+  /* the crop box: the rest of the picture dims behind it, thirds inside it, and
+     eight handles a thumb can find */
+  .sh-crop{position:absolute;border:1.5px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.45);cursor:move;touch-action:none;}
+  .sh-crop::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(rgba(255,255,255,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.35) 1px,transparent 1px);
+    background-size:33.4% 33.4%;}
+  .sh-h{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:7px;background:var(--accent);
+    border:2.5px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.45);touch-action:none;}
+  .sh-h.n,.sh-h.s{cursor:ns-resize;} .sh-h.e,.sh-h.w{cursor:ew-resize;} .sh-h.nw,.sh-h.se{cursor:nwse-resize;} .sh-h.ne,.sh-h.sw{cursor:nesw-resize;}
+  .sh-modes{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0 6px;}
+  .sh-modes .pbtn{flex:1 1 auto;text-align:center;}
+  .sh-tools{display:flex;flex-direction:column;gap:6px;min-height:40px;}
+  .sh-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .sh-row .prog-range{flex:1 1 120px;min-width:90px;}
+  .sh-v{font-weight:800;font-size:12px;min-width:44px;font-variant-numeric:tabular-nums;}
+  .sh-name{font-weight:800;font-size:15px;margin-right:auto;}
+  .sh-sum{font-size:11px;color:var(--muted);margin-top:4px;}
+  /* a zoomed-in photo (see photoStyle) is bigger than its frame, so the frame
+     clips — but only when zoomed, so every other photo is shown exactly as before */
+  .zoomed{overflow:hidden;}
+  .ovphoto.zoomed{border-radius:10px;} .ovphotos.frame-round .ovphoto.zoomed{border-radius:50%;}
+  .vw-side.zoomed{border-radius:12px;} .vw-side.frame-round.zoomed{border-radius:50%;}
+  .vw-gitem.zoomed{border-radius:10px;}
   .ed-ring{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
   /* the tools are sorted under quiet headings by what they touch; remove sits
      apart at the bottom in quieter clothes, so it can't be mistaken for Flip */
@@ -915,9 +934,6 @@ try{
   var history=[], histIdx=-1, histT=null, photoCache={}, clipboard=[], trash=[];
   var selectMode=false, selectedIds={};
   var arrangeMode=false, arrSel=-1, cropOn=false, cropRect=null, lastPastePt=null;
-  /* phSnap: how the open photo looked when it was opened, so ⤺ Undo my changes has
-     somewhere to go back to — before this there was no way back from a bad crop. */
-  var phSnap=null;
   var syncPhase='';   /* '' normal, 'choose' after enabling when cloud already has data */
   var DMCMAP={}; DMC.forEach(function(r){DMCMAP[r[0]]=r;});
   var DMCLOWER={}; DMC.forEach(function(r){DMCLOWER[r[0].toLowerCase()]=r[0];});
@@ -1248,15 +1264,6 @@ try{
       savePhotos(pid);
       if(state.view==='paint'&&state.active===pid)renderPainting();
       toast('Photo restored ✓',1200);
-    });
-  }
-  function showEditUndo(pid,photo,oldD,msg){
-    showUndoBar(msg,function(){
-      var p=findPainting(pid);
-      if(!p||p.photos.indexOf(photo)===-1){toast('Could not undo — the photo changed',1600);return;}
-      photo.d=oldD; refreshThumb(photo,pid); savePhotos(pid);
-      if(state.view==='paint'&&state.active===pid)renderPainting();
-      toast('Restored original ✓',1200);
     });
   }
   function saveEdit(){var a=active();if(a)a.updatedAt=nowTs();save();pushHistory();}
@@ -1858,7 +1865,7 @@ try{
       render(); save(); pushHistory(); pushNav(); scrollTo(0);
     },false);
   }
-  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;expandedTag=null;expandedMedia=null;selPhoto=-1;phSnap=null;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
+  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;expandedTag=null;expandedMedia=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
     showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;chartPick=false;
     findPaste=false;findPasteText='';findPasteReview=null;}
 
@@ -2398,113 +2405,499 @@ try{
   }
 
   /* ---------- paintings gallery ---------- */
-  function photoStyle(photo){
+  /* how a photo sits in its frame: the pan (object-position), the zoom, the flip.
+     noZoom is for the small thumbnails on the edit page, which have no frame to
+     clip to. The zoom is a CSS scale about the very point the pan chose, so what
+     you put in the middle stays in the middle; a flipped photo is then mirrored
+     about its centre, which is what scaleX(-1) with the default origin did alone. */
+  function photoStyle(photo,noZoom){
     var fit=photo.fit||'cover';
     var px=(photo.posX==null?50:photo.posX);
     var py=(photo.posY==null?50:photo.posY);
-    return 'object-fit:'+fit+';object-position:'+px+'% '+py+'%;'+(photo.flip?'transform:scaleX(-1);':'');
+    var z=(!noZoom&&fit==='cover'&&photo.z>1.001)?photo.z:1;
+    var s='object-fit:'+fit+';object-position:'+px+'% '+py+'%;';
+    if(z>1)s+='transform-origin:0 0;transform:'+(photo.flip?'translateX(100%) scaleX(-1) ':'')+
+      'translate('+px+'%,'+py+'%) scale('+z+') translate('+(-px)+'%,'+(-py)+'%);';
+    else if(photo.flip)s+='transform:scaleX(-1);';
+    return s;
   }
-  /* what ⤺ Undo my changes goes back to */
-  function photoSnap(ph){
-    return ph?{fit:ph.fit,posX:ph.posX,posY:ph.posY,flip:ph.flip,s:ph.s}:null;
-  }
-  function photoChanged(ph){
-    if(!ph||!phSnap)return false;
-    return (ph.fit||'cover')!==(phSnap.fit||'cover')||
-           (ph.posX==null?50:ph.posX)!==(phSnap.posX==null?50:phSnap.posX)||
-           (ph.posY==null?50:ph.posY)!==(phSnap.posY==null?50:phSnap.posY)||
-           (ph.flip?1:0)!==(phSnap.flip?1:0)||
-           (ph.s==null?1:ph.s)!==(phSnap.s==null?1:phSnap.s);
-  }
+  /* ---------- the photo sheet ----------
+     One photo, every tool for it, over the whole screen. Tapping a photo used to
+     open a small editor in the photo's own place, with Crop on a third, separate
+     dark screen and Cut out a one-shot button; now the picture is big, the thing
+     you drag is the picture, and crop, straighten, turn, cut-out and the frame
+     all sit under it.
+
+     Nothing here rewrites the stored picture. `d` is the photo as it arrived and
+     is never touched again; the edits live in `e` as settings — a turn, a
+     straighten angle, a crop rectangle in fractions of the turned picture, and
+     the cut-out with its sensitivity and the colour it removes — and `r` is the
+     picture drawn from them, made once by renderEdits when the sheet closes.
+     Everything that shows a photo asks shown() for it, so the cards, covers,
+     Compare, Share and the gallery all see the edited picture, and any edit can
+     be changed again next year because the original is still there. Zoom (`z`)
+     and the pan (posX/posY) are display-time settings, applied by photoStyle. */
   var PH_SIZES=['S','M','L','XL'];
-  function openPhotoEditor(i){
-    if(selPhoto===i){closePhotoEditor();return;}
-    selPhoto=i;
-    phSnap=photoSnap(active()&&active().photos?active().photos[i]:null);
-    renderPainting();
+  var FRAME_RATIO={landscape:4/3,portrait:3/4,square:1,round:1};
+  function shown(ph){return (ph&&ph.r)||(ph&&ph.d)||'';}
+  function freshEdits(){return {rot:0,str:0,crop:null,cut:{on:false,tol:60,bg:null}};}
+  function editsOf(ph){
+    var e=ph.e||freshEdits();
+    if(!e.cut)e.cut={on:false,tol:60,bg:null};
+    if(!e.rot)e.rot=0; if(!e.str)e.str=0;
+    return e;
   }
-  function closePhotoEditor(){
-    selPhoto=-1; phSnap=null;
-    renderPainting();
+  function editsTrivial(e){
+    if(!e)return true;
+    var c=e.crop;
+    return !e.rot&&Math.abs(e.str||0)<0.05&&!(e.cut&&e.cut.on)&&
+      (!c||(c.x<0.001&&c.y<0.001&&c.w>0.999&&c.h>0.999));
   }
-  /* The open photo, shown at the shape it will take on the card — which is why the
-     little "Card" preview that used to sit in the tools bar is gone: the photo you
-     are working on IS the preview now. The tools sit under quiet headings sorted by
-     what they touch: the cover slot, how the photo sits in its frame, edits that
-     rewrite the picture, its place in the gallery, and what it shows. They used to
-     be one pile of identical pills half-hidden behind ⋯ More — ✕ remove dressed
-     exactly like ⇄ Flip — and the picture was steered with four nudge buttons;
-     now the photo itself is dragged, the way every phone gallery has taught. */
-  function photoEditorHtml(p,i){
-    var ph=p.photos[i]; if(!ph)return '';
-    var isCover=((ph.fit||'cover')!=='contain');
-    var frame=p.frame||'landscape';
-    var lbls=coverLabels(p);
-    /* the drag hint shows only while the photo still sits at its default centre —
-       once you have placed it (this time or any earlier time), you know the trick */
-    var untouched=(ph.posX==null||ph.posX===50)&&(ph.posY==null||ph.posY===50);
-    return '<div class="pg-item">'+
-      (lbls[i]?'<span class="pg-lbl" style="top:11px;left:11px;z-index:3;">'+lbls[i]+'</span>':'')+
-      '<div class="pg-editor frame-'+frame+'">'+
-        '<div class="ed-frame'+(isCover?' pannable" id="phFrame" tabindex="0" role="application" aria-label="The photo. Drag it, or use the arrow keys, to choose what shows in the frame."':'"')+'>'+
-          '<img src="'+(ph.d||thumbSrc(ph))+'" alt="'+esc(photoLabel(p,i))+'" style="'+photoStyle(ph)+'">'+
-          (isCover&&untouched?'<div class="ed-drag-hint">✋ Drag to choose what shows</div>':'')+
-        '</div>'+
-        '<div class="ed-rows">'+
-          '<div class="ed-top">'+
-            '<button class="pbtn done" id="phDone" type="button">✓ Done</button>'+
-            (photoChanged(ph)?'<button class="pbtn restore" id="phRestore" type="button">⤺ Undo my changes</button>':'')+
-          '</div>'+
-          /* a drawing has no Sold and Result covers — its 1st photo is simply the
-             big one, and the rest are its gallery */
-          '<div class="ed-grp"><span class="ed-grp-lbl">'+(kindOf(p)==='drawing'?'Main picture':'Cover')+'</span><div class="ed-ring">'+
-            (kindOf(p)==='drawing'
-              ? '<button class="pbtn'+(i===0?' on':'')+'" id="phSold" type="button">★ Main picture</button>'
-              : ('<button class="pbtn'+((!p.noSold&&i===0)?' on':'')+'" id="phSold" type="button" title="Make this the Sold cover">★ Sold</button>'+
-                 '<button class="pbtn'+((i===(p.noSold?0:1))?' on':'')+'" id="phResult" type="button" title="Make this the Result cover">★ Result</button>'))+
-          '</div></div>'+
-          /* nothing here changes the picture — only how it sits. It used to say
-             "Fill (crop)", which made it sound like ⬚ Crop below, the one that
-             really does cut the picture. */
-          '<div class="ed-grp"><span class="ed-grp-lbl">In the frame</span><div class="ed-ring">'+
-            '<button class="pbtn'+(isCover?' on':'')+'" id="phFit" type="button">'+(isCover?'▣ Fill the frame':'▤ Whole image')+'</button>'+
-            '<button class="pbtn'+(ph.flip?' on':'')+'" id="phFlip" type="button">⇄ Flip</button>'+
-          '</div></div>'+
-          /* Crop and cutting out a background used to live in the arranging bar,
-             which is a strange home for two things that change one picture rather
-             than the layout — and it left them unreachable for a drawing, or for a
-             project with two photos or fewer, where arranging is not offered. */
-          '<div class="ed-grp"><span class="ed-grp-lbl">The picture itself</span><div class="ed-ring">'+
-            '<button class="pbtn" id="phCrop" type="button">⬚ Crop</button>'+
-            '<button class="pbtn" id="phCut" type="button" title="Works best on a plain or white background">✂ Cut out background</button>'+
-          '</div></div>'+
-          '<div class="ed-grp"><span class="ed-grp-lbl">In the gallery</span><div class="ed-ring">'+
-            '<button class="pbtn" id="phLeft" type="button" aria-label="Move this photo earlier">◀ order</button>'+
-            '<button class="pbtn" id="phRight" type="button" aria-label="Move this photo later">order ▶</button>'+
-            '<span class="pd-lbl" style="margin:0 0 0 4px;">Size:</span>'+
-            PH_SIZES.map(function(lb,si){
-              return '<button class="phsz'+((ph.s==null?1:ph.s)===si?' on':'')+'" data-phsize="'+si+'" type="button">'+lb+'</button>';
-            }).join('')+
-          '</div></div>'+
-          /* what the photo is of — the covers are still decided by position, so
-             this row is for everything that isn't one */
-          '<div class="ed-grp"><span class="ed-grp-lbl">What it shows</span>'+
+  /* what ⤺ Undo my changes goes back to, and what decides whether anything changed */
+  function photoSnap(ph){
+    if(!ph)return '';
+    return JSON.stringify({fit:ph.fit||'cover',posX:ph.posX==null?50:ph.posX,posY:ph.posY==null?50:ph.posY,
+      flip:ph.flip?1:0,s:ph.s==null?1:ph.s,z:ph.z||1,e:(ph.e&&!editsTrivial(ph.e))?ph.e:null});
+  }
+  /* knock out a plain background: flood-fill inwards from the edges, taking every
+     pixel within `tol` of the background colour — the corners' average unless a
+     colour was tapped — and make it see-through */
+  function cutOutPixels(o,tol,bg){
+    var w=o.width,h=o.height,c=o.getContext('2d'),data;
+    try{data=c.getImageData(0,0,w,h);}catch(err){return;}
+    var d=data.data,n=w*h;
+    if(!bg){
+      var cs=[0,(w-1)*4,(h-1)*w*4,((h-1)*w+w-1)*4],b=[0,0,0];
+      cs.forEach(function(i){b[0]+=d[i];b[1]+=d[i+1];b[2]+=d[i+2];});
+      bg=[b[0]/4,b[1]/4,b[2]/4];
+    }
+    var seen=new Uint8Array(n),stack=[],t2=tol*tol;
+    function near(i){var r=d[i*4]-bg[0],g=d[i*4+1]-bg[1],bb=d[i*4+2]-bg[2];return r*r+g*g+bb*bb<t2;}
+    for(var x=0;x<w;x++){stack.push(x);stack.push((h-1)*w+x);}
+    for(var y=0;y<h;y++){stack.push(y*w);stack.push(y*w+w-1);}
+    while(stack.length){
+      var i=stack.pop();
+      if(seen[i]||!near(i))continue;
+      seen[i]=1; d[i*4+3]=0;
+      var xx=i%w, yy=(i-xx)/w;
+      if(xx>0)stack.push(i-1); if(xx<w-1)stack.push(i+1);
+      if(yy>0)stack.push(i-w); if(yy<h-1)stack.push(i+w);
+    }
+    c.putImageData(data,0,0);
+  }
+  /* the picture as its settings say, on a canvas no wider than `max` (0 = full size):
+     turned, straightened (scaled up just enough to hide the corners a tilt
+     uncovers), cut out, then cropped */
+  function drawEdited(img,e,max){
+    var iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
+    var k=max?Math.min(1,max/Math.max(iw,ih)):1, w=Math.max(1,Math.round(iw*k)), h=Math.max(1,Math.round(ih*k));
+    var rot=e.rot||0, turned=(rot%180)!==0, W=turned?h:w, H=turned?w:h;
+    var o=document.createElement('canvas'); o.width=W; o.height=H;
+    var c=o.getContext('2d');
+    var a=(e.str||0)*Math.PI/180, ca=Math.abs(Math.cos(a)), sa=Math.abs(Math.sin(a));
+    var sc=Math.max((W*ca+H*sa)/W,(W*sa+H*ca)/H);
+    c.translate(W/2,H/2); c.rotate(a); c.scale(sc,sc); c.rotate(rot*Math.PI/180);
+    c.drawImage(img,-w/2,-h/2,w,h);
+    if(e.cut&&e.cut.on)cutOutPixels(o,e.cut.tol||60,e.cut.bg);
+    var cr=e.crop;
+    if(cr&&(cr.x>0.001||cr.y>0.001||cr.w<0.999||cr.h<0.999)){
+      var cw=Math.max(1,Math.round(cr.w*W)), ch=Math.max(1,Math.round(cr.h*H));
+      var out=document.createElement('canvas'); out.width=cw; out.height=ch;
+      out.getContext('2d').drawImage(o,Math.round(cr.x*W),Math.round(cr.y*H),cw,ch,0,0,cw,ch);
+      return out;
+    }
+    return o;
+  }
+  /* makes `r`, the picture everything shows, from `d` and the settings in `e` —
+     or removes both `r` and `e` when the settings say "as it arrived" */
+  function renderEdits(ph,cb){
+    var e=ph.e;
+    if(editsTrivial(e)){delete ph.r; delete ph.e; if(cb)cb(); return;}
+    loadImg(ph.d,function(img){
+      if(!img){if(cb)cb();return;}
+      var cv=drawEdited(img,e,0);
+      /* a cut-out has see-through edges: as a JPEG they would turn black */
+      ph.r=((e.cut&&e.cut.on)||/^data:image\/png/i.test(ph.d))?cv.toDataURL('image/png'):flattenToJpeg(cv,0.85);
+      if(cb)cb();
+    });
+  }
+  function openPhotoSheet(i){
+    var p=active(); if(!p||!p.photos||!p.photos[i])return;
+    var prev=document.querySelector('.sheet-ov'); if(prev&&prev._destroy)prev._destroy();
+    var ph=p.photos[i];
+    var snap=photoSnap(ph), snapObj=JSON.parse(snap);
+    var e=editsOf(ph); ph.e=e;
+    var eSnap=JSON.stringify(e);
+    var mode='frame', aspect='free', srcImg=null, base={key:'',cv:null}, geo={}, box=null;
+    var ov=document.createElement('div'); ov.className='lightbox sheet-ov'+(state.dark?' dark':'');
+    ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label','Edit this photo'); ov.tabIndex=-1;
+    /* the sheet lives outside the app's box, like the full-screen photo, so the
+       zoom and the accent colours the app carries inline are copied across */
+    var app=$('app');
+    if(app)for(var k=0;k<app.style.length;k++){var pn=app.style[k];if(pn.indexOf('--')===0||pn==='zoom')ov.style.setProperty(pn,app.style.getPropertyValue(pn));}
+    ov.innerHTML='<div class="sheet">'+
+      '<div class="ed-top"><span class="sh-name" id="shName"></span>'+
+        '<button class="pbtn restore" id="shUndo" type="button" hidden>⤺ Undo my changes</button>'+
+        '<button class="pbtn done" id="shDone" type="button">✓ Done</button></div>'+
+      '<div class="sh-stage frame" id="shStage"><canvas id="shCv"></canvas><div class="sh-hint" id="shHint"></div></div>'+
+      '<div class="sh-modes">'+
+        '<button class="pbtn on" data-shmode="frame" type="button">▣ In the frame</button>'+
+        '<button class="pbtn" data-shmode="crop" type="button">⬚ Crop &amp; straighten</button>'+
+        '<button class="pbtn" data-shmode="cut" type="button">✂ Cut out</button></div>'+
+      '<div class="sh-tools" id="shTools"></div>'+
+      '<div class="ed-grp sh-row" id="shAlways"></div>'+
+      '<div id="shRows"></div>'+
+    '</div>';
+    document.body.appendChild(ov);
+    document.body.style.overflow='hidden';
+    var stage=$('shStage'), cv=$('shCv'), ctx=cv.getContext('2d');
+    function idx(){return p.photos.indexOf(ph);}
+    function changed(){return photoSnap(ph)!==snap;}
+    function ratio(){return FRAME_RATIO[p.frame||'landscape']||4/3;}
+    function isCover(){return (ph.fit||'cover')==='cover';}
+    function setFill(r){r.style.setProperty('--fill',((r.value-r.min)/(r.max-r.min)*100)+'%');}
+    /* the turned, straightened, cut-out picture at preview size — cached on its
+       settings, since the cut-out is the slow part and the pan must not redo it */
+    function oriented(){
+      if(!srcImg)return null;
+      var key=[e.rot,e.str,e.cut.on,e.cut.tol,e.cut.bg&&e.cut.bg.join(',')].join('|');
+      if(base.key===key)return base.cv;
+      base={key:key,cv:drawEdited(srcImg,{rot:e.rot,str:e.str,cut:e.cut,crop:null},900)};
+      return base.cv;
+    }
+    function maskPath(mx,my,mw,mh){
+      if((p.frame||'landscape')==='round'){ctx.arc(mx+mw/2,my+mh/2,mw/2,0,Math.PI*2);return;}
+      var r=12;
+      ctx.moveTo(mx+r,my); ctx.arcTo(mx+mw,my,mx+mw,my+mh,r); ctx.arcTo(mx+mw,my+mh,mx,my+mh,r);
+      ctx.arcTo(mx,my+mh,mx,my,r); ctx.arcTo(mx,my,mx+mw,my,r); ctx.closePath();
+    }
+    function draw(){
+      var b=oriented(); if(!b)return;
+      var z=appZoom(), dpr=window.devicePixelRatio||1;
+      var W=stage.clientWidth, H=stage.clientHeight; if(!W||!H)return;
+      var bw=Math.round(W*dpr*z), bh=Math.round(H*dpr*z);
+      if(cv.width!==bw||cv.height!==bh){cv.width=bw;cv.height=bh;}
+      ctx.setTransform(dpr*z,0,0,dpr*z,0,0); ctx.clearRect(0,0,W,H);
+      var cr=e.crop||{x:0,y:0,w:1,h:1}, cx=cr.x*b.width, cy=cr.y*b.height, cw=cr.w*b.width, ch=cr.h*b.height;
+      stage.className='sh-stage '+mode;
+      var hint='';
+      if(mode==='frame'){
+        var pad=14, mw=W-pad*2, mh=mw/ratio();
+        if(mh>H-pad*2){mh=H-pad*2;mw=mh*ratio();}
+        var mx=(W-mw)/2, my=(H-mh)/2, cover=isCover();
+        var k=cover?Math.max(mw/cw,mh/ch)*(ph.z||1):Math.min(mw/cw,mh/ch);
+        var dw=cw*k, dh=ch*k, px=(ph.posX==null?50:ph.posX)/100, py=(ph.posY==null?50:ph.posY)/100;
+        var dx=cover?mx-(dw-mw)*px:mx+(mw-dw)/2, dy=cover?my-(dh-mh)*py:my+(mh-dh)/2;
+        ctx.save();
+        /* the mask sits in the middle, so mirroring the whole stage keeps it put —
+           and the pan is chosen before the mirror, as object-position is */
+        if(ph.flip){ctx.translate(W,0);ctx.scale(-1,1);}
+        ctx.globalAlpha=0.28; ctx.drawImage(b,cx,cy,cw,ch,dx,dy,dw,dh); ctx.globalAlpha=1;
+        ctx.save(); ctx.beginPath(); maskPath(mx,my,mw,mh); ctx.clip();
+        ctx.drawImage(b,cx,cy,cw,ch,dx,dy,dw,dh); ctx.restore();
+        ctx.restore();
+        ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=2; ctx.beginPath(); maskPath(mx,my,mw,mh); ctx.stroke();
+        geo={mx:mx,my:my,mw:mw,mh:mh,dw:dw,dh:dh};
+        hint=cover?(((ph.z||1)>1.01)?'Drag to move the picture in the frame':'✋ Drag to choose what shows'):'The whole picture, with room around it';
+      } else {
+        var kf=Math.min((W-28)/b.width,(H-28)/b.height), dw2=b.width*kf, dh2=b.height*kf, ox=(W-dw2)/2, oy=(H-dh2)/2;
+        ctx.drawImage(b,ox,oy,dw2,dh2);
+        geo={ox:ox,oy:oy,dw:dw2,dh:dh2,kf:kf};
+        if(mode==='crop'){
+          hint=Math.abs(e.str)>0.05?('Straightening by '+e.str.toFixed(1)+'°'):'Pull a handle, or drag the box';
+          if(Math.abs(e.str)>0.05){
+            ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=1;
+            for(var g=1;g<8;g++){ctx.beginPath();ctx.moveTo(ox+dw2*g/8,oy);ctx.lineTo(ox+dw2*g/8,oy+dh2);ctx.moveTo(ox,oy+dh2*g/8);ctx.lineTo(ox+dw2,oy+dh2*g/8);ctx.stroke();}
+          }
+        } else hint=e.cut.on?'Tap the background to say which colour to remove':'Turn it on to watch it work';
+      }
+      $('shHint').textContent=hint;
+      placeCrop();
+      $('shUndo').hidden=!changed();
+    }
+    /* ---- the crop box and its eight handles ---- */
+    var HK=['nw','n','ne','e','se','s','sw','w'];
+    function aspectRatio(){return aspect==='card'?ratio():(aspect==='1:1'?1:0);}
+    function placeCrop(){
+      if(box){box.remove();box=null;}
+      if(mode!=='crop')return;
+      var cr=e.crop||{x:0,y:0,w:1,h:1};
+      box=document.createElement('div'); box.className='sh-crop';
+      box.style.left=(geo.ox+cr.x*geo.dw)+'px'; box.style.top=(geo.oy+cr.y*geo.dh)+'px';
+      box.style.width=(cr.w*geo.dw)+'px'; box.style.height=(cr.h*geo.dh)+'px';
+      HK.forEach(function(k){
+        var h=document.createElement('div'); h.className='sh-h '+k;
+        h.style.left=(k.indexOf('w')>=0?0:(k.indexOf('e')>=0?100:50))+'%';
+        h.style.top=(k.indexOf('n')>=0?0:(k.indexOf('s')>=0?100:50))+'%';
+        wireHandle(h,k); box.appendChild(h);
+      });
+      wireBoxMove(box); stage.appendChild(box);
+    }
+    function cropCopy(){var c=e.crop||{x:0,y:0,w:1,h:1};return {x:c.x,y:c.y,w:c.w,h:c.h};}
+    function wireHandle(h,k){
+      h.addEventListener('pointerdown',function(ev){
+        ev.stopPropagation(); ev.preventDefault();
+        try{h.setPointerCapture(ev.pointerId);}catch(_){}
+        var c0=cropCopy(), x0=ev.clientX, y0=ev.clientY, ar=aspectRatio(), b=oriented(), z=appZoom();
+        function mv(ev2){
+          var dx=(ev2.clientX-x0)/z/geo.dw, dy=(ev2.clientY-y0)/z/geo.dh, c={x:c0.x,y:c0.y,w:c0.w,h:c0.h};
+          if(k.indexOf('e')>=0)c.w=Math.max(0.08,Math.min(1-c0.x,c0.w+dx));
+          if(k.indexOf('s')>=0)c.h=Math.max(0.08,Math.min(1-c0.y,c0.h+dy));
+          if(k.indexOf('w')>=0){c.x=Math.max(0,Math.min(c0.x+c0.w-0.08,c0.x+dx));c.w=c0.x+c0.w-c.x;}
+          if(k.indexOf('n')>=0){c.y=Math.max(0,Math.min(c0.y+c0.h-0.08,c0.y+dy));c.h=c0.y+c0.h-c.y;}
+          if(ar&&b){
+            /* keeping the shape: the height follows the width, in real pixels */
+            var pw=c.w*b.width, phh=pw/ar;
+            if(k==='n'||k==='s'){phh=c.h*b.height;pw=phh*ar;c.w=pw/b.width;if(k.indexOf('w')>=0)c.x=c0.x+c0.w-c.w;}
+            else{var hh=phh/b.height;if(k.indexOf('n')>=0)c.y=c0.y+c0.h-hh;c.h=hh;}
+            if(c.x<0||c.y<0||c.x+c.w>1.0001||c.y+c.h>1.0001)return;
+          }
+          e.crop=c; draw();
+        }
+        function up(){h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);}
+        h.addEventListener('pointermove',mv); h.addEventListener('pointerup',up); h.addEventListener('pointercancel',up);
+      });
+    }
+    function wireBoxMove(bx){
+      bx.addEventListener('pointerdown',function(ev){
+        ev.preventDefault();
+        try{bx.setPointerCapture(ev.pointerId);}catch(_){}
+        var c0=cropCopy(), x0=ev.clientX, y0=ev.clientY, z=appZoom();
+        function mv(ev2){
+          var c=cropCopy();
+          c.x=Math.max(0,Math.min(1-c0.w,c0.x+(ev2.clientX-x0)/z/geo.dw));
+          c.y=Math.max(0,Math.min(1-c0.h,c0.y+(ev2.clientY-y0)/z/geo.dh));
+          e.crop=c; draw();
+        }
+        function up(){bx.removeEventListener('pointermove',mv);bx.removeEventListener('pointerup',up);bx.removeEventListener('pointercancel',up);}
+        bx.addEventListener('pointermove',mv); bx.addEventListener('pointerup',up); bx.addEventListener('pointercancel',up);
+      });
+    }
+    /* ---- the stage itself: drag to pan in the frame, tap a colour to cut it out ---- */
+    (function(){
+      var drag=false,lx=0,ly=0;
+      stage.addEventListener('dragstart',function(ev){ev.preventDefault();});
+      stage.addEventListener('pointerdown',function(ev){
+        if(mode==='frame'&&isCover()){
+          drag=true; lx=ev.clientX; ly=ev.clientY;
+          try{stage.setPointerCapture(ev.pointerId);}catch(_){}
+        } else if(mode==='cut'&&e.cut.on&&srcImg){
+          var r=stage.getBoundingClientRect(), z=appZoom(), b=oriented(); if(!b)return;
+          var bx=Math.round(((ev.clientX-r.left)/z-geo.ox)/geo.kf), by=Math.round(((ev.clientY-r.top)/z-geo.oy)/geo.kf);
+          if(bx<0||by<0||bx>=b.width||by>=b.height)return;
+          /* read the colour off the picture before the cut-out, so a tap on an
+             area already removed still reads the colour that was there */
+          var raw=drawEdited(srcImg,{rot:e.rot,str:e.str,cut:{on:false},crop:null},900);
+          var px=raw.getContext('2d').getImageData(bx,by,1,1).data;
+          e.cut.bg=[px[0],px[1],px[2]]; base.key=''; tools(); draw();
+        }
+      });
+      stage.addEventListener('pointermove',function(ev){
+        if(!drag)return;
+        var z=appZoom(), sx=geo.dw-geo.mw, sy=geo.dh-geo.mh, dx=(ev.clientX-lx)/z, dy=(ev.clientY-ly)/z;
+        lx=ev.clientX; ly=ev.clientY;
+        /* a flipped photo is mirrored on screen, so its posX runs the other way */
+        if(sx>1)ph.posX=Math.max(0,Math.min(100,(ph.posX==null?50:ph.posX)-dx/sx*100*(ph.flip?-1:1)));
+        if(sy>1)ph.posY=Math.max(0,Math.min(100,(ph.posY==null?50:ph.posY)-dy/sy*100));
+        draw();
+      });
+      function drop(ev){if(!drag)return;drag=false;try{stage.releasePointerCapture(ev.pointerId);}catch(_){}}
+      stage.addEventListener('pointerup',drop); stage.addEventListener('pointercancel',drop);
+      stage.addEventListener('wheel',function(ev){
+        if(mode!=='frame'||!isCover())return;
+        ev.preventDefault();
+        ph.z=Math.max(1,Math.min(3,(ph.z||1)*(ev.deltaY<0?1.06:1/1.06)));
+        if(ph.z<1.005)delete ph.z;
+        tools(); draw();
+      },{passive:false});
+    })();
+    /* ---- the row of tools under the stage, per mode ---- */
+    function tools(){
+      var t=$('shTools'), h='', z=ph.z||1;
+      if(mode==='frame'){
+        h='<div class="sh-row"><button class="pbtn'+(isCover()?' on':'')+'" id="shFit" type="button">'+(isCover()?'▣ Fill the frame':'▤ Whole image')+'</button>'+
+          (isCover()?('<span class="pd-lbl" style="margin:0">Zoom</span><input class="prog-range" id="shZoom" type="range" min="100" max="300" step="5" aria-label="Zoom" value="'+Math.round(z*100)+'">'+
+            '<span class="sh-v">'+z.toFixed(2)+'×</span>'+(z>1.01?'<button class="pbtn quiet-danger" id="shZoomReset" type="button" style="color:var(--muted)">No zoom</button>':'')):'')+
+          '<button class="pbtn" id="shCentre" type="button">⌖ Centre it</button></div>';
+      } else if(mode==='crop'){
+        h='<div class="sh-row"><span class="pd-lbl" style="margin:0">Keep the shape</span>'+
+          [['free','Free'],['card','Card frame'],['1:1','Square']].map(function(a){return '<button class="phsz'+(aspect===a[0]?' on':'')+'" data-shaspect="'+a[0]+'" type="button">'+a[1]+'</button>';}).join('')+
+          '<button class="pbtn quiet-danger" id="shCropReset" type="button" style="color:var(--muted)">Whole picture</button></div>'+
+          '<div class="sh-row"><span class="pd-lbl" style="margin:0">Straighten</span><input class="prog-range" id="shStr" type="range" min="-150" max="150" step="1" aria-label="Straighten" value="'+Math.round(e.str*10)+'">'+
+          '<span class="sh-v">'+e.str.toFixed(1)+'°</span><button class="pbtn quiet-danger" id="shStrReset" type="button" style="color:var(--muted)">Level</button></div>';
+      } else {
+        h='<div class="sh-row"><button class="pbtn'+(e.cut.on?' on':'')+'" id="shCutOn" type="button">'+(e.cut.on?'✂ Cutting out the background':'✂ Cut out the background')+'</button>'+
+          (e.cut.bg?'<span class="sh-sum" style="margin:0">Removing the colour you tapped</span>':'')+'</div>'+
+          '<div class="sh-row"><span class="pd-lbl" style="margin:0">Sensitivity</span><input class="prog-range" id="shTol" type="range" min="10" max="160" step="2" aria-label="Cut-out sensitivity" value="'+e.cut.tol+'"'+(e.cut.on?'':' disabled')+'>'+
+          '<span class="sh-v">'+e.cut.tol+'</span>'+(e.cut.bg?'<button class="pbtn quiet-danger" id="shBgReset" type="button" style="color:var(--muted)">Corners again</button>':'')+'</div>'+
+          '<div class="sh-sum">Works best on a plain or white background. Photos of a kit box or a framed piece on a table are the ones it is for.</div>';
+      }
+      t.innerHTML=h;
+      t.querySelectorAll('.prog-range').forEach(setFill);
+      if($('shFit'))$('shFit').addEventListener('click',function(){ph.fit=isCover()?'contain':'cover';tools();draw();});
+      var zr=$('shZoom'); if(zr)zr.addEventListener('input',function(){ph.z=zr.value/100;if(ph.z<1.005)delete ph.z;setFill(zr);zr.nextElementSibling.textContent=(ph.z||1).toFixed(2)+'×';draw();});
+      if($('shZoomReset'))$('shZoomReset').addEventListener('click',function(){delete ph.z;tools();draw();});
+      if($('shCentre'))$('shCentre').addEventListener('click',function(){ph.posX=50;ph.posY=50;draw();});
+      t.querySelectorAll('[data-shaspect]').forEach(function(b){b.addEventListener('click',function(){
+        aspect=b.getAttribute('data-shaspect');
+        var ar=aspectRatio(), o=oriented();
+        if(ar&&o){
+          /* fit the shape inside the current box, centred */
+          var c=cropCopy(), pw=c.w*o.width, phh=pw/ar;
+          if(phh>c.h*o.height){phh=c.h*o.height;pw=phh*ar;}
+          e.crop={x:c.x+(c.w-pw/o.width)/2,y:c.y+(c.h-phh/o.height)/2,w:pw/o.width,h:phh/o.height};
+        }
+        tools(); draw();
+      });});
+      if($('shCropReset'))$('shCropReset').addEventListener('click',function(){e.crop=null;aspect='free';tools();draw();});
+      var sr=$('shStr'); if(sr)sr.addEventListener('input',function(){e.str=sr.value/10;base.key='';setFill(sr);sr.nextElementSibling.textContent=e.str.toFixed(1)+'°';draw();});
+      if($('shStrReset'))$('shStrReset').addEventListener('click',function(){e.str=0;base.key='';tools();draw();});
+      if($('shCutOn'))$('shCutOn').addEventListener('click',function(){e.cut.on=!e.cut.on;base.key='';tools();draw();});
+      var tr=$('shTol'); if(tr)tr.addEventListener('input',function(){e.cut.tol=parseInt(tr.value,10)||60;base.key='';setFill(tr);tr.nextElementSibling.textContent=String(e.cut.tol);draw();});
+      if($('shBgReset'))$('shBgReset').addEventListener('click',function(){e.cut.bg=null;base.key='';tools();draw();});
+    }
+    /* ---- turn, flip and the card frame: there whatever the mode ---- */
+    function always(){
+      var a=$('shAlways');
+      a.innerHTML='<button class="pbtn" id="shTurn" type="button" title="Turn a quarter clockwise">⟳ Turn</button>'+
+        '<button class="pbtn'+(ph.flip?' on':'')+'" id="shFlip" type="button">⇄ Flip</button>'+
+        '<span class="pd-lbl" style="margin:0 0 0 6px">Card frame:</span>'+
+        [['landscape','▭'],['portrait','▯'],['square','◻'],['round','◯']].map(function(f){
+          return '<button class="phsz'+((p.frame||'landscape')===f[0]?' on':'')+'" data-shframe="'+f[0]+'" type="button" title="'+capFirst(f[0])+'">'+f[1]+'</button>';
+        }).join('');
+      $('shTurn').addEventListener('click',function(){
+        e.rot=((e.rot||0)+90)%360;
+        /* the crop is kept in fractions of the turned picture, so it turns with it */
+        if(e.crop){var c=e.crop;e.crop={x:1-c.y-c.h,y:c.x,w:c.h,h:c.w};}
+        base.key=''; draw();
+      });
+      $('shFlip').addEventListener('click',function(){ph.flip=ph.flip?0:1;always();draw();});
+      a.querySelectorAll('[data-shframe]').forEach(function(b){b.addEventListener('click',function(){
+        p.frame=b.getAttribute('data-shframe'); always(); if(aspect==='card')tools(); draw();
+        if(state.view==='paint'&&state.active===p.id)renderPainting(); saveEdit();
+      });});
+    }
+    /* ---- everything else about this photo: the cover it is, its place and size in the gallery, what it shows ---- */
+    function rows(){
+      var i=idx(), lbls=coverLabels(p), isDraw=(kindOf(p)==='drawing');
+      $('shName').textContent=lbls[i]?(lbls[i]+' picture'):('Photo '+(i+1));
+      var h='<div class="ed-grp"><span class="ed-grp-lbl">'+(isDraw?'Main picture':'Cover')+'</span><div class="ed-ring">'+
+        (isDraw
+          ? '<button class="pbtn'+(i===0?' on':'')+'" id="shSold" type="button">★ Main picture</button>'
+          : ('<button class="pbtn'+((!p.noSold&&i===0)?' on':'')+'" id="shSold" type="button" title="Make this the Sold cover">★ Sold</button>'+
+             '<button class="pbtn'+((i===(p.noSold?0:1))?' on':'')+'" id="shResult" type="button" title="Make this the Result cover">★ Result</button>'))+
+        '</div></div>'+
+        '<div class="ed-grp"><span class="ed-grp-lbl">In the gallery</span><div class="ed-ring">'+
+          '<button class="pbtn" id="shLeft" type="button" aria-label="Move this photo earlier">◀ order</button>'+
+          '<button class="pbtn" id="shRight" type="button" aria-label="Move this photo later">order ▶</button>'+
+          '<span class="pd-lbl" style="margin:0 0 0 4px;">Size:</span>'+
+          PH_SIZES.map(function(lb,si){return '<button class="phsz'+((ph.s==null?1:ph.s)===si?' on':'')+'" data-shsize="'+si+'" type="button">'+lb+'</button>';}).join('')+
+        '</div></div>'+
+        '<div class="ed-grp"><span class="ed-grp-lbl">What it shows</span>'+
           '<div class="ed-sizes" style="margin-bottom:5px;"><span class="pd-lbl" style="margin:0">This photo is'+
-            (state.photoLabels.length?(' <button class="fb-edit" data-editlist="plabel" type="button">'+(editLists.plabel?'done':'edit list')+'</button>'):'')+':</span>'+
+            (state.photoLabels.length?(' <button class="fb-edit" id="shEditLabels" type="button">'+(editLists.plabel?'done':'edit list')+'</button>'):'')+':</span>'+
             state.photoLabels.map(function(L){
               var on=((ph.lbl||'')===L);
-              return '<button class="phsz'+(on&&!editLists.plabel?' on':'')+'" data-phlabel="'+esc(L)+'" type="button"'+
-                (editLists.plabel?' style="color:var(--bad);border-color:var(--bad);"':'')+'>'+
-                (editLists.plabel?'✕ ':'')+esc(capFirst(L))+'</button>';
+              return '<button class="phsz'+(on&&!editLists.plabel?' on':'')+'" data-shlabel="'+esc(L)+'" type="button"'+
+                (editLists.plabel?' style="color:var(--bad);border-color:var(--bad);"':'')+'>'+(editLists.plabel?'✕ ':'')+esc(capFirst(L))+'</button>';
             }).join('')+
-            '<span class="addinline"><input id="newPhLabel" type="text" maxlength="24" placeholder="＋ new label"><button class="pbtn" id="addPhLabel" type="button">Add</button></span>'+
+            '<span class="addinline"><input id="shNewLabel" type="text" maxlength="24" placeholder="＋ new label"><button class="pbtn" id="shAddLabel" type="button">Add</button></span>'+
           '</div>'+
-          '<input class="ed-cap" id="phCaption" type="text" maxlength="80" placeholder="Caption — e.g. halfway there" value="'+esc(ph.c||'')+'" aria-label="Caption for this photo">'+
+          '<input class="ed-cap" id="shCaption" type="text" maxlength="80" placeholder="Caption — e.g. halfway there" value="'+esc(ph.c||'')+'" aria-label="Caption for this photo">'+
           (ph.ts?'<div class="photo-hint" style="margin-top:5px;">Added '+fmtDate(ph.ts)+(ph.c?'':' — a caption shows on the project page’s gallery and when the photo opens big')+'</div>':'')+
-          '</div>'+
-          '<div class="ed-bottom"><button class="pbtn quiet-danger" id="phDel" type="button">✕ Remove this photo</button></div>'+
         '</div>'+
-      '</div></div>';
+        '<div class="ed-bottom"><button class="pbtn quiet-danger" id="shDel" type="button">✕ Remove this photo</button></div>';
+      $('shRows').innerHTML=h;
+      function moved(){savePhotos(p.id);saveEdit();if(state.view==='paint'&&state.active===p.id)renderPainting();rows();}
+      $('shSold').addEventListener('click',function(){
+        p.noSold=false;
+        var a=p.photos.splice(idx(),1)[0]; p.photos.unshift(a);
+        moved(); toast('★ Set as the Sold cover ✓',1300);
+      });
+      if($('shResult'))$('shResult').addEventListener('click',function(){
+        /* the only photo can be the Result too — "I only photographed the
+           finished work" is a perfectly normal project */
+        if(p.photos.length===1){
+          p.noSold=!p.noSold;
+          if(p.noSold){if(!p.ach)p.ach={};if(!p.ach.result){p.ach.result=1;achAdd('result',1);}}
+          moved(); toast(p.noSold?'★ This is the Result picture — the project simply has no Sold picture':'★ Back to being the Sold cover',2800);
+          return;
+        }
+        var a=p.photos.splice(idx(),1)[0], to=Math.min(p.noSold?0:1,p.photos.length);
+        p.photos.splice(to,0,a); moved(); toast('★ Set as the Result cover ✓',1300);
+      });
+      $('shLeft').addEventListener('click',function(){var i2=idx();if(i2>0){var a=p.photos.splice(i2,1)[0];p.photos.splice(i2-1,0,a);moved();}});
+      $('shRight').addEventListener('click',function(){var i2=idx();if(i2<p.photos.length-1){var a=p.photos.splice(i2,1)[0];p.photos.splice(i2+1,0,a);moved();}});
+      $('shRows').querySelectorAll('[data-shsize]').forEach(function(b){b.addEventListener('click',function(){ph.s=parseInt(b.getAttribute('data-shsize'),10);moved();});});
+      if($('shEditLabels'))$('shEditLabels').addEventListener('click',function(){editLists.plabel=!editLists.plabel;rows();});
+      $('shRows').querySelectorAll('[data-shlabel]').forEach(function(b){b.addEventListener('click',function(){
+        var L=b.getAttribute('data-shlabel');
+        if(editLists.plabel){
+          if(!twoTap('rmplbl'+L,b,'✕ remove?'))return;
+          state.photoLabels=state.photoLabels.filter(function(x){return x!==L;});
+          state.paintings.forEach(function(pp){(pp.photos||[]).forEach(function(q){if(q.lbl===L)delete q.lbl;});});
+          moved(); toast('Label removed from every photo',1600); return;
+        }
+        if(ph.lbl===L)delete ph.lbl; else ph.lbl=L;   /* tapping it again clears it */
+        moved();
+      });});
+      $('shAddLabel').addEventListener('click',function(){
+        var v=($('shNewLabel').value||'').trim().toLowerCase(); if(!v)return;
+        if(state.photoLabels.indexOf(v)===-1)state.photoLabels.push(v);
+        ph.lbl=v; moved();
+      });
+      $('shNewLabel').addEventListener('keydown',function(ev){if(ev.key==='Enter')$('shAddLabel').click();});
+      /* applied as it's typed, no redraw — a redraw here would snatch the keyboard */
+      $('shCaption').addEventListener('input',function(ev){ph.c=ev.target.value;savePhotos(p.id);});
+      $('shDel').addEventListener('click',function(){
+        if(!twoTap('shdel',$('shDel'),'✕ remove?'))return;
+        var at=idx(); p.photos.splice(at,1);
+        close(false);
+        if(state.view==='paint'&&state.active===p.id)renderPainting();
+        savePhotos(p.id); showPhotoUndo(p.id,ph,at,'Photo removed');
+      });
+    }
+    /* ---- the way out ---- */
+    function close(keep){
+      if(!ov.isConnected)return;
+      ov.remove(); document.body.style.overflow='';
+      document.removeEventListener('keydown',onKey); window.removeEventListener('resize',draw);
+      if(!keep)return;
+      var pid=p.id, eChanged=(JSON.stringify(e)!==eSnap);
+      if(editsTrivial(e))delete ph.e;
+      function after(){
+        savePhotos(pid); if(changed())saveEdit();
+        if(state.view==='paint'&&state.active===pid)renderPainting();
+      }
+      /* the picture everything shows is redrawn only when the settings that
+         make it changed — a pan or a zoom is applied on the way out by CSS */
+      if(eChanged)renderEdits(ph,function(){refreshThumb(ph,pid);after();});
+      else after();
+    }
+    function onKey(ev){if(ev.key==='Escape'){ev.preventDefault();close(true);}}
+    ov._destroy=function(){close(true);};   /* Back closes it, like the full-screen photo */
+    $('shDone').addEventListener('click',function(){close(true);});
+    $('shUndo').addEventListener('click',function(){
+      var s=snapObj;
+      ph.fit=s.fit; ph.posX=s.posX; ph.posY=s.posY; ph.flip=s.flip; ph.s=s.s;
+      if(s.z>1)ph.z=s.z; else delete ph.z;
+      e=s.e?JSON.parse(JSON.stringify(s.e)):freshEdits(); ph.e=e; base.key='';
+      aspect='free'; tools(); always(); draw(); rows();
+      toast('⤺ Put back the way it was',1300);
+    });
+    ov.querySelectorAll('[data-shmode]').forEach(function(b){b.addEventListener('click',function(){
+      mode=b.getAttribute('data-shmode');
+      ov.querySelectorAll('[data-shmode]').forEach(function(x){x.classList.toggle('on',x===b);});
+      tools(); draw();
+    });});
+    document.addEventListener('keydown',onKey);
+    window.addEventListener('resize',draw);
+    tools(); always(); rows();
+    try{ov.focus();}catch(_){}
+    loadImg(ph.d,function(img){
+      if(!img){toast('That photo could not be opened on this device — tap 🩺 Photo check',3200);close(false);return;}
+      srcImg=img; draw();
+    });
   }
   /* ---------- how a project looks in the list ----------
      Four shapes of the same card. They exist side by side so the choice can be
@@ -2565,7 +2958,7 @@ try{
     var labels=coverLabels(p);
     var h='<div class="ovphotos frame-'+(p.frame||'landscape')+'">';
     p.photos.slice(0,n).forEach(function(ph,i){
-      h+='<div class="ovphoto"><img src="'+thumbSrc(ph)+'" alt="'+esc(p.name)+(labels[i]?(' — '+labels[i]):'')+'" style="'+photoStyle(ph)+'">'+
+      h+='<div class="ovphoto'+(ph.z>1.001?' zoomed':'')+'"><img src="'+thumbSrc(ph)+'" alt="'+esc(p.name)+(labels[i]?(' — '+labels[i]):'')+'" style="'+photoStyle(ph)+'">'+
         (labels[i]?'<span class="ovphoto-lbl">'+labels[i]+'</span>':'')+'</div>';
     });
     return h+'</div>';
@@ -2587,7 +2980,7 @@ try{
       return open+
         /* the picture IS the tile, so tapping it opens the project rather than
            blowing the photo up full-screen the way it does on a wide card */
-        (p.photos&&p.photos.length?'<div class="tile-pic"><img src="'+thumbSrc(p.photos[0])+'" alt="'+esc(p.name)+'" style="'+photoStyle(p.photos[0])+'">'+
+        (p.photos&&p.photos.length?'<div class="tile-pic'+(p.photos[0].z>1.001?' zoomed':'')+'"><img src="'+thumbSrc(p.photos[0])+'" alt="'+esc(p.name)+'" style="'+photoStyle(p.photos[0])+'">'+
           (selBox?'<span class="tile-sel">'+selBox+'</span>':'')+'</div>'
          :'<div class="tile-pic empty">'+(selBox?'<span class="tile-sel">'+selBox+'</span>':'')+'<span class="tile-none">no photo yet</span></div>')+
         '<div class="tile-body">'+
@@ -2819,7 +3212,10 @@ try{
   function drawCover(ctx,img,dx,dy,dw,dh,ph){
     var iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
     if(!iw||!ih)return;
-    var k=Math.max(dw/iw,dh/ih);
+    /* the zoom multiplies the cover scale, and the pan formula below already
+       anchors the image's posX point to the frame's — the same point the CSS
+       zoom in photoStyle scales about */
+    var k=Math.max(dw/iw,dh/ih)*(((ph.fit||'cover')==='cover'&&ph.z>1.001)?ph.z:1);
     var sw=dw/k, sh=dh/k;
     var px=(ph.posX==null?50:ph.posX)/100, py=(ph.posY==null?50:ph.posY)/100;
     var sx=(iw-sw)*px, sy=(ih-sh)*py;
@@ -2849,7 +3245,7 @@ try{
     }
     if(!pend){done();return;}
     photos.forEach(function(ph,i){
-      loadImg(ph.d,function(img){imgs[i]=img;if(--pend===0)done();});
+      loadImg(shown(ph),function(img){imgs[i]=img;if(--pend===0)done();});
     });
   }
   function drawShareCard(p,photos,imgs){
@@ -3024,7 +3420,7 @@ try{
         '<div class="cmp-body'+(stacked?' stack':'')+(solo>=0?' has-solo':'')+'">'+
           photos.map(function(ph,i){
             return '<figure class="cmp-fig'+(solo===i?' solo':'')+'" data-i="'+i+'">'+
-              '<img src="'+ph.d+'" alt="'+esc(labels[i])+'"'+(ph.flip?' style="transform:scaleX(-1)"':'')+'>'+
+              '<img src="'+shown(ph)+'" alt="'+esc(labels[i])+'"'+(ph.flip?' style="transform:scaleX(-1)"':'')+'>'+
               '<figcaption class="cmp-lbl">'+esc(labels[i])+'</figcaption></figure>';
           }).join('')+
         '</div>'+
@@ -3335,7 +3731,8 @@ try{
      "larger than it needs to be" means it, rather than nagging about every
      good photo */
   var BIG_PHOTO=700*1024;
-  function photoBytes(ph){return ph?(((ph.d&&ph.d.length)||0)+((ph.t&&ph.t.length)||0)):0;}
+  /* the original, the edited picture drawn from it (if any), and the small copy */
+  function photoBytes(ph){return ph?(((ph.d&&ph.d.length)||0)+((ph.r&&ph.r.length)||0)+((ph.t&&ph.t.length)||0)):0;}
   function storageRows(){
     var rows=state.paintings.map(function(p){
       var photos=(p.photos||[]).reduce(function(s,ph){return s+photoBytes(ph);},0);
@@ -3437,7 +3834,8 @@ try{
     importImage(blob,PHOTO_MAX,PHOTO_Q,function(d){
       if(!d){toast('That picture couldn’t be redrawn on this device — it is unchanged',3000);return;}
       if(d.length>=before){toast('That one is already as small as it goes',2200);return;}
-      ph.d=d; refreshThumb(ph,pid); savePhotos(pid); save();
+      /* the edited picture, if there is one, is drawn again from the smaller original */
+      ph.d=d; renderEdits(ph,function(){refreshThumb(ph,pid); savePhotos(pid); save();});
       /* the saving goes on the panel, not in a toast: saving the file pops its
          own "Saved ✓" a moment later and would wipe the numbers off the screen */
       storMsg='“'+p.name+'” · '+photoLabel(p,i)+': '+fmtBytes(before)+' → '+fmtBytes(d.length)+
@@ -3472,7 +3870,7 @@ try{
      for the places that only need a glance; the full photo is still what opens
      in the lightbox, Compare, and the project page's big covers. */
   var THUMB_MAX=360, THUMB_Q=0.72, THUMB_WORTH=60*1024;
-  function thumbSrc(ph){return (ph&&ph.t)||(ph&&ph.d)||'';}
+  function thumbSrc(ph){return (ph&&ph.t)||shown(ph);}
   function makeThumb(d,cb){
     if(!d||d.length<THUMB_WORTH){cb('');return;}
     loadImg(d,function(img){
@@ -3490,7 +3888,7 @@ try{
      now a picture of the past, so it is redone from the new original */
   function refreshThumb(photo,pid,cb){
     delete photo.t;
-    makeThumb(photo.d,function(t){
+    makeThumb(shown(photo),function(t){
       if(t){photo.t=t;if(pid)savePhotos(pid);}
       cb&&cb();
     });
@@ -3501,7 +3899,7 @@ try{
     var queue=[];
     state.paintings.forEach(function(p){
       (p.photos||[]).forEach(function(ph){
-        if(ph&&ph.d&&!ph.t&&ph.d.length>THUMB_WORTH)queue.push({pid:p.id,ph:ph});
+        if(ph&&ph.d&&!ph.t&&shown(ph).length>THUMB_WORTH)queue.push({pid:p.id,ph:ph});
       });
     });
     if(!queue.length)return;
@@ -3509,7 +3907,7 @@ try{
     function step(){
       if(i>=queue.length)return;
       var it=queue[i++];
-      makeThumb(it.ph.d,function(t){
+      makeThumb(shown(it.ph),function(t){
         if(t){it.ph.t=t;savePhotos(it.pid);}
         setTimeout(step,120);
       });
@@ -3842,7 +4240,7 @@ try{
         np.aw=28; np.arot=0; np.aunit='w';
       }
       p.photos.push(np);
-      if(isActive){if(arrangeMode)arrSel=p.photos.length-1; else selPhoto=p.photos.length-1;}
+      if(isActive&&arrangeMode)arrSel=p.photos.length-1;
       if(isActive&&state.view==='paint')renderPainting();
       savePhotos(pid); pushHistory();
       toast((rec&&rec.damaged)
@@ -4030,107 +4428,6 @@ try{
     if(photo.arot==null)photo.arot=0;
     return photo;
   }
-  /* trim/knock out a plain background: flood-fill inwards from the edges, then crop to what's left */
-  function cutOutBackground(photo,cb){
-    var img=new Image();
-    img.onload=function(){
-      var w=img.width,h=img.height;
-      if(!w||!h){cb(false);return;}
-      var cv=document.createElement('canvas');cv.width=w;cv.height=h;
-      var ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
-      var data;try{data=ctx.getImageData(0,0,w,h);}catch(e){cb(false);return;}
-      var d=data.data,n=w*h;
-      function at(x,y){var i=(y*w+x)*4;return [d[i],d[i+1],d[i+2]];}
-      var cs=[at(0,0),at(w-1,0),at(0,h-1),at(w-1,h-1)],bg=[0,0,0];
-      cs.forEach(function(c){bg[0]+=c[0];bg[1]+=c[1];bg[2]+=c[2];});
-      bg=[bg[0]/4,bg[1]/4,bg[2]/4];
-      var tol=62, seen=new Uint8Array(n), stack=[];
-      function near(i){var r=d[i*4]-bg[0],g=d[i*4+1]-bg[1],b=d[i*4+2]-bg[2];return (r*r+g*g+b*b)<tol*tol;}
-      for(var x=0;x<w;x++){stack.push(x);stack.push((h-1)*w+x);}
-      for(var y=0;y<h;y++){stack.push(y*w);stack.push(y*w+w-1);}
-      while(stack.length){
-        var i=stack.pop();
-        if(i<0||i>=n||seen[i])continue;
-        if(!near(i))continue;
-        seen[i]=1; d[i*4+3]=0;
-        var xx=i%w, yy=(i-xx)/w;
-        if(xx>0)stack.push(i-1);
-        if(xx<w-1)stack.push(i+1);
-        if(yy>0)stack.push(i-w);
-        if(yy<h-1)stack.push(i+w);
-      }
-      var minX=w,minY=h,maxX=-1,maxY=-1;
-      for(var j=0;j<n;j++){
-        if(d[j*4+3]>10){var jx=j%w,jy=(j-jx)/w;
-          if(jx<minX)minX=jx; if(jx>maxX)maxX=jx;
-          if(jy<minY)minY=jy; if(jy>maxY)maxY=jy;}
-      }
-      if(maxX<0){cb(false);return;}
-      ctx.putImageData(data,0,0);
-      var cw=maxX-minX+1, chh=maxY-minY+1;
-      var out=document.createElement('canvas');out.width=cw;out.height=chh;
-      out.getContext('2d').drawImage(cv,minX,minY,cw,chh,0,0,cw,chh);
-      photo.d=out.toDataURL('image/png');
-      cb(true);
-    };
-    img.onerror=function(){cb(false);};
-    img.src=photo.d;
-  }
-  /* drag-a-rectangle crop overlay */
-  function openCrop(photo,cb){
-    var ov=document.createElement('div'); ov.className='lightbox';
-    ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
-    ov.setAttribute('aria-label','Crop this photo');
-    ov.style.flexDirection='column'; ov.style.gap='10px'; ov.style.cursor='default';
-    var hint=document.createElement('div'); hint.style.cssText='color:#fff;font-size:12.5px;font-weight:700;';
-    hint.textContent='Drag on the image to choose the part to keep.';
-    var wrap=document.createElement('div'); wrap.className='cropwrap';
-    var im=document.createElement('img'); im.src=photo.d; wrap.appendChild(im);
-    var box=document.createElement('div'); box.className='cropbox'; box.style.display='none'; wrap.appendChild(box);
-    var bar=document.createElement('div'); bar.style.cssText='display:flex;gap:8px;';
-    var apply=document.createElement('button'); apply.className='chipbtn'; apply.textContent='Apply crop';
-    apply.style.cssText='background:#5B3FA8;color:#fff;border-color:#5B3FA8;';
-    var cancel=document.createElement('button'); cancel.className='chipbtn'; cancel.textContent='Cancel';
-    bar.appendChild(apply); bar.appendChild(cancel);
-    ov.appendChild(hint); ov.appendChild(wrap); ov.appendChild(bar);
-    document.body.appendChild(ov);
-    var sx=0,sy=0,ex=0,ey=0,drawing=false;
-    function upd(){
-      var l=Math.min(sx,ex),t=Math.min(sy,ey),ww=Math.abs(ex-sx),hh=Math.abs(ey-sy);
-      box.style.left=l+'px';box.style.top=t+'px';box.style.width=ww+'px';box.style.height=hh+'px';
-    }
-    wrap.addEventListener('pointerdown',function(e){
-      var r=im.getBoundingClientRect(); drawing=true;
-      sx=e.clientX-r.left; sy=e.clientY-r.top; ex=sx; ey=sy;
-      box.style.display='block'; upd();
-      try{wrap.setPointerCapture(e.pointerId);}catch(_){}
-    });
-    wrap.addEventListener('pointermove',function(e){
-      if(!drawing)return; var r=im.getBoundingClientRect();
-      ex=e.clientX-r.left; ey=e.clientY-r.top; upd();
-    });
-    wrap.addEventListener('pointerup',function(e){drawing=false;try{wrap.releasePointerCapture(e.pointerId);}catch(_){}});
-    cancel.addEventListener('click',function(){ov.remove();cb(false);});
-    apply.addEventListener('click',function(){
-      var r=im.getBoundingClientRect();
-      var l=Math.min(sx,ex),t=Math.min(sy,ey),ww=Math.abs(ex-sx),hh=Math.abs(ey-sy);
-      if(ww<8||hh<8){ov.remove();cb(false);return;}
-      var scale=im.naturalWidth/r.width;
-      var img2=new Image();
-      img2.onload=function(){
-        var cv=document.createElement('canvas');
-        cv.width=Math.max(1,Math.round(ww*scale)); cv.height=Math.max(1,Math.round(hh*scale));
-        cv.getContext('2d').drawImage(img2,Math.round(l*scale),Math.round(t*scale),cv.width,cv.height,0,0,cv.width,cv.height);
-        /* a cut-out photo is a PNG with see-through edges: saving it as JPEG would
-           turn all of that black, so PNGs stay PNGs and everything else lands on white */
-        photo.d=/^data:image\/png/i.test(photo.d)?cv.toDataURL('image/png'):flattenToJpeg(cv,0.85);
-        ov.remove(); cb(true);
-      };
-      img2.onerror=function(){ov.remove();cb(false);};
-      img2.src=photo.d;
-    });
-  }
-
   /* Only for the photo in hand: fading a picture and sending it behind the page
      are things you do to one of them, so with none selected the row isn't there
      at all rather than sitting greyed out saying "pick a photo first". */
@@ -4160,8 +4457,7 @@ try{
       '<div class="photo-btns">'+
         '<button class="pbtn" id="arrSold" type="button" title="Make this the Sold cover">★ Sold</button>'+
         '<button class="pbtn" id="arrResult" type="button" title="Make this the Result cover">★ Result</button>'+
-        '<button class="pbtn" id="arrCrop" type="button">⬚ Crop</button>'+
-        '<button class="pbtn" id="arrCut" type="button">✂ Cut out background</button>'+
+        '<button class="pbtn" id="arrEditPh" type="button" title="Crop, straighten, turn or cut out this photo">✎ Edit photo</button>'+
         '<button class="pbtn" id="arrReset" type="button">⤺ Reset layout</button>'+
         '<button class="pbtn danger" id="arrDel" type="button">✕ Remove</button>'+
       '</div>'+
@@ -4262,7 +4558,7 @@ try{
       arrLayout(photo,slot++,hostW,viewMode);
       var im=document.createElement('img');
       im.className='arr-img'+(arrangeMode&&i===arrSel?' sel':'')+(arrangeMode?'':(' locked'+(i===selPhoto?' sel':'')));
-      im.setAttribute('data-i',i); im.src=photo.d; im.alt='';
+      im.setAttribute('data-i',i); im.src=shown(photo); im.alt='';
       /* Positions already saved from a wide screen can sit past the page's edge,
          because until now a photo could be dragged out into the margin a monitor
          has and a phone does not. Keeping "a strip of it visible" was the old
@@ -4296,12 +4592,10 @@ try{
       });
     }
     else {
-      /* not arranging: tapping a photo just selects it for the photo tools */
+      /* not arranging: tapping a photo opens it with its tools */
       placed.forEach(function(im){
         im.addEventListener('click',function(){
-          var i=parseInt(im.getAttribute('data-i'),10);
-          selPhoto=(selPhoto===i)?-1:i;
-          renderPainting();
+          openPhotoSheet(parseInt(im.getAttribute('data-i'),10));
         });
       });
     }
@@ -4635,23 +4929,11 @@ try{
       if(!twoTap('arrdel',$('arrDel'),'✕ remove?'))return;
       removeSel();
     });
-    $('arrCrop').addEventListener('click',function(){
+    /* the picture itself — crop, straighten, turn, cut out — is the photo
+       sheet's job; arranging only opens it for the photo in hand */
+    $('arrEditPh').addEventListener('click',function(){
       if(needSel())return;
-      var photo=p.photos[arrSel], before=photo.d;
-      openCrop(photo,function(ok){
-        if(ok){refreshThumb(photo,p.id);renderPainting();savePhotos(p.id);pushHistory();showEditUndo(p.id,photo,before,'Cropped ✓');}
-      });
-    });
-    $('arrCut').addEventListener('click',function(){
-      if(needSel())return;
-      toast('Cutting out background…',1200);
-      var photo=p.photos[arrSel], before=photo.d;
-      setTimeout(function(){
-        cutOutBackground(photo,function(ok){
-          if(ok){refreshThumb(photo,p.id);renderPainting();savePhotos(p.id);pushHistory();showEditUndo(p.id,photo,before,'Background cut out ✓');}
-          else toast('Could not cut this one out — works best on a plain/white background',2600);
-        });
-      },40);
+      openPhotoSheet(arrSel);
     });
   }
 
@@ -4837,8 +5119,8 @@ try{
     var frame='frame-'+(p.frame||'landscape');
     function sideHtml(i,label){
       var photo=p.photos[i]; if(!photo)return '';
-      return '<div class="vw-side '+frame+'"><span class="pg-lbl">'+label+'</span>'+
-        '<img data-i="'+i+'" src="'+photo.d+'" alt="'+esc(label)+' picture" style="'+photoStyle(photo)+'"></div>';
+      return '<div class="vw-side '+frame+(photo.z>1.001?' zoomed':'')+'"><span class="pg-lbl">'+label+'</span>'+
+        '<img data-i="'+i+'" src="'+shown(photo)+'" alt="'+esc(label)+' picture" style="'+photoStyle(photo)+'"></div>';
     }
     var tagKeys=Object.keys(p.tags||{});
     var fins=finTagsHtml(p);
@@ -4867,7 +5149,7 @@ try{
       return 'object-fit:'+fit+';object-position:'+px+'% '+py+'%;'+(photo.flip?'transform:scaleX(-1);':'');
     }
     var heroHtml=(isDraw&&p.photos[0])
-      ? '<div class="vw-hero"><img data-i="0" src="'+p.photos[0].d+'" alt="" style="'+heroStyle(p.photos[0])+'"></div>' : '';
+      ? '<div class="vw-hero"><img data-i="0" src="'+shown(p.photos[0])+'" alt="" style="'+heroStyle(p.photos[0])+'"></div>' : '';
     /* Photos beyond the covers used to have nowhere to be on this page unless
        they were a drawing's: on a kit they only existed as free-floating images,
        sized by dragging, so the S/M/L/XL you chose in edit mode changed nothing
@@ -4884,9 +5166,9 @@ try{
       galleryHtml='<div class="section-lbl">Photos ('+(p.photos.length-galleryFrom)+')</div><div class="vw-gallery">'+
         p.photos.slice(galleryFrom).map(function(ph,i){
           var idx=i+galleryFrom, badge=photoBadge(p,idx);
-          return '<span class="vw-gitem vw-g'+(ph.s==null?1:ph.s)+'">'+
+          return '<span class="vw-gitem vw-g'+(ph.s==null?1:ph.s)+(ph.z>1.001?' zoomed':'')+'">'+
             (badge?'<span class="pg-lbl">'+esc(badge)+'</span>':'')+
-            '<img data-i="'+idx+'" src="'+(ph.d||thumbSrc(ph))+'" alt="'+esc(ph.c||('Photo '+(idx+1)))+'" style="'+photoStyle(ph)+'">'+
+            '<img data-i="'+idx+'" src="'+shown(ph)+'" alt="'+esc(ph.c||('Photo '+(idx+1)))+'" style="'+photoStyle(ph)+'">'+
             (ph.c?'<span class="vw-gcap">'+esc(ph.c)+'</span>':'')+
           '</span>';
         }).join('')+'</div>';
@@ -4967,7 +5249,7 @@ try{
         /* the gallery shows the small copy — the lightbox always gets the original */
         var i=parseInt(im.getAttribute('data-i'),10);
         var ph=(i>=0&&p.photos[i])?p.photos[i]:null;
-        openLightbox(ph?ph.d:im.src,ph?(ph.c||''):'');
+        openLightbox(ph?shown(ph):im.src,ph?(ph.c||''):'');
       });
     });
     buildArrLayer(p);
@@ -4990,10 +5272,9 @@ try{
        the tools bar. The free layout is shown while arranging and in view mode. */
     var ph='<div class="photo-grid"'+(arrangeMode?' style="visibility:hidden"':'')+'>';
     p.photos.forEach(function(photo,i){
-      if(i===selPhoto&&!arrangeMode){ ph+=photoEditorHtml(p,i); return; }
       var lbl=(photoBadge(p,i)?'<span class="pg-lbl">'+esc(photoBadge(p,i))+'</span>':'');
       ph+='<div class="pg-item">'+lbl+
-        '<img class="photo-s'+(photo.s||1)+'" data-i="'+i+'" src="'+thumbSrc(photo)+'" alt="'+esc(photoLabel(p,i))+'" role="button" tabindex="0" style="'+photoStyle(photo)+'">'+
+        '<img class="photo-s'+(photo.s||1)+'" data-i="'+i+'" src="'+thumbSrc(photo)+'" alt="'+esc(photoLabel(p,i))+'" role="button" tabindex="0" style="'+photoStyle(photo,true)+'">'+
         '<div class="delx" data-photox="'+i+'" role="button" tabindex="0" title="Remove this photo" aria-label="Remove this photo">✕</div></div>';
     });
     ph+='</div>';
@@ -5006,7 +5287,7 @@ try{
       (p.photos.length>1?'<button class="pbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
       '<button class="pbtn" id="phCheck" type="button" title="Why did a photo come out black or refuse to load?">🩺 Photo check</button></div>';
     ph+='<div class="photo-hint">'+(p.photos.length
-      ? ('Tap a photo to open it here with its tools, and <b>✓ Done</b> when you’ve finished with it — or tap its <b>✕</b> to remove it. '+
+      ? ('Tap a photo to open it with every tool for it — what shows in the frame, crop and straighten, turn, cut out the background — or tap its <b>✕</b> to remove it. '+
          (kindOf(p)==='drawing'
            ? 'The 1st photo is the big one on the project page; the rest become its gallery.'
            : (p.noSold
@@ -5310,8 +5591,7 @@ try{
     if(arrangeMode){ /* the draggable layer + its toolbar are wired in buildArrLayer() */ } else {
     pg.querySelectorAll('.photo-grid img[data-i]').forEach(function(im){
       im.addEventListener('click',function(){
-        var i=parseInt(im.getAttribute('data-i'),10);
-        openPhotoEditor(i);
+        openPhotoSheet(parseInt(im.getAttribute('data-i'),10));
       });
     });
     pg.querySelectorAll('[data-photox]').forEach(function(x){
@@ -5325,184 +5605,6 @@ try{
         showPhotoUndo(p.id,removed,i,'Photo removed');
       });
     });
-    if(selPhoto>=0&&selPhoto<p.photos.length){
-      /* ✓ Done is the way out. "Tap somewhere else" was not one: a way out you have
-         to be told about is no way out at all. */
-      if($('phDone'))$('phDone').addEventListener('click',closePhotoEditor);
-      if($('phRestore'))$('phRestore').addEventListener('click',function(){
-        var ph2=p.photos[selPhoto]; if(!ph2||!phSnap)return;
-        ph2.fit=phSnap.fit; ph2.posX=phSnap.posX; ph2.posY=phSnap.posY;
-        ph2.flip=phSnap.flip; ph2.s=phSnap.s;
-        renderPainting(); savePhotos(p.id);
-        toast('⤺ Put back the way it was',1300);
-      });
-      pg.querySelectorAll('[data-phsize]').forEach(function(b){
-        b.addEventListener('click',function(){
-          var ph2=p.photos[selPhoto]; if(!ph2)return;
-          ph2.s=parseInt(b.getAttribute('data-phsize'),10);
-          renderPainting(); savePhotos(p.id);
-        });
-      });
-      pg.querySelectorAll('[data-phlabel]').forEach(function(b){
-        b.addEventListener('click',function(){
-          var L=b.getAttribute('data-phlabel');
-          if(editLists.plabel){
-            if(!twoTap('rmplbl'+L,b,'✕ remove?'))return;
-            state.photoLabels=state.photoLabels.filter(function(x){return x!==L;});
-            state.paintings.forEach(function(pp){
-              (pp.photos||[]).forEach(function(q){if(q.lbl===L)delete q.lbl;});
-            });
-            renderPainting(); saveEdit(); toast('Label removed from every photo',1600);
-            return;
-          }
-          var ph2=p.photos[selPhoto]; if(!ph2)return;
-          if(ph2.lbl===L)delete ph2.lbl; else ph2.lbl=L;   /* tapping it again clears it */
-          renderPainting(); savePhotos(p.id); saveEdit();
-        });
-      });
-      if($('addPhLabel'))$('addPhLabel').addEventListener('click',function(){
-        var v=($('newPhLabel').value||'').trim().toLowerCase();
-        if(!v)return;
-        if(state.photoLabels.indexOf(v)===-1)state.photoLabels.push(v);
-        var ph2=p.photos[selPhoto]; if(ph2)ph2.lbl=v;
-        renderPainting(); savePhotos(p.id); saveEdit();
-      });
-      if($('newPhLabel'))$('newPhLabel').addEventListener('keydown',function(e){
-        if(e.key==='Enter')$('addPhLabel').click();
-      });
-      /* applied as it's typed, no re-render — a redraw here would snatch the keyboard */
-      if($('phCaption'))$('phCaption').addEventListener('input',function(e){
-        var ph2=p.photos[selPhoto]; if(!ph2)return;
-        ph2.c=e.target.value; savePhotos(p.id);
-      });
-      if($('phSold'))$('phSold').addEventListener('click',function(){
-        p.noSold=false;
-        var a=p.photos.splice(selPhoto,1)[0];p.photos.unshift(a);selPhoto=0;renderPainting();savePhotos(p.id);saveEdit();
-        toast('★ Set as the Sold cover ✓',1300);
-      });
-      if($('phResult'))$('phResult').addEventListener('click',function(){
-        /* the only photo can be the Result too — "I only photographed the
-           finished work" is a perfectly normal project */
-        if(p.photos.length===1){
-          p.noSold=!p.noSold;
-          if(p.noSold){
-            if(!p.ach)p.ach={};
-            if(!p.ach.result){p.ach.result=1;achAdd('result',1);}
-          }
-          renderPainting(); savePhotos(p.id); saveEdit();
-          toast(p.noSold?'★ This is the Result picture — the project simply has no Sold picture':'★ Back to being the Sold cover',2800);
-          return;
-        }
-        var a=p.photos.splice(selPhoto,1)[0];
-        var to=Math.min(p.noSold?0:1,p.photos.length);
-        p.photos.splice(to,0,a);selPhoto=to;renderPainting();savePhotos(p.id);
-        toast('★ Set as the Result cover ✓',1300);
-      });
-      if($('phLeft'))$('phLeft').addEventListener('click',function(){
-        if(selPhoto>0){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto-1,0,a);selPhoto--;renderPainting();savePhotos(p.id);}
-      });
-      if($('phRight'))$('phRight').addEventListener('click',function(){
-        if(selPhoto<p.photos.length-1){var a=p.photos.splice(selPhoto,1)[0];p.photos.splice(selPhoto+1,0,a);selPhoto++;renderPainting();savePhotos(p.id);}
-      });
-      if($('phFit'))$('phFit').addEventListener('click',function(){
-        var ph2=p.photos[selPhoto]; ph2.fit=((ph2.fit||'cover')==='contain')?'cover':'contain'; renderPainting(); savePhotos(p.id);
-      });
-      if($('phFlip'))$('phFlip').addEventListener('click',function(){
-        var ph2=p.photos[selPhoto]; ph2.flip=ph2.flip?0:1; renderPainting(); savePhotos(p.id);
-      });
-      /* Drag the photo in its frame to choose what shows. This writes the same
-         posX/posY the four nudge arrows used to, but the picture follows the
-         finger. The style is set directly while the pointer moves — a full
-         redraw per movement would throw away the pointer capture mid-drag —
-         and the page redraws once on release, which is when ⤺ Undo my changes
-         gets its chance to appear. Arrow keys do the same for a keyboard, with
-         the redraw held back until the frame loses focus so a held key is not
-         interrupted; the frame is refocused after, so nudging can continue. */
-      (function(){
-        var fr=$('phFrame'); if(!fr)return;
-        var ph2=p.photos[selPhoto], img=fr.querySelector('img');
-        if((ph2.fit||'cover')==='contain')return;
-        var dragging=false,moved=false,lx=0,ly=0,kbT=null;
-        function slack(){
-          var iw=img.naturalWidth, ih=img.naturalHeight;
-          if(!iw||!ih)return {x:0,y:0};
-          var r=fr.getBoundingClientRect();
-          var k=Math.max(r.width/iw,r.height/ih);
-          return {x:iw*k-r.width, y:ih*k-r.height};
-        }
-        /* px,py in position-percent, already in "the picture moves this way" terms */
-        function nudge(px,py){
-          if(px)ph2.posX=Math.max(0,Math.min(100,(ph2.posX==null?50:ph2.posX)+px));
-          if(py)ph2.posY=Math.max(0,Math.min(100,(ph2.posY==null?50:ph2.posY)+py));
-          img.setAttribute('style',photoStyle(ph2));
-          var h=fr.querySelector('.ed-drag-hint'); if(h)h.remove();
-        }
-        /* belt for the CSS braces above: if a native drag ever does begin here,
-           refuse it rather than letting it cancel our pointer mid-pull */
-        fr.addEventListener('dragstart',function(e){e.preventDefault();});
-        fr.addEventListener('pointerdown',function(e){
-          dragging=true; moved=false; lx=e.clientX; ly=e.clientY;
-          try{fr.setPointerCapture(e.pointerId);}catch(err){}
-        });
-        fr.addEventListener('pointermove',function(e){
-          if(!dragging)return;
-          var sl=slack(), dx=e.clientX-lx, dy=e.clientY-ly;
-          lx=e.clientX; ly=e.clientY;
-          if((sl.x>1&&dx)||(sl.y>1&&dy)){
-            /* a flipped photo is mirrored on screen, so its posX runs the other way */
-            nudge(sl.x>1?-dx/sl.x*100*(ph2.flip?-1:1):0, sl.y>1?-dy/sl.y*100:0);
-            moved=true;
-          }
-        });
-        function drop(){
-          if(!dragging)return;
-          dragging=false;
-          if(moved){renderPainting();savePhotos(p.id);}
-        }
-        fr.addEventListener('pointerup',drop);
-        fr.addEventListener('pointercancel',drop);
-        fr.addEventListener('keydown',function(e){
-          var m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
-          if(!m)return;
-          e.preventDefault();
-          var sl=slack();
-          /* the key moves the picture the way a drag in that direction would */
-          nudge(sl.x>1?-m[0]*5*(ph2.flip?-1:1):0, sl.y>1?-m[1]*5:0);
-          savePhotos(p.id);
-          clearTimeout(kbT);
-          kbT=setTimeout(function(){
-            renderPainting();
-            var f2=$('phFrame'); if(f2)f2.focus();
-          },700);
-        });
-      })();
-      if($('phCrop'))$('phCrop').addEventListener('click',function(){
-        var ph2=p.photos[selPhoto]; if(!ph2)return;
-        var before=ph2.d;
-        openCrop(ph2,function(ok){
-          if(ok){refreshThumb(ph2,p.id);renderPainting();savePhotos(p.id);pushHistory();
-                 showEditUndo(p.id,ph2,before,'Cropped ✓');}
-        });
-      });
-      if($('phCut'))$('phCut').addEventListener('click',function(){
-        var ph2=p.photos[selPhoto]; if(!ph2)return;
-        toast('Cutting out background…',1200);
-        var before=ph2.d;
-        setTimeout(function(){
-          cutOutBackground(ph2,function(ok){
-            if(ok){refreshThumb(ph2,p.id);renderPainting();savePhotos(p.id);pushHistory();
-                   showEditUndo(p.id,ph2,before,'Background cut out ✓');}
-            else toast('Could not cut this one out — works best on a plain/white background',2600);
-          });
-        },40);
-      });
-      if($('phDel'))$('phDel').addEventListener('click',function(){
-        if(!twoTap('phdel',$('phDel'),'✕ remove?'))return;
-        var at=selPhoto, removed=p.photos.splice(selPhoto,1)[0];
-        selPhoto=-1; phSnap=null; renderPainting(); savePhotos(p.id);
-        showPhotoUndo(p.id,removed,at,'Photo removed');
-      });
-    }
     }
 
     /* rating */
