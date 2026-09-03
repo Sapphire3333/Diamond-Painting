@@ -281,9 +281,16 @@ try{
     user-select:none;-webkit-user-drag:none;pointer-events:auto;touch-action:none;}
   .arr-img.sel{outline:3px solid var(--accent);outline-offset:2px;}
   .arr-img.locked{cursor:pointer;}
-  .arr-handle{position:absolute;width:26px;height:26px;border-radius:7px;background:var(--accent);border:2.5px solid #fff;
-    box-shadow:0 2px 7px rgba(0,0,0,.45);z-index:40;touch-action:none;pointer-events:auto;cursor:nwse-resize;}
+  /* 30px: a thumb's worth. The size is repeated as HS in wireArrange, which
+     places the handles half their width outside the photo's corners. */
+  .arr-handle{position:absolute;width:30px;height:30px;border-radius:7px;background:var(--accent);border:2.5px solid #fff;
+    box-shadow:0 2px 7px rgba(0,0,0,.45);z-index:1000;touch-action:none;pointer-events:auto;cursor:nwse-resize;}
   .arr-handle.rot{background:var(--star);border-radius:50%;cursor:grab;}
+  /* the gold line a dragged photo catches on when its edge or middle lines up
+     with the page or with another picture */
+  .arr-guide{position:absolute;background:var(--star);pointer-events:none;z-index:900;display:none;}
+  .arr-guide.v{top:0;bottom:0;width:2px;margin-left:-1px;}
+  .arr-guide.h{left:0;right:0;height:2px;margin-top:-1px;}
   .arr-hint{font-size:11px;color:var(--muted);margin-top:5px;}
   .arr-bar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--panel);border-top:1.5px solid var(--line);
     padding:8px 12px 10px;box-shadow:0 -4px 18px rgba(0,0,0,.22);max-height:44vh;overflow:auto;}
@@ -4166,7 +4173,9 @@ try{
          situation to describe rather than two */
       '<div class="arr-hint">'+
         'The <b>Sold</b> and <b>Result</b> covers stay put — left and right of the details. Everything from the third photo on can be dragged anywhere on this page. '+
-        'Tap one to select, then drag any <b>purple corner</b> to resize, or the <b>gold circle</b> to tilt (or use − / ＋ and ⟲ / ⟳). Paste (Ctrl+V) or ＋ Add drops a new image where you last tapped.</div>'+
+        'Tap one to select, then drag any <b>purple corner</b> to resize, or the <b>gold circle</b> to tilt (or use − / ＋ and ⟲ / ⟳) — two fingers on the photo do both at once, and a tilt near level snaps straight. '+
+        'A <b>gold line</b> shows when a photo lines up with the page or another picture. Tap a photo twice to bring it to the front. '+
+        'On a PC the arrow keys nudge it (Shift for ten times as far), Delete removes it and Escape finishes. Paste (Ctrl+V) or ＋ Add drops a new image where you last tapped.</div>'+
       '</div>';
     return h;
   }
@@ -4266,7 +4275,14 @@ try{
       im.style.left=lpx+'px'; im.style.top=(photo.ay/100*hostW)+'px';
       im.style.width=photo.aw+'%'; im.style.transform='rotate('+photo.arot+'deg)';
       if(photo.op!=null&&photo.op<1)im.style.opacity=photo.op;
+      /* which photo lies on top: tapping one twice while arranging brings it
+         forward (see bringToFront). Photos never brought forward keep the
+         order they were added in. */
+      if(photo.az)im.style.zIndex=photo.az;
       ((back&&photo.back)?back:layer).appendChild(im);
+    });
+    if(arrangeMode)['v','h'].forEach(function(k){
+      var g=document.createElement('div'); g.className='arr-guide '+k; layer.appendChild(g);
     });
     if(back)host.appendChild(back);
     host.appendChild(layer);
@@ -4294,7 +4310,53 @@ try{
   function wireArrange(p,layer){
     if(!layer)return;
     var CORNERS=[['nw',0,0],['ne',1,0],['sw',0,1],['se',1,1]];
+    var HS=30;   /* handle size, matching .arr-handle in the CSS */
+    var SNAP=9;  /* how close, in the page's own pixels, before a photo jumps into line */
     function selImg(){return layer.querySelector('.arr-img[data-i="'+arrSel+'"]');}
+    /* a tilt within a few degrees of level, or of upright, becomes exactly that */
+    function snapAngle(a){a=Math.round(a);var m=((a%90)+90)%90;return (m<4||m>86)?Math.round(a/90)*90:a;}
+    function guide(k,pos){
+      var g=layer.querySelector('.arr-guide.'+k); if(!g)return;
+      if(pos==null){g.style.display='none';return;}
+      g.style.display='block'; if(k==='v')g.style.left=pos+'px'; else g.style.top=pos+'px';
+    }
+    /* the lines a dragged photo can catch on: the page's two edges and its
+       middle, and the edges and middles of everything else on the page — the
+       other floating photos, and in view mode the covers and the details card */
+    function snapLines(im){
+      var W=layer.offsetWidth, z=appZoom(), lr=layer.getBoundingClientRect();
+      var xs=[0,W/2,W], ys=[0];
+      [].slice.call(document.querySelectorAll('.arr-img,.vw-side img,.vw-card,.vw-hero img')).forEach(function(el){
+        if(el===im)return;
+        var b=el.getBoundingClientRect(); if(!b.width)return;
+        var l=(b.left-lr.left)/z, t=(b.top-lr.top)/z, w=b.width/z, h=b.height/z;
+        xs.push(l,l+w/2,l+w); ys.push(t,t+h/2,t+h);
+      });
+      return {xs:xs,ys:ys};
+    }
+    /* nudges photo.ax/ay so the nearest edge or middle sits on a line, when one
+       is within SNAP, and shows the line it caught on */
+    function snapTo(photo,im,lines){
+      var W=layer.offsetWidth, L=photo.ax/100*W, T=photo.ay/100*W, w=im.offsetWidth, h=im.offsetHeight;
+      var bx=null,by=null,bdx=0,bdy=0,best=SNAP+0.01;
+      [L,L+w/2,L+w].forEach(function(m){lines.xs.forEach(function(x){var d=x-m;if(Math.abs(d)<best){best=Math.abs(d);bdx=d;bx=x;}});});
+      best=SNAP+0.01;
+      [T,T+h/2,T+h].forEach(function(m){lines.ys.forEach(function(y){var d=y-m;if(Math.abs(d)<best){best=Math.abs(d);bdy=d;by=y;}});});
+      photo.ax+=bdx/W*100; photo.ay+=bdy/W*100;
+      guide('v',bx); guide('h',by);
+    }
+    /* the tapped photo goes above every other; the others keep their order,
+       renumbered from 1 so the numbers never climb past the handles' z-index */
+    function bringToFront(photo){
+      var order=p.photos.filter(function(q){return q&&q.az&&q!==photo;}).sort(function(a,b){return a.az-b.az;});
+      order.forEach(function(q,k){q.az=k+1;});
+      photo.az=order.length+1;
+      layer.querySelectorAll('.arr-img').forEach(function(x){
+        var q=p.photos[parseInt(x.getAttribute('data-i'),10)];
+        x.style.zIndex=(q&&q.az)?q.az:'';
+      });
+      p.arranged=true; savePhotos(p.id); saveEdit(); toast('Brought to the front',1000);
+    }
     function syncHandles(){
       var im=selImg(); var hs=layer.querySelectorAll('.arr-handle');
       if(!im||!hs.length)return;
@@ -4305,12 +4367,12 @@ try{
       var z=appZoom();
       var lrLeft=layer.getBoundingClientRect().left/z;
       var vw=(document.documentElement.clientWidth||layer.offsetWidth)/z;
-      function clampX(x){return Math.max(-lrLeft,Math.min(vw-lrLeft-26,x));}
+      function clampX(x){return Math.max(-lrLeft,Math.min(vw-lrLeft-HS,x));}
       hs.forEach(function(hh){
         var k=hh.getAttribute('data-k');
-        if(k==='rot'){hh.style.left=clampX(L+W/2-13)+'px';hh.style.top=(T-34)+'px';return;}
+        if(k==='rot'){hh.style.left=clampX(L+W/2-HS/2)+'px';hh.style.top=(T-HS-8)+'px';return;}
         var c=CORNERS.filter(function(x){return x[0]===k;})[0]; if(!c)return;
-        hh.style.left=clampX(L+c[1]*W-13)+'px'; hh.style.top=(T+c[2]*H-13)+'px';
+        hh.style.left=clampX(L+c[1]*W-HS/2)+'px'; hh.style.top=(T+c[2]*H-HS/2)+'px';
       });
     }
     function placeHandles(){
@@ -4369,7 +4431,7 @@ try{
             im.style.width=photo.aw+'%';
           }else{
             var ang=Math.atan2(ev.clientY-cy,ev.clientX-cx)*180/Math.PI;
-            photo.arot=Math.round(rot0+(ang-startAng));
+            photo.arot=snapAngle(rot0+(ang-startAng));
             im.style.transform='rotate('+photo.arot+'deg)';
           }
           syncHandles(); fitArrLayer();
@@ -4382,7 +4444,17 @@ try{
         el.addEventListener('pointermove',move); el.addEventListener('pointerup',up);
       });
     }
+    /* One finger drags a photo, and it snaps into line as it goes. A second
+       finger on the same photo turns the pair into a pinch: their distance sets
+       the size, the angle between them the tilt, and the photo follows their
+       midpoint. Two quick taps without a drag bring the photo to the front. */
     layer.querySelectorAll('.arr-img').forEach(function(im){
+      var pts={}, drag=null, pinch=null, dirty=false, lastTap=0;
+      function count(){return Object.keys(pts).length;}
+      function mid(){
+        var ids=Object.keys(pts), a=pts[ids[0]], b=pts[ids[1]];
+        return {x:(a.x+b.x)/2, y:(a.y+b.y)/2, d:Math.hypot(b.x-a.x,b.y-a.y), ang:Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI};
+      }
       im.addEventListener('pointerdown',function(e){
         e.preventDefault();
         var i=parseInt(im.getAttribute('data-i'),10);
@@ -4390,38 +4462,95 @@ try{
         var photo=p.photos[i]; if(!photo)return;
         var r=layer.getBoundingClientRect();
         if(!r.width)return;
-        lastPastePt={x:Math.max(0,Math.min(88,(e.clientX-r.left)/r.width*100)),y:Math.max(0,(e.clientY-r.top)/r.width*100)};
-        var startX=e.clientX,startY=e.clientY,ax0=photo.ax,ay0=photo.ay,moved=false;
+        pts[e.pointerId]={x:e.clientX,y:e.clientY};
         try{im.setPointerCapture(e.pointerId);}catch(_){}
-        function move(ev){
-          if(!r.width)return;
-          var dx=(ev.clientX-startX)/r.width*100, dy=(ev.clientY-startY)/r.width*100;
-          if(Math.abs(dx)>0.4||Math.abs(dy)>0.4)moved=true;
-          /* A photo's place is stored as a share of the page's own width, so the
-             limits have to be that same width — they used to be the window's.
-             On a wide screen the page is a column with margins either side, so
-             "as far as the window" meant up to 120% of the page, and 120% of a
-             phone's page is off the side of the phone. The picture you put at the
-             edge of the desk was half off the edge of the pocket. */
-          var maxAx=100-(photo.aw||28);
-          if(maxAx<0)maxAx=0;
-          photo.ax=Math.max(0,Math.min(maxAx,ax0+dx));
-          photo.ay=Math.max(-30,ay0+dy);
-          /* r.width is a screen measurement; a photo's left/top are its own box's
-             units, so the zoom has to come back out on the way in */
-          var zz=appZoom();
-          im.style.left=(photo.ax/100*r.width/zz)+'px'; im.style.top=(photo.ay/100*r.width/zz)+'px';
-          syncHandles(); fitArrLayer();
+        if(count()>=2){
+          var m=mid(), ratio=im.offsetHeight/Math.max(1,im.offsetWidth);
+          pinch={d0:Math.max(8,m.d),ang0:m.ang,mx0:m.x,my0:m.y,aw0:photo.aw,rot0:photo.arot||0,
+                 cx0:photo.ax+photo.aw/2,cy0:photo.ay+photo.aw*ratio/2,ratio:ratio,r:r};
+          drag=null; guide('v',null); guide('h',null);
+          return;
         }
-        function up(ev){
-          try{im.releasePointerCapture(ev.pointerId);}catch(_){}
-          im.removeEventListener('pointermove',move); im.removeEventListener('pointerup',up);
-          if(moved){p.arranged=true; savePhotos(p.id); saveEdit();}
-        }
-        im.addEventListener('pointermove',move); im.addEventListener('pointerup',up);
+        lastPastePt={x:Math.max(0,Math.min(88,(e.clientX-r.left)/r.width*100)),y:Math.max(0,(e.clientY-r.top)/r.width*100)};
+        drag={startX:e.clientX,startY:e.clientY,ax0:photo.ax,ay0:photo.ay,moved:false,r:r,lines:snapLines(im)};
       });
+      im.addEventListener('pointermove',function(ev){
+        if(!pts[ev.pointerId])return;
+        pts[ev.pointerId]={x:ev.clientX,y:ev.clientY};
+        var photo=p.photos[parseInt(im.getAttribute('data-i'),10)]; if(!photo)return;
+        /* r.width is a screen measurement; a photo's left/top are its own box's
+           units, so the zoom has to come back out on the way in */
+        var zz=appZoom();
+        if(pinch&&count()>=2){
+          var m=mid(), r=pinch.r;
+          photo.aw=Math.max(5,Math.min(140,pinch.aw0*(m.d/pinch.d0)));
+          photo.arot=snapAngle(pinch.rot0+(m.ang-pinch.ang0));
+          var cx=pinch.cx0+(m.x-pinch.mx0)/r.width*100, cy=pinch.cy0+(m.y-pinch.my0)/r.width*100;
+          photo.ax=Math.max(0,Math.min(Math.max(0,100-photo.aw),cx-photo.aw/2));
+          photo.ay=Math.max(-30,cy-photo.aw*pinch.ratio/2);
+          im.style.width=photo.aw+'%'; im.style.transform='rotate('+photo.arot+'deg)';
+          im.style.left=(photo.ax/100*r.width/zz)+'px'; im.style.top=(photo.ay/100*r.width/zz)+'px';
+          dirty=true; syncHandles(); fitArrLayer();
+          return;
+        }
+        if(!drag)return;
+        var rr=drag.r;
+        var dx=(ev.clientX-drag.startX)/rr.width*100, dy=(ev.clientY-drag.startY)/rr.width*100;
+        if(Math.abs(dx)>0.4||Math.abs(dy)>0.4){drag.moved=true;dirty=true;}
+        /* A photo's place is stored as a share of the page's own width, so the
+           limits have to be that same width — they used to be the window's.
+           On a wide screen the page is a column with margins either side, so
+           "as far as the window" meant up to 120% of the page, and 120% of a
+           phone's page is off the side of the phone. The picture you put at the
+           edge of the desk was half off the edge of the pocket. */
+        var maxAx=100-(photo.aw||28);
+        if(maxAx<0)maxAx=0;
+        photo.ax=Math.max(0,Math.min(maxAx,drag.ax0+dx));
+        photo.ay=Math.max(-30,drag.ay0+dy);
+        snapTo(photo,im,drag.lines);
+        im.style.left=(photo.ax/100*rr.width/zz)+'px'; im.style.top=(photo.ay/100*rr.width/zz)+'px';
+        syncHandles(); fitArrLayer();
+      });
+      function up(ev){
+        if(!pts[ev.pointerId])return;
+        delete pts[ev.pointerId];
+        try{im.releasePointerCapture(ev.pointerId);}catch(_){}
+        var wasTap=!!(drag&&!drag.moved&&!pinch);
+        /* when one of two fingers lifts, the other does not go on dragging by itself */
+        if(pinch){pinch=null;drag=null;}
+        if(count())return;
+        guide('v',null); guide('h',null);
+        drag=null;
+        if(dirty){dirty=false; p.arranged=true; savePhotos(p.id); saveEdit(); lastTap=0; return;}
+        if(wasTap){
+          var now=Date.now();
+          if(now-lastTap<350){bringToFront(p.photos[parseInt(im.getAttribute('data-i'),10)]);lastTap=0;}
+          else lastTap=now;
+        }
+      }
+      im.addEventListener('pointerup',up); im.addEventListener('pointercancel',up);
     });
     if(arrSel>=0)placeHandles();
+
+    /* what the keyboard reaches while arranging (the listener lives at the
+       bottom of the file, since this function runs again on every redraw) */
+    function removeSel(){
+      var at=arrSel, removed=p.photos.splice(arrSel,1)[0]; arrSel=-1;
+      renderPainting(); savePhotos(p.id); pushHistory();
+      showPhotoUndo(p.id,removed,at,'Photo removed');
+    }
+    arrApi={
+      nudge:function(dx,dy){
+        if(arrSel<0||arrSel>=p.photos.length)return;
+        var photo=p.photos[arrSel], im=selImg(); if(!im)return;
+        var W=layer.offsetWidth||1, maxAx=Math.max(0,100-(photo.aw||28));
+        photo.ax=Math.max(0,Math.min(maxAx,photo.ax+dx/W*100));
+        photo.ay=Math.max(-30,photo.ay+dy/W*100);
+        im.style.left=(photo.ax/100*W)+'px'; im.style.top=(photo.ay/100*W)+'px';
+        syncHandles(); fitArrLayer(); p.arranged=true; savePhotos(p.id); saveEdit();
+      },
+      del:function(){ if(arrSel<0||arrSel>=p.photos.length){toast('Tap a photo first',1400);return;} removeSel(); }
+    };
 
     function resizeSel(mult){
       if(needSel())return;
@@ -4495,7 +4624,7 @@ try{
       var vm=(p.edit===false), from=vm?2:0, slot=0;
       p.photos.forEach(function(photo,i){
         photo.ax=null;photo.ay=null;photo.aw=null;photo.arot=null;photo.aunit=null;
-        photo.op=null;photo.back=false; /* fading and sending behind are part of the free layout too */
+        photo.op=null;photo.back=false;photo.az=null; /* fading, sending behind and the front-to-back order are part of the free layout too */
         if(i>=from)arrLayout(photo,slot++,hw,vm);
       });
       p.arranged=false; arrangeMode=false; arrSel=-1;
@@ -4504,9 +4633,7 @@ try{
     $('arrDel').addEventListener('click',function(){
       if(needSel())return;
       if(!twoTap('arrdel',$('arrDel'),'✕ remove?'))return;
-      var at=arrSel, removed=p.photos.splice(arrSel,1)[0]; arrSel=-1;
-      renderPainting(); savePhotos(p.id); pushHistory();
-      showPhotoUndo(p.id,removed,at,'Photo removed');
+      removeSel();
     });
     $('arrCrop').addEventListener('click',function(){
       if(needSel())return;
@@ -6503,6 +6630,20 @@ try{
       e.preventDefault();
       t.click();
     }
+  });
+
+  /* keys while arranging: the arrows nudge the selected photo a pixel (ten with
+     Shift), Delete removes it, Escape finishes. arrApi is set by wireArrange,
+     which is where the selected photo and its handles live. */
+  var arrApi=null;
+  document.addEventListener('keydown',function(e){
+    if(!arrangeMode||!arrApi)return;
+    var ae=document.activeElement;
+    if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))return;
+    if(e.key==='Escape'){e.preventDefault();exitArrange();return;}
+    var m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+    if(m){e.preventDefault();var st=e.shiftKey?10:1;arrApi.nudge(m[0]*st,m[1]*st);return;}
+    if(e.key==='Delete'){e.preventDefault();arrApi.del();}
   });
 
   /* keyboard: Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z or Ctrl+Y = redo */
