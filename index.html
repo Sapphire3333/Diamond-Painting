@@ -414,6 +414,8 @@ try{
   .sh-v{font-weight:800;font-size:12px;min-width:44px;font-variant-numeric:tabular-nums;}
   .sh-name{font-weight:800;font-size:15px;margin-right:auto;}
   .sh-sum{font-size:11px;color:var(--muted);margin-top:4px;}
+  .sh-stage.pick{cursor:crosshair;}
+  .sh-swatch{width:26px;height:26px;border-radius:8px;border:1px solid rgba(0,0,0,.15);flex:0 0 auto;display:inline-block;}
   /* a zoomed-in photo (see photoStyle) is bigger than its frame, so the frame
      clips — but only when zoomed, so every other photo is shown exactly as before */
   .zoomed{overflow:hidden;}
@@ -873,6 +875,15 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-09-04 · photos, in and out and edited',items:[
+      '🖼 Tap a photo and it opens full screen with every tool for it: drag and zoom inside the card frame, a crop box with handles that keeps the card’s shape, straighten, turn, flip, and a cut-out with a sensitivity slider you watch working. Nothing rewrites the picture any more — the original is kept and every edit can be changed again later.',
+      '📐 Arranging photos gained gold guide lines that catch a photo when it lines up with the page or another picture, a tilt that snaps level, pinch to resize and twist, double-tap to bring to the front, and the arrow keys on a PC.',
+      '📥 Drop a picture file anywhere on an open project to add it, or tap 📷 Take a photo on the phone. Drag a photo to reorder it; drag a project to reorder the list.',
+      '🔍 The full-screen photo is a viewer: swipe or the arrows between a project’s photos, pinch or double-tap to zoom.',
+      '🎯 “Which colour” in the photo tools: tap a spot on a photo and the nearest DMC colours are named, with a button to add one to the project (or to a paint-by-number palette).',
+      '🔤 The colour panel can read the numbers off a photo of the kit’s chart itself — the reader is fetched the first time (about 5 MB) and the numbers go through the usual check before anything is added.',
+      '🛒 Find gains a Reorder list: the colours marked running low, and the ones marked none left that a project uses, to copy or share.',
+    ]},
     {when:'2026-08-28 · the photo tools make sense',items:[
       '🗂 A photo’s tools are sorted under small headings by what they touch — Cover, In the frame, The picture itself, In the gallery, What it shows — instead of one pile of identical buttons where ✕ remove dressed exactly like ⇄ Flip. Everything shows at once; ⋯ More is gone.',
       '✋ Drag the photo in its frame to choose what shows. The four nudge arrows are gone — the picture follows your finger (or the arrow keys, once the frame is tapped).',
@@ -950,7 +961,7 @@ try{
   var renameOrig=null, renameFocus=false;
   var collapsedGroups={}, colorFamily='', showPaste=false, undoData=null, undoTimer=null;
   var pasteReview=null, pasteTextVal='', chartImg=null, chartPick=false;
-  var findPaste=false, findPasteText='', findPasteReview=null;
+  var findPaste=false, findPasteText='', findPasteReview=null, findReorder=false;
   var history=[], histIdx=-1, histT=null, photoCache={}, clipboard=[], trash=[];
   var selectMode=false, selectedIds={};
   var arrangeMode=false, arrSel=-1, cropOn=false, cropRect=null, lastPastePt=null;
@@ -2541,6 +2552,26 @@ try{
       if(cb)cb();
     });
   }
+  /* ---- which DMC colour is this? ----
+     Colour distance in Lab, where a step of one looks the same size whatever
+     the colour — plain RGB distance calls two greens far apart and a grey close
+     to a pink. The DMC table's Lab values are worked out once, on first use. */
+  function rgb2lab(r,g,b){
+    function f(c){c/=255;return c>0.04045?Math.pow((c+0.055)/1.055,2.4):c/12.92;}
+    var R=f(r),G=f(g),B=f(b);
+    var x=(R*0.4124+G*0.3576+B*0.1805)/0.95047, y=(R*0.2126+G*0.7152+B*0.0722), z=(R*0.0193+G*0.1192+B*0.9505)/1.08883;
+    function h(t){return t>0.008856?Math.cbrt(t):(7.787*t+16/116);}
+    var fx=h(x),fy=h(y),fz=h(z);
+    return [116*fy-16,500*(fx-fy),200*(fy-fz)];
+  }
+  var DMC_LAB=null;
+  function nearestDmc(r,g,b,n){
+    if(!DMC_LAB)DMC_LAB=DMC.map(function(row){var hx=row[2].replace('#','');return rgb2lab(parseInt(hx.substr(0,2),16),parseInt(hx.substr(2,2),16),parseInt(hx.substr(4,2),16));});
+    var L=rgb2lab(r,g,b), out=[];
+    DMC.forEach(function(row,i){var d=DMC_LAB[i];out.push({row:row,d:Math.sqrt(Math.pow(L[0]-d[0],2)+Math.pow(L[1]-d[1],2)+Math.pow(L[2]-d[2],2))});});
+    out.sort(function(a,b2){return a.d-b2.d;});
+    return out.slice(0,n||3);
+  }
   function openPhotoSheet(i){
     var p=active(); if(!p||!p.photos||!p.photos[i])return;
     var prev=document.querySelector('.sheet-ov'); if(prev&&prev._destroy)prev._destroy();
@@ -2548,7 +2579,7 @@ try{
     var snap=photoSnap(ph), snapObj=JSON.parse(snap);
     var e=editsOf(ph); ph.e=e;
     var eSnap=JSON.stringify(e);
-    var mode='frame', aspect='free', srcImg=null, base={key:'',cv:null}, geo={}, box=null;
+    var mode='frame', aspect='free', srcImg=null, base={key:'',cv:null}, rawB={key:'',cv:null}, geo={}, box=null, pick=null;
     var ov=document.createElement('div'); ov.className='lightbox sheet-ov'+(state.dark?' dark':'');
     ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label','Edit this photo'); ov.tabIndex=-1;
     /* the sheet lives outside the app's box, like the full-screen photo, so the
@@ -2563,7 +2594,8 @@ try{
       '<div class="sh-modes">'+
         '<button class="pbtn on" data-shmode="frame" type="button">▣ In the frame</button>'+
         '<button class="pbtn" data-shmode="crop" type="button">⬚ Crop &amp; straighten</button>'+
-        '<button class="pbtn" data-shmode="cut" type="button">✂ Cut out</button></div>'+
+        '<button class="pbtn" data-shmode="cut" type="button">✂ Cut out</button>'+
+        '<button class="pbtn" data-shmode="pick" type="button">🎯 Which colour</button></div>'+
       '<div class="sh-tools" id="shTools"></div>'+
       '<div class="ed-grp sh-row" id="shAlways"></div>'+
       '<div id="shRows"></div>'+
@@ -2584,6 +2616,18 @@ try{
       if(base.key===key)return base.cv;
       base={key:key,cv:drawEdited(srcImg,{rot:e.rot,str:e.str,cut:e.cut,crop:null},900)};
       return base.cv;
+    }
+    /* the same picture before any cut-out, for reading colours off */
+    function rawBase(){
+      var key=[e.rot,e.str].join('|');
+      if(rawB.key!==key)rawB={key:key,cv:drawEdited(srcImg,{rot:e.rot,str:e.str,cut:{on:false},crop:null},900)};
+      return rawB.cv;
+    }
+    /* where on the oriented picture a tap on the stage landed, in crop/cut/pick modes */
+    function stagePoint(ev){
+      var r=stage.getBoundingClientRect(), z=appZoom(), b=oriented(); if(!b||!geo.kf)return null;
+      var bx=Math.round(((ev.clientX-r.left)/z-geo.ox)/geo.kf), by=Math.round(((ev.clientY-r.top)/z-geo.oy)/geo.kf);
+      return (bx<0||by<0||bx>=b.width||by>=b.height)?null:{bx:bx,by:by};
     }
     function maskPath(mx,my,mw,mh){
       if((p.frame||'landscape')==='round'){ctx.arc(mx+mw/2,my+mh/2,mw/2,0,Math.PI*2);return;}
@@ -2628,6 +2672,13 @@ try{
           if(Math.abs(e.str)>0.05){
             ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=1;
             for(var g=1;g<8;g++){ctx.beginPath();ctx.moveTo(ox+dw2*g/8,oy);ctx.lineTo(ox+dw2*g/8,oy+dh2);ctx.moveTo(ox,oy+dh2*g/8);ctx.lineTo(ox+dw2,oy+dh2*g/8);ctx.stroke();}
+          }
+        } else if(mode==='pick'){
+          hint=pick?'Tap another spot, or add a colour below':'Tap a spot on the picture to name its colour';
+          if(pick){
+            var rx=ox+pick.bx*kf, ry=oy+pick.by*kf;
+            ctx.beginPath(); ctx.arc(rx,ry,11,0,Math.PI*2); ctx.lineWidth=3; ctx.strokeStyle='#fff'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(rx,ry,13,0,Math.PI*2); ctx.lineWidth=1; ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.stroke();
           }
         } else hint=e.cut.on?'Tap the background to say which colour to remove':'Turn it on to watch it work';
       }
@@ -2702,14 +2753,20 @@ try{
           drag=true; lx=ev.clientX; ly=ev.clientY;
           try{stage.setPointerCapture(ev.pointerId);}catch(_){}
         } else if(mode==='cut'&&e.cut.on&&srcImg){
-          var r=stage.getBoundingClientRect(), z=appZoom(), b=oriented(); if(!b)return;
-          var bx=Math.round(((ev.clientX-r.left)/z-geo.ox)/geo.kf), by=Math.round(((ev.clientY-r.top)/z-geo.oy)/geo.kf);
-          if(bx<0||by<0||bx>=b.width||by>=b.height)return;
+          var pt=stagePoint(ev); if(!pt)return;
           /* read the colour off the picture before the cut-out, so a tap on an
              area already removed still reads the colour that was there */
-          var raw=drawEdited(srcImg,{rot:e.rot,str:e.str,cut:{on:false},crop:null},900);
-          var px=raw.getContext('2d').getImageData(bx,by,1,1).data;
+          var px=rawBase().getContext('2d').getImageData(pt.bx,pt.by,1,1).data;
           e.cut.bg=[px[0],px[1],px[2]]; base.key=''; tools(); draw();
+        } else if(mode==='pick'&&srcImg){
+          var pt2=stagePoint(ev); if(!pt2)return;
+          /* a 5×5 patch rather than one pixel: a photo's grain would otherwise name a different colour each tap */
+          var rb=rawBase(), x0=Math.max(0,pt2.bx-2), y0=Math.max(0,pt2.by-2), ww=Math.min(5,rb.width-x0), hh=Math.min(5,rb.height-y0);
+          var px2=rb.getContext('2d').getImageData(x0,y0,ww,hh).data, sr=0,sg=0,sb=0,nn=ww*hh;
+          for(var q=0;q<nn;q++){sr+=px2[q*4];sg+=px2[q*4+1];sb+=px2[q*4+2];}
+          var rr=Math.round(sr/nn), gg=Math.round(sg/nn), bb=Math.round(sb/nn);
+          pick={bx:pt2.bx,by:pt2.by,hex:'#'+[rr,gg,bb].map(function(v){return (v<16?'0':'')+v.toString(16);}).join(''),near:nearestDmc(rr,gg,bb,3)};
+          tools(); draw();
         }
       });
       stage.addEventListener('pointermove',function(ev){
@@ -2745,6 +2802,21 @@ try{
           '<button class="pbtn quiet-danger" id="shCropReset" type="button" style="color:var(--muted)">Whole picture</button></div>'+
           '<div class="sh-row"><span class="pd-lbl" style="margin:0">Straighten</span><input class="prog-range" id="shStr" type="range" min="-150" max="150" step="1" aria-label="Straighten" value="'+Math.round(e.str*10)+'">'+
           '<span class="sh-v">'+e.str.toFixed(1)+'°</span><button class="pbtn quiet-danger" id="shStrReset" type="button" style="color:var(--muted)">Level</button></div>';
+      } else if(mode==='pick'){
+        if(!pick)h='<div class="sh-sum">Tap a spot on the picture and the nearest DMC colours are named — for a drill found on the floor, a colour in the kit picture, or a paint pot to match to a code.</div>';
+        else{
+          var isD=isDiamond(p), isP=(kindOf(p)==='pbn');
+          h='<div class="sh-row"><span class="sh-swatch" style="background:'+pick.hex+'"></span><span>That spot is <b>'+pick.hex+'</b>. The nearest DMC colours:</span></div>'+
+            pick.near.map(function(m){
+              var code=m.row[0], name=m.row[1], hex=m.row[2], how=m.d<8?'very close':(m.d<16?'close':'roughly');
+              var have=isD&&p.colors[code];
+              return '<div class="sh-row"><span class="sh-swatch" style="background:'+hex+'"></span>'+
+                '<span style="flex:1 1 120px"><b>'+code+'</b> '+esc(name)+' <span class="sh-sum">· '+how+'</span></span>'+
+                (isD?(have?'<span class="sh-sum">✓ in this project</span>':'<button class="pbtn" data-shadd="'+code+'" type="button">＋ Add to this project</button>'):'')+
+                (isP?'<button class="pbtn" data-shadd="'+code+'" type="button">＋ Add to the palette</button>':'')+
+              '</div>';
+            }).join('');
+        }
       } else {
         h='<div class="sh-row"><button class="pbtn'+(e.cut.on?' on':'')+'" id="shCutOn" type="button">'+(e.cut.on?'✂ Cutting out the background':'✂ Cut out the background')+'</button>'+
           (e.cut.bg?'<span class="sh-sum" style="margin:0">Removing the colour you tapped</span>':'')+'</div>'+
@@ -2775,6 +2847,20 @@ try{
       if($('shCutOn'))$('shCutOn').addEventListener('click',function(){e.cut.on=!e.cut.on;base.key='';tools();draw();});
       var tr=$('shTol'); if(tr)tr.addEventListener('input',function(){e.cut.tol=parseInt(tr.value,10)||60;base.key='';setFill(tr);tr.nextElementSibling.textContent=String(e.cut.tol);draw();});
       if($('shBgReset'))$('shBgReset').addEventListener('click',function(){e.cut.bg=null;base.key='';tools();draw();});
+      t.querySelectorAll('[data-shadd]').forEach(function(b){b.addEventListener('click',function(){
+        var code=b.getAttribute('data-shadd'), row=DMCMAP[code]; if(!row||!pick)return;
+        if(isDiamond(p)){
+          if(!p.colors[code]){p.colors[code]=1;achAdd('colors',1);}
+          toast('＋ '+code+' '+row[1]+' added ✓',1400);
+        } else {
+          /* a paint pot has no code of its own, so the palette gets the colour as
+             tapped, named after the DMC shade it is nearest */
+          if(!p.palette)p.palette=[];
+          p.palette.push({id:uid('c'),color:pick.hex,label:code+' '+row[1]});
+          toast('＋ Added to the palette as '+code+' ✓',1400);
+        }
+        saveEdit(); if(state.view==='paint'&&state.active===p.id)renderPainting(); tools();
+      });});
     }
     /* ---- turn, flip and the card frame: there whatever the mode ---- */
     function always(){
@@ -5224,11 +5310,53 @@ try{
     });
     return {matched:matched,unknown:unknown,fixes:fixes,ignored:ignored};
   }
+  /* ---- reading the numbers off a chart photo ----
+     Tesseract.js, fetched from a CDN the first time it is asked for (about
+     5 MB with its English data, kept by the browser after that) and never
+     bundled: most people paste from Google Lens and never press this. A small
+     photo is enlarged first, and that is all: greying and stretching the
+     contrast, tried first, left the reader with nothing it could read, while
+     the plain picture in "one block of text" page mode read every row. What
+     it reads goes through the same review as pasted text, look-alike repairs
+     and all, and nothing is added until it is confirmed. */
+  var OCR_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+  var ocrBusy=false;
+  function loadOcr(cb){
+    if(window.Tesseract){cb(true);return;}
+    var s=document.createElement('script'); s.src=OCR_URL; s.async=true;
+    s.onload=function(){cb(!!window.Tesseract);}; s.onerror=function(){cb(false);};
+    document.head.appendChild(s);
+  }
+  function chartForOcr(img){
+    var iw=img.naturalWidth, ih=img.naturalHeight, k=(Math.max(iw,ih)<1600)?2:1;
+    var cv=document.createElement('canvas'); cv.width=Math.round(iw*k); cv.height=Math.round(ih*k);
+    cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+    return cv;
+  }
+  function readChart(dataUrl,onProgress,cb){
+    loadOcr(function(ok){
+      if(!ok){cb(null,'The reader could not be fetched — it needs the internet the first time (about 5 MB); after that it is kept.');return;}
+      loadImg(dataUrl,function(img){
+        if(!img){cb(null,'The chart picture could not be opened.');return;}
+        var cv=chartForOcr(img), worker=null;
+        window.Tesseract.createWorker('eng',1,{logger:function(m){if(m&&m.status==='recognizing text'&&onProgress)onProgress(m.progress||0);}})
+          /* page mode 6, one block of text: the default tries to find columns
+             and layouts in a chart photo and loses the rows. No character
+             whitelist — with this reader it turned the rows into letter soup. */
+          .then(function(wk){worker=wk;return wk.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});})
+          .then(function(){return worker.recognize(cv);})
+          .then(function(res){var t=(res&&res.data&&res.data.text)||'';try{worker.terminate();}catch(_){}cb(t,'');})
+          .catch(function(err){try{if(worker)worker.terminate();}catch(_){}cb(null,'Reading failed: '+((err&&err.message)||err));});
+      });
+    });
+  }
   function setChartImage(file){
     if(!file)return;
     if(file.type&&!/^image\//.test(file.type)&&!/\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i.test(file.name||''))return;
-    /* same careful path as photos — a chart that reads as black is useless */
-    importImage(file,1100,0.85,function(d){
+    /* same careful path as photos — a chart that reads as black is useless.
+       Kept at 2000px rather than a photo's 1200: a chart's print is small, the
+       reader wants every pixel of it, and this picture is never saved anyway. */
+    importImage(file,2000,0.85,function(d){
       if(!d){toast('That chart came out blank on this device — tap 🩺 Photo check',3800);return;}
       chartImg=d;   /* kept in memory only, never saved */
       fillPasteBox();
@@ -5274,8 +5402,8 @@ try{
     var box=$('pasteBox'); if(!box)return;
     var p=active();
     var h='<div class="bk-note">Paste the colour numbers from your kit — commas, spaces or new lines all work. '+
-      'To read them off a photo of the chart: on a phone use Google Lens or iPhone Live Text to select and copy the numbers; '+
-      'on Windows 11 use Snipping Tool → Text actions. Then paste here — nothing is added until you confirm.</div>'+
+      'Or add a photo of the chart and tap <b>Read the numbers</b> to have them read off it (on a phone, Google Lens or iPhone Live Text can copy them too). '+
+      'Nothing is added until you confirm.</div>'+
       '<textarea id="pasteText" rows="3" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13px;background:var(--panel);color:var(--ink);" placeholder="e.g. 321, 310 700 3801 White — or a whole chart: 1 V 168  2 B 310 …">'+esc(pasteTextVal)+'</textarea>'+
       '<div class="bk-btns" style="margin-top:6px;">'+
         '<button class="chipbtn" id="chartAdd" type="button">🖼 '+(chartImg?'Replace':'Add')+' chart photo</button>'+
@@ -5283,7 +5411,9 @@ try{
         '<span class="bk-note" style="align-self:center;margin:0;">for reference while you check — not saved to the painting</span>'+
       '</div>';
     if(chartImg)
-      h+='<img id="chartImgEl" src="'+chartImg+'" alt="colour chart" style="margin-top:8px;max-width:100%;max-height:280px;border-radius:10px;border:1.5px solid var(--line);cursor:zoom-in;display:block;">';
+      h+='<img id="chartImgEl" src="'+chartImg+'" alt="colour chart" style="margin-top:8px;max-width:100%;max-height:280px;border-radius:10px;border:1.5px solid var(--line);cursor:zoom-in;display:block;">'+
+        '<div class="bk-btns" style="margin-top:8px;align-items:center;"><button class="chipbtn" id="chartRead" type="button"'+(ocrBusy?' disabled':'')+'>'+(ocrBusy?'Reading…':'🔤 Read the numbers off the chart')+'</button>'+
+        '<span class="bk-note" id="chartReadNote" style="margin:0;">'+(ocrBusy?'':'The reader is fetched the first time (about 5 MB), then kept. Sharp, straight-on photos read best.')+'</span></div>';
     if(!pasteReview){
       h+='<div class="bk-btns" style="margin-top:8px;">'+
         '<button class="chipbtn" id="pasteCheck" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">Check these numbers</button>'+
@@ -5296,6 +5426,26 @@ try{
     if($('chartAdd'))$('chartAdd').addEventListener('click',function(){chartPick=true;$('fileInput').click();});
     if($('chartClear'))$('chartClear').addEventListener('click',function(){chartImg=null;fillPasteBox();});
     if($('chartImgEl'))$('chartImgEl').addEventListener('click',function(){openLightbox(chartImg);});
+    if($('chartRead'))$('chartRead').addEventListener('click',function(){
+      if(ocrBusy)return;
+      ocrBusy=true;
+      var btn=$('chartRead'), note=$('chartReadNote');
+      btn.disabled=true; btn.textContent='Reading…'; if(note)note.textContent='Fetching the reader takes a moment the first time.';
+      readChart(chartImg,function(pr){var b2=$('chartRead');if(b2)b2.textContent='Reading… '+Math.round(pr*100)+'%';},function(text,err){
+        ocrBusy=false;
+        if(text===null){
+          var b3=$('chartRead'), n3=$('chartReadNote');
+          if(b3){b3.disabled=false;b3.textContent='🔤 Read the numbers off the chart';}
+          if(n3)n3.textContent=err;
+          return;
+        }
+        pasteTextVal=(pasteTextVal.trim()?pasteTextVal+'\n':'')+text.trim();
+        pasteReview=parsePasteText(pasteTextVal,active());
+        fillPasteBox();
+        var n=pasteReview.matched.length;
+        toast(n?('Read '+n+' DMC number'+(n===1?'':'s')+' off the chart — check them against the picture before adding'):'No DMC numbers could be read off that picture — a sharper, straighter photo may do better',3600);
+      });
+    });
     if($('pasteCheck'))$('pasteCheck').addEventListener('click',function(){
       pasteReview=parsePasteText(pasteTextVal,p);
       fillPasteBox();
@@ -6277,7 +6427,9 @@ try{
         '</span>'+
         '<button class="chipbtn'+(findStash?' on':'')+'" id="fStash" type="button" title="Show only colours you have leftovers of">🧺 Leftovers only</button>'+
         '<button class="chipbtn'+(findPaste?' on':'')+'" id="fPaste" type="button" title="Paste a kit’s colour list and see what you already have">🧾 Check a kit list</button>'+
+        '<button class="chipbtn'+(findReorder?' on':'')+'" id="fReorder" type="button" title="The colours to buy: running low, or none left and used by a project">🛒 Reorder list</button>'+
       '</div>'+
+      (findReorder?'<div class="backup" id="fReorderBox" style="margin-bottom:10px;"></div>':'')+
       (findType!=='any'?('<div class="fbanner" id="fClear">Counting <b>'+TYPES[findType].sym+' '+esc(TYPES[findType].label.toLowerCase())+
         '</b> projects only — tap to count them all again</div>'):'')+
       (findPaste?'<div class="backup" id="fPasteBox" style="margin-bottom:10px;"></div>':'')+
@@ -6307,8 +6459,54 @@ try{
       findQuery=e.target.value;
       clearTimeout(fqT); fqT=setTimeout(renderFindLists,150);
     });
+    $('fReorder').addEventListener('click',function(){findReorder=!findReorder;renderFind();});
     if(findPaste)fillFindPasteBox();
+    if(findReorder)fillReorderBox();
     renderFindLists();
+  }
+
+  /* "What should I order?": the colours marked ⏳ running low, and the ones
+     marked ∅ none left that a project of yours uses — everything else you
+     either have or never needed. A list to copy into a shop's search box or
+     send to yourself. */
+  function reorderRows(){
+    var used=usedColorSet(), owners={};
+    state.paintings.forEach(function(p){Object.keys(p.colors||{}).forEach(function(c){if(p.colors[c])owners[c]=(owners[c]||0)+1;});});
+    var rows=[];
+    DMC.forEach(function(r){
+      var lvl=stashLevel(r[0],used);
+      if(lvl==='low'||(lvl==='out'&&used[r[0]]))rows.push({code:r[0],name:r[1],hex:r[2],lvl:lvl,n:owners[r[0]]||0});
+    });
+    rows.sort(function(a,b){return (a.lvl===b.lvl)?0:(a.lvl==='out'?-1:1);});   /* none left first */
+    return rows;
+  }
+  function reorderText(rows){
+    return rows.map(function(r){return 'DMC '+r.code+' '+r.name+(r.lvl==='out'?' — none left':' — running low');}).join('\n');
+  }
+  function fillReorderBox(){
+    var box=$('fReorderBox'); if(!box)return;
+    var rows=reorderRows();
+    var h='<div class="bk-note">Colours to buy before the next kit: the ones you marked <b>⏳ running low</b>, and the ones marked <b>∅ none left</b> that a project of yours uses.</div>';
+    if(!rows.length)h+='<div class="vw-empty" style="margin-top:8px;">Nothing to reorder. Tap a colour below and mark it running low or none left, and it appears here.</div>';
+    else h+='<div class="grid compact" style="margin-top:8px;">'+rows.map(function(r){
+      return '<div class="card ro"><div class="drill" style="background-color:'+r.hex+'"></div>'+
+        '<div class="ctext"><div class="code">'+r.code+'</div><div class="cname">'+esc(r.name)+' · '+(r.lvl==='out'?'none left':'running low')+
+        (r.n?(' · in '+r.n+' project'+(r.n===1?'':'s')):'')+'</div></div></div>';
+    }).join('')+'</div>';
+    h+='<div class="bk-btns" style="margin-top:8px;">'+
+      (rows.length?('<button class="chipbtn" id="fReorderCopy" type="button" style="background:var(--accent);border-color:var(--accent);color:#fff;">⧉ Copy the list ('+rows.length+')</button>'+
+        (navigator.share?'<button class="chipbtn" id="fReorderShare" type="button">📤 Share</button>':'')):'')+
+      '<button class="chipbtn" id="fReorderClose" type="button">Close</button></div>';
+    box.innerHTML=h;
+    if($('fReorderCopy'))$('fReorderCopy').addEventListener('click',function(){
+      var txt=reorderText(rows);
+      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(function(){toast('Copied '+rows.length+' colour'+(rows.length===1?'':'s')+' ✓',1400);},function(){toast('Copy blocked here',1600);});
+      else toast('Copy not supported here',1600);
+    });
+    if($('fReorderShare'))$('fReorderShare').addEventListener('click',function(){
+      try{navigator.share({title:'DMC colours to reorder',text:reorderText(rows)}).catch(function(){});}catch(e){}
+    });
+    if($('fReorderClose'))$('fReorderClose').addEventListener('click',function(){findReorder=false;renderFind();});
   }
 
   /* "Check a kit list": paste a kit's colour numbers and see, before buying,

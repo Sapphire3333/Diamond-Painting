@@ -21,10 +21,10 @@ Switching a project's kind only hides sections — nothing is ever deleted, so y
 
 For every diamond painting you can track:
 
-- 🎨 **Which DMC colors it uses** — tap them in a built-in catalog of all 454 DMC colors, or paste a whole list of numbers from the kit at once
+- 🎨 **Which DMC colors it uses** — tap them in a built-in catalog of all 454 DMC colors, paste a whole list of numbers from the kit at once, or photograph the kit's chart and have the numbers read off it
 - 💠 **Diamond type** — square ■, round ●, or odd ✦
 - ✨ **Special diamonds** — AB, Crystal, Fairy Dust, Acrylic… with your own shared library of special drills
-- 📷 **Photos** — the seller's picture and your finished result, with crop, background cut-out, and a free "arrange" mode to place photos anywhere on the page
+- 📷 **Photos** — the seller's picture and your finished result, each with its own full-screen editor (crop with handles, straighten, turn, zoom inside the card frame, background cut-out — all kept as settings, so the original is never lost), a "which colour is this?" picker that names the nearest DMC shade, and a free "arrange" mode to place photos anywhere on the page
 - 📋 **Everything else** — status (wishlist / in progress / finished), progress %, rating, price, size, seller, kit code, start & finish dates, and your own tags
 
 ### A rating that works itself out
@@ -35,7 +35,7 @@ Type a number yourself whenever you'd rather, and it stands until you press **�
 
 ## Why you'll like it
 
-**"Do I already have this color?"** — the Find page answers the question every diamond painter asks. Tap any DMC number and instantly see which of your paintings use it — or tap a **tag** to ask a different question, like which of your kits you marked *good* or *wrinkled canvas*. The **■ ● ✦** buttons beside the search box narrow every count to one drill shape (tap the same one again for all of them) — and mark the colours you have leftover drills of 🧺, so "do I own this?" gets a direct answer. Leftovers have three answers, because a bag with a dozen drills left is its own familiar state: **🧺 have some · ⏳ running low · ∅ none left** — so Find also answers "what should I reorder?". A "Leftovers only" filter shows your whole stash at a glance, and **🧾 Check a kit list** takes a pasted colour list from a kit you're eyeing and reports what's new to you, what's in your leftovers, and what's already in your paintings — before you buy.
+**"Do I already have this color?"** — the Find page answers the question every diamond painter asks. Tap any DMC number and instantly see which of your paintings use it — or tap a **tag** to ask a different question, like which of your kits you marked *good* or *wrinkled canvas*. The **■ ● ✦** buttons beside the search box narrow every count to one drill shape (tap the same one again for all of them) — and mark the colours you have leftover drills of 🧺, so "do I own this?" gets a direct answer. Leftovers have three answers, because a bag with a dozen drills left is its own familiar state: **🧺 have some · ⏳ running low · ∅ none left** — so Find also answers "what should I reorder?". A "Leftovers only" filter shows your whole stash at a glance, **🛒 Reorder list** gathers the colours you marked running low or none left into a list to copy or share, and **🧾 Check a kit list** takes a pasted colour list from a kit you're eyeing and reports what's new to you, what's in your leftovers, and what's already in your paintings — before you buy.
 
 **It works everywhere.** It's a website, so it runs on any phone, tablet, or PC. Add it to your home screen and it installs like a real app and works offline.
 
@@ -49,7 +49,7 @@ Type a number yourself whenever you'd rather, and it stands until you press **�
 
 1. Open the app link in your browser
 2. Tap **+ New painting** and give it a name
-3. Pick the diamond type, then tap the colors the kit uses — or tap **＋ Paste list** and paste all the DMC numbers straight from the kit's chart
+3. Pick the diamond type, then tap the colors the kit uses — or tap **＋ Paste list** and paste all the DMC numbers straight from the kit's chart, or add a photo of the chart and tap **Read the numbers** (the reader is fetched from the internet the first time, about 5 MB)
 4. Add photos, a rating, tags, price… as much or as little as you like
 
 ### Install it like an app (recommended)
@@ -89,7 +89,7 @@ Every page has **A− 115% A+** in the top-right corner. It grows the whole app 
 - **Fading a photo and putting it behind the page:** in **⇱ Arrange & edit**, tap a photo and a *Fade* slider appears, with **▢ Send behind the page** beside it. A faded photo sitting behind the page reads as a watermark — cards and text keep their own solid colours and sit on top of it, so it shows in the margins and the gaps. It stays in front while you're arranging (otherwise you couldn't take hold of it) and drops behind when you read the project.
 - **🏆 Achievements:** five awards on the ⌂ Overview page — starting projects, adding diamond colours, giving projects their Sold and Result pictures, and finishing paintings — each climbing Bronze → Silver → Gold → Diamond with three stages per tier, plus a level that grows with every stage. They count everything you have ever done; deleting a project never takes one back.
 - **📤 Share:** every project has a Share button that turns it into one picture — its covers, name, badges and colours, sized for a feed. On a phone it opens the share sheet (straight into Facebook, Reddit or a chat); on PC it saves the image. The ⌂ Overview page also shows a **What's new** list after each update, so changes explain themselves.
-- **Photos:** tap a photo to open its tools (crop to card, flip, reorder, a **caption**). A caption shows on the project page's gallery and when the photo opens big — with the date each photo was added, your work-in-progress photos become a little diary. Use **⇱ Arrange & edit** to drag photos anywhere on the page, resize, tilt, crop, or cut out the background. On PC you can paste a copied image with Ctrl+V. If a photo ever refuses to load on a phone, **🩺 Photo check** explains what went wrong on that device.
+- **Photos:** tap a photo and it opens full screen with every tool for it — drag and zoom inside the card frame, a crop box with handles, straighten, turn, flip, a cut-out with a sensitivity slider, **🎯 Which colour** to name the DMC shade at any spot, plus the cover buttons, gallery order and size, a **caption** and its label. Edits are settings, so the original is kept and can be changed again later. A caption shows on the project page's gallery and when the photo opens big — with the date each photo was added, your work-in-progress photos become a little diary. Drag a thumbnail to reorder (hold still a moment first on a phone); on PC drop a picture file anywhere on the page or paste one with Ctrl+V; on a phone **📷 Take a photo** opens the camera. Use **⇱ Move images** on the project page to drag photos anywhere, resize, tilt (two fingers do both), with gold guide lines when things line up. The big photo view swipes between a project's photos and pinches to zoom. If a photo ever refuses to load on a phone, **🩺 Photo check** explains what went wrong on that device.
 - **Tags, sizes, sellers** are shared lists — add one once, reuse it everywhere. Tap **edit list** next to a group to remove entries you no longer want.
 - **Backups:** **Save a backup now** sits on Overview, where you'll want it before a big change. Everything else is in **⚙ Settings**: "Show backup code" gives you a text code you can save anywhere (notes app, email to yourself), "⬇ Download as file" saves the same thing as a file — sturdier than the clipboard when photos make the code huge — plus your last 20 snapshots to restore from, and the daily/weekly automatic backup switch.
 
