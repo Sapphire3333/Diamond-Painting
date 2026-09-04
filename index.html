@@ -241,6 +241,24 @@ try{
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;z-index:100;padding:18px;cursor:zoom-out;outline:none;}
   .lightbox img{max-width:100%;max-height:100%;min-height:0;border-radius:10px;object-fit:contain;}
   .lb-cap{color:#fff;font-size:13px;font-weight:700;text-align:center;max-width:90%;flex:0 0 auto;}
+  /* the full-screen photo as a viewer: the picture fills the stage, arrows at
+     the sides when there is more than one, a count at the top. touch-action:none
+     keeps a pinch here from zooming the page instead. */
+  .lb-view{padding:0;gap:0;cursor:default;touch-action:none;user-select:none;-webkit-user-select:none;}
+  .lb-stage{flex:1 1 auto;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+  .lb-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;transform-origin:50% 50%;will-change:transform;pointer-events:none;}
+  .lb-view .lb-cap{padding:8px 14px 12px;}
+  .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:none;border-radius:12px;
+    background:rgba(255,255,255,.14);color:#fff;font-size:34px;line-height:1;cursor:pointer;z-index:2;}
+  .lb-nav.prev{left:8px;} .lb-nav.next{right:8px;}
+  .lb-count{position:absolute;top:10px;left:50%;transform:translateX(-50%);color:#fff;font-size:12px;font-weight:800;
+    background:rgba(0,0,0,.45);padding:3px 10px;border-radius:999px;pointer-events:none;}
+  /* a picture dragged in from the desktop: the whole page says where it will land */
+  .dropzone{position:fixed;inset:10px;border:3px dashed var(--accent);border-radius:18px;background:var(--accent-soft);
+    opacity:.92;z-index:95;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+  .dropzone span{background:var(--accent);color:#fff;font-weight:800;font-size:15px;padding:10px 18px;border-radius:999px;}
+  /* the item being dragged to a new place in a list */
+  .reorder-drag{opacity:.88;box-shadow:0 12px 30px rgba(0,0,0,.35);z-index:20;position:relative;transition:none;cursor:grabbing;}
   /* a caption sits on its gallery tile without stealing the tap */
   .vw-gcap{position:absolute;left:6px;right:6px;bottom:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;}
   /* ---- two pictures at once ----
@@ -625,6 +643,8 @@ try{
     <button type="button" id="snBot" title="Jump to the bottom" aria-label="Jump to the bottom of the page">↓</button>
   </div>
   <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+  <!-- capture= asks a phone for its camera rather than its gallery -->
+  <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
 </div>
 
 <script src="dmc.js"></script>
@@ -3167,27 +3187,101 @@ try{
     if(t.p.photos&&t.p.photos.length)savePhotos(t.p.id);
     toast('Restored “'+t.p.name+'” ✓',1400);
   }
-  function openLightbox(src,caption){
-    var lb=document.createElement('div'); lb.className='lightbox';
-    lb.setAttribute('role','dialog'); lb.setAttribute('aria-modal','true');
-    lb.setAttribute('aria-label',caption||'Photo'); lb.tabIndex=-1;
+  /* The full-screen photo. Given a project's photos (opts.photos as {src,cap},
+     opts.index) it is a viewer: swipe, the arrows or ← → move between them,
+     a pinch or a double-tap zooms, a drag looks around a zoomed photo, and one
+     tap — or Escape, or Back — closes it. A lone tap waits a third of a second
+     to be sure it is not the first half of a double-tap. */
+  function openLightbox(src,caption,opts){
+    var photos=(opts&&opts.photos&&opts.photos.length)?opts.photos:[{src:src,cap:caption||''}];
+    var idx=Math.max(0,Math.min(photos.length-1,(opts&&opts.index)||0));
+    var lb=document.createElement('div'); lb.className='lightbox lb-view';
+    lb.setAttribute('role','dialog'); lb.setAttribute('aria-modal','true'); lb.tabIndex=-1;
     var wasFocused=document.activeElement;
-    var im=document.createElement('img'); im.src=src; im.alt=caption||''; lb.appendChild(im);
-    if(caption){
-      var cap=document.createElement('div'); cap.className='lb-cap'; cap.textContent=caption;
-      lb.appendChild(cap);
+    lb.innerHTML='<div class="lb-stage"><img class="lb-img" alt=""></div><div class="lb-cap"></div>'+
+      (photos.length>1?('<button class="lb-nav prev" type="button" aria-label="Previous photo">‹</button>'+
+                        '<button class="lb-nav next" type="button" aria-label="Next photo">›</button>'+
+                        '<div class="lb-count"></div>'):'');
+    var stage=lb.querySelector('.lb-stage'), im=lb.querySelector('.lb-img'), cap=lb.querySelector('.lb-cap'), cnt=lb.querySelector('.lb-count');
+    var z=1, tx=0, ty=0;
+    function apply(){im.style.transform=(z>1||tx||ty)?('translate('+tx+'px,'+ty+'px) scale('+z+')'):'';}
+    function show(i){
+      idx=(i+photos.length)%photos.length; z=1; tx=0; ty=0; apply();
+      im.src=photos[idx].src; im.alt=photos[idx].cap||'';
+      cap.textContent=photos[idx].cap||''; cap.style.display=photos[idx].cap?'':'none';
+      lb.setAttribute('aria-label',photos[idx].cap||('Photo '+(idx+1)+' of '+photos.length));
+      if(cnt)cnt.textContent=(idx+1)+' / '+photos.length;
     }
-    function onKey(e){if(e.key==='Escape')close();}
+    /* zoom so that the point under the finger stays where it is */
+    function zoomAt(nz,cx,cy){
+      var r=stage.getBoundingClientRect(), px=cx-r.left-r.width/2, py=cy-r.top-r.height/2, k=nz/z;
+      tx=px-(px-tx)*k; ty=py-(py-ty)*k; z=nz;
+      if(z<=1.001){z=1;tx=0;ty=0;}
+      apply();
+    }
+    var pts={}, gest=null, lastTap=0;
+    stage.addEventListener('pointerdown',function(e){
+      e.preventDefault();
+      pts[e.pointerId]={x:e.clientX,y:e.clientY};
+      try{stage.setPointerCapture(e.pointerId);}catch(_){}
+      var ids=Object.keys(pts);
+      if(ids.length>=2){var a=pts[ids[0]],b=pts[ids[1]];gest={pinch:true,d0:Math.max(8,Math.hypot(b.x-a.x,b.y-a.y)),z0:z,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};}
+      else gest={pinch:false,x0:e.clientX,y0:e.clientY,tx0:tx,ty0:ty,moved:false};
+    });
+    stage.addEventListener('pointermove',function(e){
+      if(!pts[e.pointerId]||!gest)return;
+      pts[e.pointerId]={x:e.clientX,y:e.clientY};
+      var ids=Object.keys(pts);
+      if(gest.pinch){
+        if(ids.length<2)return;
+        var a=pts[ids[0]],b=pts[ids[1]];
+        zoomAt(Math.max(1,Math.min(5,gest.z0*Math.hypot(b.x-a.x,b.y-a.y)/gest.d0)),gest.cx,gest.cy);
+        return;
+      }
+      var dx=e.clientX-gest.x0, dy=e.clientY-gest.y0;
+      if(Math.hypot(dx,dy)>6)gest.moved=true;
+      if(z>1){tx=gest.tx0+dx;ty=gest.ty0+dy;apply();}
+      else if(gest.moved)im.style.transform='translate('+dx+'px,0)';   /* the swipe, following the finger */
+    });
+    function up(e){
+      if(!pts[e.pointerId])return;
+      delete pts[e.pointerId];
+      try{stage.releasePointerCapture(e.pointerId);}catch(_){}
+      if(Object.keys(pts).length){gest=null;return;}   /* the finger that stays does nothing on its own */
+      var g=gest; gest=null; if(!g)return;
+      if(g.pinch)return;
+      if(!g.moved){
+        var now=Date.now();
+        if(now-lastTap<320){lastTap=0;zoomAt(z>1?1:2.5,e.clientX,e.clientY);return;}
+        lastTap=now;
+        if(z<=1)setTimeout(function(){if(lastTap===now)close();},330);
+        return;
+      }
+      if(z>1)return;
+      apply();
+      var dx=e.clientX-g.x0;
+      if(Math.abs(dx)>50&&photos.length>1)show(idx+(dx<0?1:-1));
+    }
+    stage.addEventListener('pointerup',up); stage.addEventListener('pointercancel',up);
+    stage.addEventListener('wheel',function(e){e.preventDefault();zoomAt(Math.max(1,Math.min(5,z*(e.deltaY<0?1.12:1/1.12))),e.clientX,e.clientY);},{passive:false});
+    lb.querySelectorAll('.lb-nav').forEach(function(b){
+      b.addEventListener('click',function(e){e.stopPropagation();show(idx+(b.classList.contains('next')?1:-1));});
+    });
+    function onKey(e){
+      if(e.key==='Escape')close();
+      else if(photos.length>1&&e.key==='ArrowRight')show(idx+1);
+      else if(photos.length>1&&e.key==='ArrowLeft')show(idx-1);
+    }
     function destroy(){
       lb.remove();document.removeEventListener('keydown',onKey);document.body.style.overflow='';
       try{if(wasFocused&&wasFocused.focus)wasFocused.focus();}catch(e){}
     }
     function close(){destroy();}
     lb._destroy=destroy;
-    lb.addEventListener('click',close);
     document.addEventListener('keydown',onKey);
     document.body.style.overflow='hidden';
     document.body.appendChild(lb);
+    show(idx);
     try{lb.focus();}catch(e){}
   }
   /* ---------- share a project as one picture ----------
@@ -3448,9 +3542,82 @@ try{
     document.body.appendChild(ov);
     try{ov.focus();}catch(e){}
   }
+  /* ---------- drag to reorder ----------
+     One helper for the project list and a project's photo strip. With a mouse,
+     press and move; with a finger, hold still for a third of a second first, so
+     an ordinary scroll is still a scroll — a finger that moves before then is
+     scrolling, and the browser's pointercancel ends the attempt. The dragged
+     item follows the pointer, and the list reflows around it as it passes over
+     the others, so the place it will land is always the place it is shown. */
+  var reorderDroppedAt=0;
+  function wireReorder(host,sel,onDrop){
+    if(!host)return;
+    function items(){return [].slice.call(host.querySelectorAll(sel));}
+    var drag=null, hold=null;
+    /* while a drag is on, the finger must not scroll the page — only a
+       non-passive touchmove can say so once the touch has begun */
+    host.addEventListener('touchmove',function(e){if(drag&&drag.on)e.preventDefault();},{passive:false});
+    host.addEventListener('dragstart',function(e){if(drag)e.preventDefault();});   /* no native image-drag ghost */
+    function start(){
+      drag.on=true;
+      try{drag.el.setPointerCapture(drag.id);}catch(_){}
+      drag.el.classList.add('reorder-drag');
+      if(navigator.vibrate)try{navigator.vibrate(12);}catch(_){}
+    }
+    function follow(x,y){
+      /* the element's own place moves as the list reflows, so its transform is
+         measured fresh from where it would sit untransformed */
+      var z=appZoom();
+      drag.el.style.transform='';
+      var r=drag.el.getBoundingClientRect();
+      drag.el.style.transform='translate('+((x-drag.offX-r.left)/z)+'px,'+((y-drag.offY-r.top)/z)+'px)';
+    }
+    host.addEventListener('pointerdown',function(e){
+      if(e.button)return;
+      var el=e.target.closest?e.target.closest(sel):null;
+      if(!el||!host.contains(el))return;
+      if(e.target.closest('.delx,button,input,textarea,a,select'))return;
+      var r=el.getBoundingClientRect();
+      drag={el:el,from:items().indexOf(el),x0:e.clientX,y0:e.clientY,offX:e.clientX-r.left,offY:e.clientY-r.top,on:false,id:e.pointerId,touch:(e.pointerType==='touch')};
+      clearTimeout(hold);
+      if(drag.touch)hold=setTimeout(function(){if(drag&&!drag.on){start();follow(drag.x0,drag.y0);}},350);
+    });
+    host.addEventListener('pointermove',function(e){
+      if(!drag||e.pointerId!==drag.id)return;
+      if(!drag.on){
+        if(Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)<=8)return;
+        if(drag.touch){clearTimeout(hold);drag=null;return;}   /* moved too soon: that was a scroll */
+        start();
+      }
+      var list=items(), over=null;
+      for(var i=0;i<list.length;i++){
+        var it=list[i]; if(it===drag.el)continue;
+        var b=it.getBoundingClientRect();
+        if(e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom){over=it;break;}
+      }
+      if(over){
+        var di=list.indexOf(drag.el), oi=list.indexOf(over);
+        if(di<oi)over.parentNode.insertBefore(drag.el,over.nextSibling); else over.parentNode.insertBefore(drag.el,over);
+      }
+      follow(e.clientX,e.clientY);
+    });
+    function up(e){
+      if(!drag||e.pointerId!==drag.id)return;
+      clearTimeout(hold);
+      var d=drag; drag=null;
+      try{d.el.releasePointerCapture(e.pointerId);}catch(_){}
+      if(!d.on)return;
+      d.el.classList.remove('reorder-drag'); d.el.style.transform='';
+      reorderDroppedAt=Date.now();
+      var to=items().indexOf(d.el);
+      if(to>=0&&to!==d.from)onDrop(d.from,to);
+    }
+    host.addEventListener('pointerup',up); host.addEventListener('pointercancel',up);
+  }
   function wirePaintingCards(){
     $('page').querySelectorAll('.ovcard').forEach(function(c){
       c.addEventListener('click',function(){
+        if(Date.now()-reorderDroppedAt<400)return;   /* the tap that ended a drag is not a tap */
         var id=c.getAttribute('data-id');
         if(selectMode){
           if(selectedIds[id])delete selectedIds[id]; else selectedIds[id]=1;
@@ -3465,6 +3632,14 @@ try{
     var el=$('pList'); if(!el)return;
     el.innerHTML=paintingsListHtml();
     wirePaintingCards();
+    /* dragging a card reorders the projects — only when the list IS the order
+       (no grouping, sorted by order added, nothing filtered out, not picking) */
+    if(state.pGroup==='none'&&state.ovSort==='added'&&!selectMode&&!pQuery.trim()&&state.pKind==='all'){
+      wireReorder(el.querySelector('.ovlist,.ovgrid'),'.ovcard',function(from,to){
+        var a=state.paintings.splice(from,1)[0]; state.paintings.splice(to,0,a);
+        renderPaintingsList(); save(); pushHistory(); toast('Moved ✓',900);
+      });
+    }
     el.querySelectorAll('.grp-hd').forEach(function(h){
       h.addEventListener('click',function(){var key=decodeURIComponent(h.getAttribute('data-grp'));collapsedGroups[key]=!collapsedGroups[key];renderPaintingsList();});
     });
@@ -4407,6 +4582,51 @@ try{
     }
   });
 
+  /* A picture dragged in from the desktop. Anywhere on the open project will do;
+     while arranging, the drop point is where it lands; with the colour panel
+     open it is the chart to read from, as a pasted picture is. dragover must be
+     refused on every page, or a picture dropped on the wrong one is opened by
+     the browser in place of the app. */
+  var dropDepth=0;
+  function hasFiles(e){var t=e.dataTransfer;return !!(t&&t.types&&[].slice.call(t.types).indexOf('Files')>=0);}
+  function dropzone(on,text){
+    var d=document.getElementById('dropzone');
+    if(!on){if(d)d.remove();return;}
+    if(!d){d=document.createElement('div');d.id='dropzone';d.className='dropzone';d.innerHTML='<span></span>';($('app')||document.body).appendChild(d);}
+    d.firstChild.textContent=text;
+  }
+  document.addEventListener('dragenter',function(e){
+    if(!hasFiles(e))return;
+    e.preventDefault(); dropDepth++;
+    if(state.view!=='paint')return;
+    var p=active();
+    dropzone(true,showPaste?'Drop the chart photo here':('Drop to add to “'+((p&&p.name)||'this project')+'”'));
+  });
+  document.addEventListener('dragover',function(e){
+    if(!hasFiles(e))return;
+    e.preventDefault();
+    try{e.dataTransfer.dropEffect=(state.view==='paint')?'copy':'none';}catch(_){}
+  });
+  document.addEventListener('dragleave',function(e){
+    if(!hasFiles(e))return;
+    dropDepth=Math.max(0,dropDepth-1);
+    if(!dropDepth)dropzone(false);
+  });
+  document.addEventListener('drop',function(e){
+    if(!hasFiles(e))return;
+    e.preventDefault(); dropDepth=0; dropzone(false);
+    if(state.view!=='paint')return;
+    var files=e.dataTransfer.files||[], pid=active().id;
+    if(!files.length)return;
+    if(showPaste){setChartImage(files[0]);return;}
+    if(arrangeMode){
+      var layer=document.getElementById('arrLayer');
+      if(layer){var r=layer.getBoundingClientRect();if(r.width)lastPastePt={x:Math.max(0,Math.min(88,(e.clientX-r.left)/r.width*100)),y:Math.max(0,(e.clientY-r.top)/r.width*100)};}
+    }
+    plog('dropped '+files.length+' file'+(files.length===1?'':'s'),'');
+    for(var i=0;i<files.length;i++)addImageFile(files[i],pid);
+  });
+
   /* ---------- arrange-mode helpers ---------- */
   /* ax, ay and aw are ALL percentages of the page width, so an arrangement made
      on the PC keeps its shape on a phone: the whole composition scales together
@@ -4588,7 +4808,9 @@ try{
     else if(p.edit===false){
       /* view mode: tapping a photo opens it full-screen */
       placed.forEach(function(im){
-        im.addEventListener('click',function(){openLightbox(im.src);});
+        im.addEventListener('click',function(){
+          openLightbox(im.src,'',{photos:p.photos.map(function(q){return {src:shown(q),cap:q.c||''};}),index:parseInt(im.getAttribute('data-i'),10)||0});
+        });
       });
     }
     else {
@@ -5248,8 +5470,7 @@ try{
       im.addEventListener('click',function(){
         /* the gallery shows the small copy — the lightbox always gets the original */
         var i=parseInt(im.getAttribute('data-i'),10);
-        var ph=(i>=0&&p.photos[i])?p.photos[i]:null;
-        openLightbox(ph?shown(ph):im.src,ph?(ph.c||''):'');
+        openLightbox(im.src,'',{photos:p.photos.map(function(q){return {src:shown(q),cap:q.c||''};}),index:i>=0?i:0});
       });
     });
     buildArrLayer(p);
@@ -5284,17 +5505,19 @@ try{
        them. Placing photos freely is offered on the project page — 👁 View —
        where it is the layout you are actually looking at. */
     ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
+      /* a camera button only where there is a camera to point: a phone or a tablet */
+      (navigator.maxTouchPoints>0?'<button class="pbtn" id="phCam" type="button">📷 Take a photo</button>':'')+
       (p.photos.length>1?'<button class="pbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
       '<button class="pbtn" id="phCheck" type="button" title="Why did a photo come out black or refuse to load?">🩺 Photo check</button></div>';
     ph+='<div class="photo-hint">'+(p.photos.length
-      ? ('Tap a photo to open it with every tool for it — what shows in the frame, crop and straighten, turn, cut out the background — or tap its <b>✕</b> to remove it. '+
+      ? ('Tap a photo to open it with every tool for it — what shows in the frame, crop and straighten, turn, cut out the background — or tap its <b>✕</b> to remove it. Drag a photo to change the order'+(navigator.maxTouchPoints>0?' (hold it still for a moment first)':'')+'; on a PC you can also drop a picture file anywhere on this page. '+
          (kindOf(p)==='drawing'
            ? 'The 1st photo is the big one on the project page; the rest become its gallery.'
            : (p.noSold
               ? 'This project has no Sold picture — its 1st photo is the “Result”. Tap ★ Sold on a photo to change that.'
               : 'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Only have a photo of the finished work? Select it and tap ★ Result.'))+
          ' To place photos freely on the page, switch to 👁 View and use ⇱ Move images.')
-      : 'Add photos — on PC you can also paste (Ctrl+V) a copied image.'+(kindOf(p)==='drawing'
+      : 'Add photos — on PC you can also paste (Ctrl+V) a copied image, or drop a picture file anywhere on this page.'+(kindOf(p)==='drawing'
            ? ' The first becomes the big picture, the rest a gallery.'
            : ' The first two become the “Sold” and “Result” pictures on cards.'))+'</div>';
     if(arrangeMode)ph+=arrangeUiHtml(p); /* fixed bottom bar — takes no space in the flow */
@@ -5582,6 +5805,7 @@ try{
 
     /* photos events */
     if($('phAdd'))$('phAdd').addEventListener('click',function(){plog('opened the photo picker','');$('fileInput').click();});
+    if($('phCam'))$('phCam').addEventListener('click',function(){plog('opened the camera','');$('camInput').click();});
     if($('phCheck'))$('phCheck').addEventListener('click',openPhotoCheck);
     if($('cmpBtn'))$('cmpBtn').addEventListener('click',function(){openCompare(p);});
     if($('modeToggle'))$('modeToggle').addEventListener('click',function(){
@@ -5591,6 +5815,7 @@ try{
     if(arrangeMode){ /* the draggable layer + its toolbar are wired in buildArrLayer() */ } else {
     pg.querySelectorAll('.photo-grid img[data-i]').forEach(function(im){
       im.addEventListener('click',function(){
+        if(Date.now()-reorderDroppedAt<400)return;   /* the tap that ended a drag is not a tap */
         openPhotoSheet(parseInt(im.getAttribute('data-i'),10));
       });
     });
@@ -5604,6 +5829,11 @@ try{
         renderPainting(); savePhotos(p.id);
         showPhotoUndo(p.id,removed,i,'Photo removed');
       });
+    });
+    /* drag a thumbnail to a new place in the order */
+    wireReorder(pg.querySelector('.photo-grid'),'.pg-item',function(from,to){
+      var a=p.photos.splice(from,1)[0]; p.photos.splice(to,0,a);
+      renderPainting(); savePhotos(p.id); saveEdit(); toast('Photo moved ✓',900);
     });
     }
 
@@ -6711,7 +6941,8 @@ try{
   renderOverview=guarded(renderOverview);
   renderSettings=guarded(renderSettings);
 
-  $('fileInput').addEventListener('change',function(e){
+  /* the gallery picker and the camera hand their files over the same way */
+  function pickedFiles(e){
     var files=e.target.files||[];
     plog('picker returned '+files.length+' file'+(files.length===1?'':'s'),
       files[0]?((files[0].name||'?')+' · '+(files[0].type||'no type')+' · '+fmtBytes(files[0].size||0)):'');
@@ -6719,7 +6950,9 @@ try{
     var pid=active().id;
     for(var i=0;i<files.length;i++)addImageFile(files[i],pid);
     e.target.value='';
-  });
+  }
+  $('fileInput').addEventListener('change',pickedFiles);
+  $('camInput').addEventListener('change',pickedFiles);
 
   /* Most of the tappable things on these pages are not real <button>s — colour
      cards, project cards, fold-away headings. They carry role="button" and a
