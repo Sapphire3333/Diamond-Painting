@@ -415,6 +415,7 @@ try{
   .sh-name{font-weight:800;font-size:15px;margin-right:auto;}
   .sh-sum{font-size:11px;color:var(--muted);margin-top:4px;}
   .sh-stage.pick{cursor:crosshair;}
+  .sheet kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:11px;background:var(--bg);font-family:inherit;}
   .sh-swatch{width:26px;height:26px;border-radius:8px;border:1px solid rgba(0,0,0,.15);flex:0 0 auto;display:inline-block;}
   /* a zoomed-in photo (see photoStyle) is bigger than its frame, so the frame
      clips — but only when zoomed, so every other photo is shown exactly as before */
@@ -487,6 +488,13 @@ try{
     background:linear-gradient(to right,var(--accent) 0,var(--accent) var(--fill,0%),var(--unk-soft) var(--fill,0%),var(--unk-soft) 100%);}
   .prog-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);
     border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.35);}
+  /* a slider whose rest is in the middle (straighten: −15° to 15°) fills from
+     the centre out to the knob, so "how far off level" is what the bar shows;
+     --a and --b are the ends of the filled part, set by setCentreFill */
+  .prog-range.centre::-webkit-slider-runnable-track{
+    background:linear-gradient(to right,var(--unk-soft) 0,var(--unk-soft) var(--a,50%),var(--accent) var(--a,50%),var(--accent) var(--b,50%),var(--unk-soft) var(--b,50%),var(--unk-soft) 100%);}
+  .prog-range.centre::-moz-range-track{
+    background:linear-gradient(to right,var(--unk-soft) 0,var(--unk-soft) var(--a,50%),var(--accent) var(--a,50%),var(--accent) var(--b,50%),var(--unk-soft) var(--b,50%),var(--unk-soft) 100%);}
   .ovsort{display:flex;gap:8px;align-items:center;margin-bottom:9px;flex-wrap:wrap;}
   /* the one row that is always on screen, and the panel the other four fold into */
   .toolrow{margin-bottom:8px;}
@@ -2599,6 +2607,8 @@ try{
       '<div class="sh-tools" id="shTools"></div>'+
       '<div class="ed-grp sh-row" id="shAlways"></div>'+
       '<div id="shRows"></div>'+
+      /* the keys, said once, only where there is a keyboard to press them on */
+      (navigator.maxTouchPoints>0?'':'<div class="sh-sum" style="margin-top:10px;">Keys: <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> move the picture in the frame (Shift for bigger steps) · <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>T</kbd> turn · <kbd>F</kbd> flip · <kbd>1</kbd>–<kbd>4</kbd> switch tools · <kbd>Esc</kbd> done</div>')+
     '</div>';
     document.body.appendChild(ov);
     document.body.style.overflow='hidden';
@@ -2607,7 +2617,11 @@ try{
     function changed(){return photoSnap(ph)!==snap;}
     function ratio(){return FRAME_RATIO[p.frame||'landscape']||4/3;}
     function isCover(){return (ph.fit||'cover')==='cover';}
-    function setFill(r){r.style.setProperty('--fill',((r.value-r.min)/(r.max-r.min)*100)+'%');}
+    function setFill(r){
+      var v=(r.value-r.min)/(r.max-r.min)*100;
+      if(r.classList.contains('centre')){r.style.setProperty('--a',Math.min(50,v)+'%');r.style.setProperty('--b',Math.max(50,v)+'%');}
+      else r.style.setProperty('--fill',v+'%');
+    }
     /* the turned, straightened, cut-out picture at preview size — cached on its
        settings, since the cut-out is the slow part and the pan must not redo it */
     function oriented(){
@@ -2800,7 +2814,7 @@ try{
         h='<div class="sh-row"><span class="pd-lbl" style="margin:0">Keep the shape</span>'+
           [['free','Free'],['card','Card frame'],['1:1','Square']].map(function(a){return '<button class="phsz'+(aspect===a[0]?' on':'')+'" data-shaspect="'+a[0]+'" type="button">'+a[1]+'</button>';}).join('')+
           '<button class="pbtn quiet-danger" id="shCropReset" type="button" style="color:var(--muted)">Whole picture</button></div>'+
-          '<div class="sh-row"><span class="pd-lbl" style="margin:0">Straighten</span><input class="prog-range" id="shStr" type="range" min="-150" max="150" step="1" aria-label="Straighten" value="'+Math.round(e.str*10)+'">'+
+          '<div class="sh-row"><span class="pd-lbl" style="margin:0">Straighten</span><input class="prog-range centre" id="shStr" type="range" min="-150" max="150" step="1" aria-label="Straighten" value="'+Math.round(e.str*10)+'">'+
           '<span class="sh-v">'+e.str.toFixed(1)+'°</span><button class="pbtn quiet-danger" id="shStrReset" type="button" style="color:var(--muted)">Level</button></div>';
       } else if(mode==='pick'){
         if(!pick)h='<div class="sh-sum">Tap a spot on the picture and the nearest DMC colours are named — for a drill found on the floor, a colour in the kit picture, or a paint pot to match to a code.</div>';
@@ -2980,7 +2994,32 @@ try{
       if(eChanged)renderEdits(ph,function(){refreshThumb(ph,pid);after();});
       else after();
     }
-    function onKey(ev){if(ev.key==='Escape'){ev.preventDefault();close(true);}}
+    function onKey(ev){
+      if(ev.key==='Escape'){ev.preventDefault();close(true);return;}
+      var ae=document.activeElement;
+      if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))return;   /* typing a caption, not steering */
+      var k=ev.key;
+      if(mode==='frame'&&isCover()){
+        var m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[k];
+        if(m){
+          ev.preventDefault();
+          var st=ev.shiftKey?10:2;
+          /* the key moves the picture the way a drag in that direction would */
+          ph.posX=Math.max(0,Math.min(100,(ph.posX==null?50:ph.posX)-m[0]*st*(ph.flip?-1:1)));
+          ph.posY=Math.max(0,Math.min(100,(ph.posY==null?50:ph.posY)-m[1]*st));
+          draw(); return;
+        }
+        if(k==='+'||k==='='||k==='-'){
+          ev.preventDefault();
+          ph.z=Math.max(1,Math.min(3,(ph.z||1)*(k==='-'?1/1.1:1.1)));
+          if(ph.z<1.005)delete ph.z;
+          tools(); draw(); return;
+        }
+      }
+      if(k==='t'||k==='T'){ev.preventDefault();$('shTurn').click();return;}
+      if(k==='f'||k==='F'){ev.preventDefault();$('shFlip').click();return;}
+      if(/^[1-4]$/.test(k)){var mb=ov.querySelectorAll('[data-shmode]')[parseInt(k,10)-1];if(mb){ev.preventDefault();mb.click();}}
+    }
     ov._destroy=function(){close(true);};   /* Back closes it, like the full-screen photo */
     $('shDone').addEventListener('click',function(){close(true);});
     $('shUndo').addEventListener('click',function(){
@@ -7170,13 +7209,20 @@ try{
      which is where the selected photo and its handles live. */
   var arrApi=null;
   document.addEventListener('keydown',function(e){
-    if(!arrangeMode||!arrApi)return;
     var ae=document.activeElement;
     if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))return;
-    if(e.key==='Escape'){e.preventDefault();exitArrange();return;}
-    var m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
-    if(m){e.preventDefault();var st=e.shiftKey?10:1;arrApi.nudge(m[0]*st,m[1]*st);return;}
-    if(e.key==='Delete'){e.preventDefault();arrApi.del();}
+    if(arrangeMode&&arrApi){
+      if(e.key==='Escape'){e.preventDefault();exitArrange();return;}
+      var m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+      if(m){e.preventDefault();var st=e.shiftKey?10:1;arrApi.nudge(m[0]*st,m[1]*st);return;}
+      if(e.key==='Delete'){e.preventDefault();arrApi.del();}
+      return;
+    }
+    /* on a project page with nothing open over it, Escape is ← All — the
+       overlays (photo sheet, big photo, Compare, Photo check) all catch it first */
+    if(e.key==='Escape'&&state.view==='paint'&&!renaming&&!document.querySelector('.lightbox')){
+      e.preventDefault(); navTo('paintings');
+    }
   });
 
   /* keyboard: Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z or Ctrl+Y = redo */
