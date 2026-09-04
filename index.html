@@ -59,7 +59,7 @@ try{
     --star:#E0B65F; --star-soft:#332A16;
     --bad:#E58AA0; --bad-soft:#3A1E26;
   }
-  .dp-app.dark img.ovthumb,.dp-app.dark .photo-grid img{filter:brightness(.94);}
+  .dp-app.dark img.ovthumb{filter:brightness(.94);}
   .dp-app{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     color:var(--ink); background:var(--bg); min-height:100vh; padding:14px 12px 60px;
     position:relative; z-index:1;}
@@ -147,7 +147,6 @@ try{
   .pcount.zero{background:var(--unk-soft);color:var(--unk);}
   .delx{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:#A8324B;color:#fff;
     border:2px solid var(--panel);font-size:12px;font-weight:800;line-height:18px;text-align:center;cursor:pointer;z-index:3;}
-  .photo-grid .delx{width:24px;height:24px;line-height:20px;top:-8px;right:-8px;}
   .expander{grid-column:1/-1;background:var(--panel);border:1.5px solid var(--ink);border-radius:12px;padding:10px;}
   .exp-head{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px;}
   .exp-list{display:flex;flex-direction:column;gap:6px;}
@@ -251,6 +250,7 @@ try{
   .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:none;border-radius:12px;
     background:rgba(255,255,255,.14);color:#fff;font-size:34px;line-height:1;cursor:pointer;z-index:2;}
   .lb-nav.prev{left:8px;} .lb-nav.next{right:8px;}
+  .lb-nav.edit{top:10px;right:10px;transform:none;width:auto;height:auto;padding:7px 13px;font-size:13px;font-weight:800;border-radius:999px;}
   .lb-count{position:absolute;top:10px;left:50%;transform:translateX(-50%);color:#fff;font-size:12px;font-weight:800;
     background:rgba(0,0,0,.45);padding:3px 10px;border-radius:999px;pointer-events:none;}
   /* a picture dragged in from the desktop: the whole page says where it will land */
@@ -352,30 +352,13 @@ try{
     font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--panel);outline:none;resize:vertical;}
   .backup textarea:focus{border-color:var(--accent-ink);}
   .bk-note{font-size:12px;color:var(--muted);margin-top:6px;}
-  /* painting header: photos left, details right */
-  .phead{display:flex;gap:12px;background:var(--panel);border:1.5px solid var(--line);border-radius:14px;
-    padding:12px;margin-bottom:10px;align-items:flex-start;}
-  .photos{flex:0 1 42%;min-width:96px;}
-  .photo-grid{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;}
   .pg-item{position:relative;max-width:100%;min-width:0;}
   .pg-lbl{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.62);color:#fff;font-size:9px;font-weight:800;letter-spacing:.3px;padding:1px 6px;border-radius:999px;pointer-events:none;z-index:1;}
-  .photo-grid img{border-radius:9px;object-fit:cover;border:2px solid var(--line);cursor:pointer;display:block;}
-  .photo-grid img.psel{border-color:var(--accent-ink);}
-  .photo-s0{width:56px;height:56px;}
-  .photo-s1{width:96px;height:96px;}
-  .photo-s2{width:160px;height:160px;}
-  .photo-s3{width:240px;height:240px;}
   .photo-btns{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;position:relative;z-index:35;}
   .pbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:9px;padding:5px 9px;
     font-size:13px;font-weight:700;cursor:pointer;}
   .pbtn.danger{color:var(--bad);}
   .pbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
-  .photo-preview{position:relative;margin-top:8px;max-width:260px;}
-  .photo-preview img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;border:1.5px solid var(--accent-ink);background:var(--unk-soft);display:block;}
-  .photo-preview.frame-portrait img{aspect-ratio:3/4;}
-  .photo-preview.frame-square img{aspect-ratio:1;}
-  .photo-preview.frame-round img{aspect-ratio:1;border-radius:50%;}
-  .pv-lbl{position:absolute;top:7px;left:7px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;pointer-events:none;}
   /* ---- the photo sheet: one photo, every tool for it, over the whole screen ----
      It is a .lightbox so that Back closes it like the full-screen photo, and it
      lives outside the app's box like that does — so the theme's dark palette is
@@ -445,7 +428,6 @@ try{
     background:var(--panel);color:var(--ink);outline:none;}
   .ed-cap:focus{border-color:var(--accent-ink);}
   .photo-hint{font-size:11px;color:var(--muted);margin-top:5px;}
-  .pdetails{flex:1;min-width:0;}
   .pd-name{font-size:18px;font-weight:800;line-height:1.2;margin-bottom:8px;overflow-wrap:anywhere;}
   .pd-row{margin-bottom:9px;}
   .pd-lbl{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;}
@@ -540,6 +522,18 @@ try{
   .card.ro{cursor:default;}
   .card.ro:active{transform:none;}
   .vw-badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;}
+  /* the project page as one page: the card's top row holds the name and its
+     edit/done button, the card grows when it is the form, a small ✎ on every
+     picture opens the photo sheet, and a section heading can carry a button */
+  .vw-top{display:flex;align-items:flex-start;gap:8px;justify-content:space-between;flex-wrap:wrap;}
+  .vw-top .pd-name{flex:1 1 160px;min-width:0;margin-bottom:6px;}
+  .vw-edit{flex:0 0 auto;}
+  .vw-card:not(.editing){cursor:pointer;}
+  .vw-card.editing{flex:3 1 380px;cursor:default;}
+  .ph-edit{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;border:none;padding:0;line-height:30px;
+    background:rgba(0,0,0,.55);color:#fff;font-size:14px;cursor:pointer;z-index:2;}
+  .ph-edit:hover,.ph-edit:focus-visible{background:var(--accent);}
+  .sec-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .vw-empty{color:var(--muted);font-size:13px;margin:0 2px 8px;}
   /* view mode stage: Sold cover on the left, details in the middle, Result on the
      right. Nothing here changes between arranging and done, so the page can't
@@ -598,7 +592,7 @@ try{
   .search input{min-width:0;}
   .dp-app:not([data-vw="wide"]) .addinline{flex:1 1 150px;min-width:0;}
   .dp-app:not([data-vw="wide"]) .addinline input{width:auto;flex:1 1 70px;min-width:0;}
-  .dp-app:not([data-vw="wide"]) .codeinput,.dp-app:not([data-vw="wide"]) .photo-preview{max-width:100%;}
+  .dp-app:not([data-vw="wide"]) .codeinput{max-width:100%;}
   .dp-app[data-vw="micro"] .selchips{gap:5px;}
   /* a date box has a stubborn minimum width of its own, so on the narrowest
      screens the word moves above it instead of fighting it for the same line */
@@ -636,8 +630,6 @@ try{
   .dp-app:not([data-vw="wide"]) .vw-card{flex:1 1 100%;order:1;}
   /* edit mode: photo strip gets the full width instead of a 42% column, so
      both covers are visible side by side rather than squeezed into a sliver */
-  .dp-app:not([data-vw="wide"]) .phead{flex-wrap:wrap;}
-  .dp-app:not([data-vw="wide"]) .photos{flex:1 1 100%;}
 
 </style>
 
@@ -884,6 +876,7 @@ try{
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
     {when:'2026-09-04 · photos, in and out and edited',items:[
+      '📄 A project is one page now. It looks the way the read-only view did; tap the details card (or ✎ Edit details) and it turns into the form, tap ✎ Edit colours and the catalogue opens under the colours. Every photo has a small ✎ that opens its tools. The edit/view switch is gone.',
       '🖼 Tap a photo and it opens full screen with every tool for it: drag and zoom inside the card frame, a crop box with handles that keeps the card’s shape, straighten, turn, flip, and a cut-out with a sensitivity slider you watch working. Nothing rewrites the picture any more — the original is kept and every edit can be changed again later.',
       '📐 Arranging photos gained gold guide lines that catch a photo when it lines up with the page or another picture, a tilt that snaps level, pinch to resize and twist, double-tap to bring to the front, and the arrow keys on a PC.',
       '📥 Drop a picture file anywhere on an open project to add it, or tap 📷 Take a photo on the phone. Drag a photo to reorder it; drag a project to reorder the list.',
@@ -968,6 +961,9 @@ try{
      again — a re-render used to snatch the keyboard back mid-tap */
   var renameOrig=null, renameFocus=false;
   var collapsedGroups={}, colorFamily='', showPaste=false, undoData=null, undoTimer=null;
+  /* the two parts of a project page that open in place: the details form in
+     the card, and the colour editor under the Colours heading */
+  var detailsOpen=false, colorsOpen=false;
   var pasteReview=null, pasteTextVal='', chartImg=null, chartPick=false;
   var findPaste=false, findPasteText='', findPasteReview=null, findReorder=false;
   var history=[], histIdx=-1, histT=null, photoCache={}, clipboard=[], trash=[];
@@ -1900,11 +1896,12 @@ try{
       var p=newPainting('Project '+(state.paintings.length+1));
       state.paintings.push(p); state.active=p.id; state.view='paint';
       achAdd('add',1);
-      resetTransient(); renaming=true; renameOrig=p.name; renameFocus=true;
+      /* a new project opens with its form already open and the name box ready */
+      resetTransient(); detailsOpen=true; renaming=true; renameOrig=p.name; renameFocus=true;
       render(); save(); pushHistory(); pushNav(); scrollTo(0);
     },false);
   }
-  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;expandedTag=null;expandedMedia=null;selPhoto=-1;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
+  function resetTransient(){renaming=false;renameOrig=null;renameFocus=false;expandedColor=null;expandedSpec=null;expandedSize=null;expandedTag=null;expandedMedia=null;selPhoto=-1;detailsOpen=false;colorsOpen=false;editFin={};editLists={};armed={};arrangeMode=false;arrSel=-1;
     showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;chartPick=false;
     findPaste=false;findPasteText='';findPasteReview=null;}
 
@@ -3326,7 +3323,8 @@ try{
     lb.innerHTML='<div class="lb-stage"><img class="lb-img" alt=""></div><div class="lb-cap"></div>'+
       (photos.length>1?('<button class="lb-nav prev" type="button" aria-label="Previous photo">‹</button>'+
                         '<button class="lb-nav next" type="button" aria-label="Next photo">›</button>'+
-                        '<div class="lb-count"></div>'):'');
+                        '<div class="lb-count"></div>'):'')+
+      (opts&&opts.onEdit?'<button class="lb-nav edit" type="button">✎ Edit</button>':'');
     var stage=lb.querySelector('.lb-stage'), im=lb.querySelector('.lb-img'), cap=lb.querySelector('.lb-cap'), cnt=lb.querySelector('.lb-count');
     var z=1, tx=0, ty=0;
     function apply(){im.style.transform=(z>1||tx||ty)?('translate('+tx+'px,'+ty+'px) scale('+z+')'):'';}
@@ -3389,9 +3387,11 @@ try{
     }
     stage.addEventListener('pointerup',up); stage.addEventListener('pointercancel',up);
     stage.addEventListener('wheel',function(e){e.preventDefault();zoomAt(Math.max(1,Math.min(5,z*(e.deltaY<0?1.12:1/1.12))),e.clientX,e.clientY);},{passive:false});
-    lb.querySelectorAll('.lb-nav').forEach(function(b){
+    lb.querySelectorAll('.lb-nav.prev,.lb-nav.next').forEach(function(b){
       b.addEventListener('click',function(e){e.stopPropagation();show(idx+(b.classList.contains('next')?1:-1));});
     });
+    var eb=lb.querySelector('.lb-nav.edit');
+    if(eb)eb.addEventListener('click',function(e){e.stopPropagation();var i=idx;destroy();opts.onEdit(i);});
     function onKey(e){
       if(e.key==='Escape')close();
       else if(photos.length>1&&e.key==='ArrowRight')show(idx+1);
@@ -3823,8 +3823,6 @@ try{
         '<button class="chipbtn'+(state.ovSort==='price'?' on':'')+'" id="sortPrice" type="button">💰 Price</button></div>';
       html+='<div class="ovsort"><span class="pd-lbl" style="margin:0">Projects:</span>'+
         '<button class="chipbtn'+(selectMode?' on':'')+'" id="selBtn" type="button">☑ Select several</button>'+
-        '<button class="chipbtn" id="modeAll" type="button" title="Switch every project between edit and view mode">'+
-          (state.paintings.some(function(x){return x.edit!==false;})?'👁 View all':'📖🖋 Edit all')+'</button>'+
         (on.length?'<button class="chipbtn" id="toolsReset" type="button">↺ Back to normal</button>':'')+
         '</div>';
       html+='</div>';
@@ -3856,12 +3854,6 @@ try{
     if($('undoBtn'))$('undoBtn').addEventListener('click',doUndo);
     if($('redoBtn'))$('redoBtn').addEventListener('click',doRedo);
     if($('selBtn'))$('selBtn').addEventListener('click',function(){selectMode=!selectMode;if(!selectMode)selectedIds={};renderPaintings();});
-    if($('modeAll'))$('modeAll').addEventListener('click',function(){
-      var anyEdit=state.paintings.some(function(x){return x.edit!==false;});
-      state.paintings.forEach(function(x){x.edit=!anyEdit;});
-      renderPaintings(); save();
-      toast(anyEdit?'Every project is now in view mode 👁':'Every project is now in edit mode 📖🖋',1800);
-    });
     if($('copyBtn'))$('copyBtn').addEventListener('click',copySelected);
     if($('delBtn'))$('delBtn').addEventListener('click',function(){
       if(!twoTap('delsel',$('delBtn'),'Tap again to delete'))return;
@@ -4859,21 +4851,15 @@ try{
     pg.style.paddingBottom='';
     /* view mode anchors the Sold and Result covers in the stage, so only the
        third photo onwards is free-floating there */
-    var viewMode=(p.edit===false);
     /* with no Sold picture only one photo is anchored in the stage, so the
        free-floating ones start one place earlier */
-    var startIdx=viewMode?(p.noSold?1:2):0;
+    var startIdx=p.noSold?1:2;
     /* a drawing shows every photo in its gallery, so nothing floats there */
-    if(viewMode&&kindOf(p)==='drawing')return;
-    if(viewMode){
-      if(p.photos.length<=startIdx)return;
-      /* until a project has actually been arranged its extra photos live in the
-         Photos section below, so floating them too would show each one twice */
-      if(!p.arranged&&!arrangeMode)return;
-    }
-    /* edit mode floats photos only while arranging — otherwise every photo is in
-       the thumbnail strip, and showing both would duplicate each one */
-    else if(!arrangeMode)return;
+    if(kindOf(p)==='drawing')return;
+    if(p.photos.length<=startIdx)return;
+    /* until a project has actually been arranged its extra photos live in the
+       Photos section below, so floating them too would show each one twice */
+    if(!p.arranged&&!arrangeMode)return;
     /* anchor to the page BODY (not #page) so the sticky top bar growing or shrinking
        never shifts the photos relative to the content they were placed against */
     var host=document.getElementById('pageBody')||pg;
@@ -4900,7 +4886,7 @@ try{
        alone — nothing here needs the window any more */
     p.photos.forEach(function(photo,i){
       if(i<startIdx)return;
-      arrLayout(photo,slot++,hostW,viewMode);
+      arrLayout(photo,slot++,hostW,true);
       var im=document.createElement('img');
       im.className='arr-img'+(arrangeMode&&i===arrSel?' sel':'')+(arrangeMode?'':(' locked'+(i===selPhoto?' sel':'')));
       im.setAttribute('data-i',i); im.src=shown(photo); im.alt='';
@@ -4930,19 +4916,11 @@ try{
     var placed=[].concat([].slice.call(layer.querySelectorAll('.arr-img')),
                          back?[].slice.call(back.querySelectorAll('.arr-img')):[]);
     if(arrangeMode)wireArrange(p,layer);
-    else if(p.edit===false){
-      /* view mode: tapping a photo opens it full-screen */
-      placed.forEach(function(im){
-        im.addEventListener('click',function(){
-          openLightbox(im.src,'',{photos:p.photos.map(function(q){return {src:shown(q),cap:q.c||''};}),index:parseInt(im.getAttribute('data-i'),10)||0});
-        });
-      });
-    }
     else {
-      /* not arranging: tapping a photo opens it with its tools */
+      /* not arranging: tapping a photo opens it full-screen, where ✎ Edit opens its tools */
       placed.forEach(function(im){
         im.addEventListener('click',function(){
-          openPhotoSheet(parseInt(im.getAttribute('data-i'),10));
+          openLightbox(im.src,'',{photos:p.photos.map(function(q){return {src:shown(q),cap:q.c||''};}),index:parseInt(im.getAttribute('data-i'),10)||0,onEdit:function(i){openPhotoSheet(i);}});
         });
       });
     }
@@ -5262,11 +5240,11 @@ try{
     $('arrReset').addEventListener('click',function(){
       var hostEl=document.getElementById('pageBody')||$('page');
       var hw=(hostEl&&hostEl.clientWidth)||360;
-      var vm=(p.edit===false), from=vm?2:0, slot=0;
+      var from=p.noSold?1:2, slot=0;
       p.photos.forEach(function(photo,i){
         photo.ax=null;photo.ay=null;photo.aw=null;photo.arot=null;photo.aunit=null;
         photo.op=null;photo.back=false;photo.az=null; /* fading, sending behind and the front-to-back order are part of the free layout too */
-        if(i>=from)arrLayout(photo,slot++,hw,vm);
+        if(i>=from)arrLayout(photo,slot++,hw,true);
       });
       p.arranged=false; arrangeMode=false; arrSel=-1;
       renderPainting(); savePhotos(p.id); saveEdit(); toast('Back to the Photos section ✓',1600);
@@ -5517,29 +5495,30 @@ try{
     });
   }
 
-  /* ---------- painting page: view mode ----------
-     Everything the painting actually has, laid out neatly and read-only.
-     Empty fields are left out entirely. Photos can still be moved. */
+  /* ---------- the project page ----------
+     One page, whichever you are doing. It always looks the way the read-only
+     view did — the Sold cover on the left, the details card in the middle, the
+     Result cover on the right, the gallery and the colours below — and the
+     parts you change open in place: ✎ Edit details turns the card into the
+     form and ✓ Done turns it back; ✎ Edit colours opens the full catalogue,
+     the paste panel and the special diamonds under the Colours heading. A
+     photo is tapped to see it big and its ✎ to edit it; ⇱ Move images sits
+     with the photos. There used to be two pages, edit and view, each project
+     remembering which it was in and each holding different photo tools, so
+     where a thing lived depended on a mode you had to know about first.
+     detailsOpen and colorsOpen are transient: leaving the project closes both. */
   function viewRow(lbl,val){
     return val?('<div class="vw-row"><span class="vw-lbl">'+lbl+'</span><span class="vw-val">'+val+'</span></div>'):'';
   }
-  function renderPaintingView(p){
-    var pg=$('page');
-    /* the first two photos are anchored: Sold on the left, Result on the right.
-       Everything from the third on floats freely (see buildArrLayer). */
-    var frame='frame-'+(p.frame||'landscape');
-    function sideHtml(i,label){
-      var photo=p.photos[i]; if(!photo)return '';
-      return '<div class="vw-side '+frame+(photo.z>1.001?' zoomed':'')+'"><span class="pg-lbl">'+label+'</span>'+
-        '<img data-i="'+i+'" src="'+shown(photo)+'" alt="'+esc(label)+' picture" style="'+photoStyle(photo)+'"></div>';
-    }
+  /* the card, read: everything the project has, empty fields left out */
+  function detailsReadHtml(p){
+    var kd=kindOf(p);
     var tagKeys=Object.keys(p.tags||{});
     var fins=finTagsHtml(p);
     /* the same rule as the list: a full-width bar reading 100% under a project
        already badged “Finished” said the same thing twice, loudly */
     var pv=progHtml(p);
     var prog=pv?('<div class="ovprogrow">'+pv+'</div>'):'';
-    var kd=kindOf(p), isDraw=(kd==='drawing');
     var rows=(kd!=='drawing'?viewRow('Kit code',esc(p.code||'')):'')+
       viewRow('Size',p.size?(esc(p.size)+' cm'):'')+
       (kd!=='drawing'?viewRow('Price',esc(p.price||'')):'')+
@@ -5552,184 +5531,24 @@ try{
     var notesHtml=p.notes
       ? '<div class="vw-row" style="display:block;margin-top:8px;"><span class="vw-lbl" style="display:block;">Notes</span>'+
         '<span class="vw-val" style="white-space:pre-wrap;">'+esc(p.notes)+'</span></div>' : '';
-
-    /* the big picture for a drawing, with every other photo in a gallery below */
-    function heroStyle(photo){
-      var fit=photo.fit||'contain';
-      var px=(photo.posX==null?50:photo.posX),py=(photo.posY==null?50:photo.posY);
-      return 'object-fit:'+fit+';object-position:'+px+'% '+py+'%;'+(photo.flip?'transform:scaleX(-1);':'');
-    }
-    var heroHtml=(isDraw&&p.photos[0])
-      ? '<div class="vw-hero"><img data-i="0" src="'+shown(p.photos[0])+'" alt="" style="'+heroStyle(p.photos[0])+'"></div>' : '';
-    /* Photos beyond the covers used to have nowhere to be on this page unless
-       they were a drawing's: on a kit they only existed as free-floating images,
-       sized by dragging, so the S/M/L/XL you chose in edit mode changed nothing
-       here. Now every kind gets the section, and the size is the size you picked.
-       A project you have arranged keeps its free layout instead — that is what
-       ⇱ Move images is for, and it would be strange to show the same photo twice. */
-    var galleryHtml='';
-    var galleryFrom=isDraw?1:(p.noSold?1:2);
-    /* a drawing's photos are always in the section; a kit's are there until the
-       project is arranged, and while you are arranging they are up on the page
-       in your hands, so the section stands down rather than showing them twice */
-    var showGallery=isDraw||(!p.arranged&&!arrangeMode);
-    if(p.photos.length>galleryFrom&&showGallery){
-      galleryHtml='<div class="section-lbl">Photos ('+(p.photos.length-galleryFrom)+')</div><div class="vw-gallery">'+
-        p.photos.slice(galleryFrom).map(function(ph,i){
-          var idx=i+galleryFrom, badge=photoBadge(p,idx);
-          return '<span class="vw-gitem vw-g'+(ph.s==null?1:ph.s)+(ph.z>1.001?' zoomed':'')+'">'+
-            (badge?'<span class="pg-lbl">'+esc(badge)+'</span>':'')+
-            '<img data-i="'+idx+'" src="'+shown(ph)+'" alt="'+esc(ph.c||('Photo '+(idx+1)))+'" style="'+photoStyle(ph)+'">'+
-            (ph.c?'<span class="vw-gcap">'+esc(ph.c)+'</span>':'')+
-          '</span>';
-        }).join('')+'</div>';
-    }
-
-    var sel=isDiamond(p)?DMC.filter(function(r){return p.colors[r[0]];}):[];
-    var colHtml='';
-    if(isDiamond(p)){
-      colHtml='<div class="section-lbl">Colours ('+sel.length+')</div>'+(sel.length
-        ? '<div class="grid compact">'+sel.map(function(r){
-            return '<div class="card ro"><div class="drill" style="background-color:'+r[2]+'"></div>'+
-              '<div class="ctext"><div class="code">'+r[0]+'</div><div class="cname">'+esc(r[1])+'</div></div></div>';
-          }).join('')+'</div>'
-        : '<div class="vw-empty">No colours marked yet — switch to edit mode to add them.</div>');
-    } else if(kd==='pbn'&&(p.palette||[]).length){
-      colHtml='<div class="section-lbl">Colours in this kit ('+p.palette.length+')</div>'+
-        '<div class="grid compact">'+p.palette.map(function(en,i){
-          return '<div class="card ro"><div class="drill" style="background-color:'+esc(en.color||'#cccccc')+'"></div>'+
-            '<div class="ctext"><div class="code">'+esc(en.label||('Colour '+(i+1)))+'</div>'+
-            '<div class="cname">'+esc(en.color||'')+'</div></div></div>';
-        }).join('')+'</div>';
-    }
-
-    var specHtml='';
-    if(isDiamond(p))FINISHES.forEach(function(f){
-      if(!(f.id in p.spec))return;
-      var chosen=(state.specials[f.id]||[]).filter(function(en){return p.spec[f.id][en.id];});
-      if(!chosen.length)return;
-      specHtml+='<div class="section-lbl" style="color:'+f.fg+'">'+f.label+' diamonds ('+chosen.length+')</div>'+
-        '<div class="grid compact">'+chosen.map(function(en){
-          return '<div class="card ro">'+specCardHtml(f.id,en,'')+'</div>';
-        }).join('')+'</div>';
-    });
-
-    pg.innerHTML=
-      '<div class="paint-sticky">'+
-        '<div class="paint-head">'+
-          '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
-          '<span style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
-          '<button class="chipbtn" id="shareBtn" type="button" title="Turn this project into one picture to share">📤 Share</button>'+
-          (p.photos.length>1?'<button class="chipbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
-          (!isDraw&&p.photos.length>(p.noSold?1:2)?('<button class="chipbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
-          '<button class="chipbtn" id="modeToggle" type="button" title="Switch to edit mode">📖🖋 Edit</button>'+
-        '</div>'+
-      '</div>'+
-      '<div id="pageBody">'+
-        '<div class="vw-stage">'+
-          (isDraw?heroHtml:(p.noSold?'':sideHtml(0,'Sold')))+
-          '<div class="vw-card">'+
-            '<div class="pd-name">'+esc(p.name)+'</div>'+
-            '<div class="vw-badges">'+statusBadge(p)+ratingBadge(p)+(isDiamond(p)?badgeHtml(p.type):kindBadge(p))+'</div>'+
-            (fins?'<div class="ovfins">'+fins+'</div>':'')+
-            (rows?'<div class="vw-list">'+rows+'</div>':'')+
-            mediaHtml+
-            (tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag'+(tagSign(t)===1?' tg-pos':(tagSign(t)===-1?' tg-neg':''))+'">'+esc(capFirst(t))+'</span>';}).join('')+'</div>'):'')+
-            prog+notesHtml+
-          '</div>'+
-          (isDraw?'':sideHtml(p.noSold?0:1,'Result'))+
-        '</div>'+
-        galleryHtml+colHtml+specHtml+
-      '</div>'+
-      /* the arrange bar is position:fixed, so keeping it outside #pageBody means
-         the page flow is byte-for-byte identical whether arranging or not */
-      (arrangeMode?arrangeUiHtml(p):'');
-
-    $('backPaints').addEventListener('click',function(){navTo('paintings');});
-    $('modeToggle').addEventListener('click',function(){
-      if(arrangeMode)arrangeMode=false;
-      p.edit=true; renderPainting(); save();
-    });
-    if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){
-      if(arrangeMode)exitArrange(); else enterArrange();
-    });
-    if($('shareBtn'))$('shareBtn').addEventListener('click',function(){openShareCard(p);});
-    if($('cmpBtn'))$('cmpBtn').addEventListener('click',function(){openCompare(p);});
-    pg.querySelectorAll('.vw-side img,.vw-hero img,.vw-gallery img').forEach(function(im){
-      im.addEventListener('click',function(){
-        /* the gallery shows the small copy — the lightbox always gets the original */
-        var i=parseInt(im.getAttribute('data-i'),10);
-        openLightbox(im.src,'',{photos:p.photos.map(function(q){return {src:shown(q),cap:q.c||''};}),index:i>=0?i:0});
-      });
-    });
-    buildArrLayer(p);
+    var empty=!rows&&!tagKeys.length&&!med.length&&!p.notes&&!p.status;
+    return '<div class="vw-top"><div class="pd-name">'+esc(p.name)+'</div>'+
+        '<button class="chipbtn vw-edit" id="detailsEdit" type="button" title="Change the name, status, size, tags and the rest">✎ Edit details</button></div>'+
+      '<div class="vw-badges">'+statusBadge(p)+ratingBadge(p)+(isDiamond(p)?badgeHtml(p.type):kindBadge(p))+'</div>'+
+      (fins?'<div class="ovfins">'+fins+'</div>':'')+
+      (rows?'<div class="vw-list">'+rows+'</div>':'')+
+      mediaHtml+
+      (tagKeys.length?('<div class="ovtags">'+tagKeys.map(function(t){return '<span class="ovtag'+(tagSign(t)===1?' tg-pos':(tagSign(t)===-1?' tg-neg':''))+'">'+esc(capFirst(t))+'</span>';}).join('')+'</div>'):'')+
+      prog+notesHtml+
+      (empty?'<div class="vw-empty" style="margin:4px 0 0;">Nothing filled in yet — tap ✎ Edit details for the status, size, seller, price, tags and notes.</div>':'');
   }
-
-  /* ---------- painting page ---------- */
-  function renderPainting(){
-    var p=active();
-    /* belt and braces: a record arriving from an old backup or an older device
-       mustn't be able to blank the page on a missing field */
-    if(!p.media)p.media={};
-    if(!p.palette)p.palette=[];
-    if(p.edit===false){renderPaintingView(p);return;}
-    var pg=$('page');
-
-    /* Photos block. Edit mode ALWAYS shows every photo as a thumbnail, even for an
-       arranged project — otherwise the only way to reach a photo is to tap it on
-       the floating layer, which is undiscoverable and can be off-screen on a phone.
-       Each thumbnail carries its own ✕ so removing one doesn't depend on finding
-       the tools bar. The free layout is shown while arranging and in view mode. */
-    var ph='<div class="photo-grid"'+(arrangeMode?' style="visibility:hidden"':'')+'>';
-    p.photos.forEach(function(photo,i){
-      var lbl=(photoBadge(p,i)?'<span class="pg-lbl">'+esc(photoBadge(p,i))+'</span>':'');
-      ph+='<div class="pg-item">'+lbl+
-        '<img class="photo-s'+(photo.s||1)+'" data-i="'+i+'" src="'+thumbSrc(photo)+'" alt="'+esc(photoLabel(p,i))+'" role="button" tabindex="0" style="'+photoStyle(photo,true)+'">'+
-        '<div class="delx" data-photox="'+i+'" role="button" tabindex="0" title="Remove this photo" aria-label="Remove this photo">✕</div></div>';
-    });
-    ph+='</div>';
-    /* No ⇱ Arrange & edit here. Arranging from this page threw away everything you
-       did in it: the floating layer is deleted the moment you finish, and the
-       project page anchors the Sold and Result covers wherever you had dragged
-       them. Placing photos freely is offered on the project page — 👁 View —
-       where it is the layout you are actually looking at. */
-    ph+='<div class="photo-btns"><button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
-      /* a camera button only where there is a camera to point: a phone or a tablet */
-      (navigator.maxTouchPoints>0?'<button class="pbtn" id="phCam" type="button">📷 Take a photo</button>':'')+
-      (p.photos.length>1?'<button class="pbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
-      '<button class="pbtn" id="phCheck" type="button" title="Why did a photo come out black or refuse to load?">🩺 Photo check</button></div>';
-    ph+='<div class="photo-hint">'+(p.photos.length
-      ? ('Tap a photo to open it with every tool for it — what shows in the frame, crop and straighten, turn, cut out the background — or tap its <b>✕</b> to remove it. Drag a photo to change the order'+(navigator.maxTouchPoints>0?' (hold it still for a moment first)':'')+'; on a PC you can also drop a picture file anywhere on this page. '+
-         (kindOf(p)==='drawing'
-           ? 'The 1st photo is the big one on the project page; the rest become its gallery.'
-           : (p.noSold
-              ? 'This project has no Sold picture — its 1st photo is the “Result”. Tap ★ Sold on a photo to change that.'
-              : 'The 1st photo shows as “Sold”, the 2nd as “Result” on the cards. Only have a photo of the finished work? Select it and tap ★ Result.'))+
-         ' To place photos freely on the page, switch to 👁 View and use ⇱ Move images.')
-      : 'Add photos — on PC you can also paste (Ctrl+V) a copied image, or drop a picture file anywhere on this page.'+(kindOf(p)==='drawing'
-           ? ' The first becomes the big picture, the rest a gallery.'
-           : ' The first two become the “Sold” and “Result” pictures on cards.'))+'</div>';
-    if(arrangeMode)ph+=arrangeUiHtml(p); /* fixed bottom bar — takes no space in the flow */
-
-    /* The card frame belongs to the project, not to any one photo, so it stays put
-       whether or not a photo is open — and it sits with the photos rather than in
-       the sticky bar, which no longer carries photo tools at all. */
-    var toolsHtml='';
-    if(!arrangeMode&&p.photos.length){
-      ph+='<div class="ovsort" style="margin-top:8px;"><span class="pd-lbl" style="margin:0">Card frame:</span>'+
-        '<button class="chipbtn'+(p.frame==='landscape'?' on':'')+'" data-frame="landscape" type="button">▭ Landscape</button>'+
-        '<button class="chipbtn'+(p.frame==='portrait'?' on':'')+'" data-frame="portrait" type="button">▯ Portrait</button>'+
-        '<button class="chipbtn'+(p.frame==='square'?' on':'')+'" data-frame="square" type="button">◻ Square</button>'+
-        '<button class="chipbtn'+(p.frame==='round'?' on':'')+'" data-frame="round" type="button">◯ Round</button>'+
-      '</div>';
-    }
-
+  /* the card, being edited: the form */
+  function detailsFormHtml(p){
     var kd=kindOf(p);
     /* kind selector — switching only shows/hides sections, nothing is discarded */
     var kindChips=KINDS.map(function(k){
       return '<button class="selchip'+(kd===k.id?' on':'')+'" data-setkind="'+k.id+'" type="button">'+k.sym+' '+k.label+'</button>';
     }).join('');
-
     /* size / seller / tag chips — in "edit list" mode tapping a chip removes it */
     function listEditBtn(key,has){
       return has?(' <button class="fb-edit" data-editlist="'+key+'" type="button">'+(editLists[key]?'done':'edit list')+'</button>'):'';
@@ -5741,14 +5560,12 @@ try{
       sizeChips+='<button class="selchip'+(on&&!szEdit?' on':'')+'" data-size="'+esc(sz)+'" type="button"'+(szEdit?rmStyle:'')+'>'+(szEdit?'✕ ':'')+esc(sz)+'</button>';
     });
     sizeChips+='<span class="addinline"><input id="newSize" type="text" maxlength="20" placeholder="＋ e.g. 60×80"><button class="pbtn" id="addSize" type="button">Add</button></span>';
-
     var seEdit=!!editLists.seller, sellerChips='';
-    state.sellers.forEach(function(s,i){
+    state.sellers.forEach(function(s){
       var on=(p.seller===s);
       sellerChips+='<button class="selchip'+(on&&!seEdit?' on':'')+'" data-seller="'+esc(s)+'" type="button"'+(seEdit?rmStyle:'')+'>'+(seEdit?'✕ ':'')+esc(s)+'</button>';
     });
     sellerChips+='<span class="addinline"><input id="newSeller" type="text" maxlength="40" placeholder="＋ new seller"><button class="pbtn" id="addSeller" type="button">Add</button></span>';
-
     /* the good ones first, the bad ones under them, and the words that are only
        describing the kit last — the order says what each group does to the score */
     var tgEdit=!!editLists.tag, tagChips='';
@@ -5766,7 +5583,6 @@ try{
     });
     tagChips+='<div class="tg-row"><span class="addinline"><input id="newTag" type="text" maxlength="40" placeholder="＋ new tag"><button class="pbtn" id="addTag" type="button">Add</button></span>'+
       (tgEdit?'<span class="fb-hint" style="flex:1 1 100%;margin-top:4px;">Tap a tag to move it: describing → good ＋ → bad − → describing. Tap its ✕ to remove it from the list and from every project.</span>':'')+'</div>';
-
     /* media & tools — shared by paint-by-number and drawings */
     var mdEdit=!!editLists.media, mediaChips='';
     state.media.forEach(function(m){
@@ -5774,9 +5590,83 @@ try{
       mediaChips+='<button class="selchip'+(on&&!mdEdit?' on':'')+'" data-media="'+esc(m)+'" type="button"'+(mdEdit?rmStyle:'')+'>'+(mdEdit?'✕ ':'')+esc(capFirst(m))+'</button>';
     });
     mediaChips+='<span class="addinline"><input id="newMedia" type="text" maxlength="40" placeholder="＋ new medium"><button class="pbtn" id="addMedia" type="button">Add</button></span>';
-
-    /* paint-by-number palette: pots have no standard code, so colours are picked by eye */
-    var paletteHtml='';
+    var notesRow='<div class="pd-row"><div class="pd-lbl">Notes</div>'+
+      '<textarea id="notesInput" rows="2" placeholder="Anything worth remembering…" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;background:var(--panel);color:var(--ink);outline:none;resize:vertical;">'+esc(p.notes||'')+'</textarea></div>';
+    var statusChips='';
+    STATUSES.forEach(function(s){
+      var on=(p.status===s.id);
+      statusChips+='<button class="selchip'+(on?' on':'')+'" data-status="'+s.id+'" type="button" style="'+(on?('background:'+s.fg+';border-color:'+s.fg+';color:#fff;'):('color:'+s.fg+';'))+'">'+s.label+'</button>';
+    });
+    var dateInputs='<label class="datefield">Started <input id="startedDate" type="date" value="'+esc(p.started||'')+'"></label>'+
+      '<label class="datefield">Finished <input id="finishedDate" type="date" value="'+esc(p.finished||'')+'"></label>';
+    return '<div class="vw-top">'+
+        (renaming
+          ? ('<div class="pd-name editing" style="flex:1 1 200px;">'+
+               '<input class="name-input" id="renameInput" type="text" maxlength="60" placeholder="Project name" aria-label="Project name">'+
+               '<button class="name-ok" id="renameSave" type="button" title="Save the name">✓</button>'+
+             '</div>')
+          : ('<div class="pd-name">'+
+               '<button class="name-btn" id="nameBtn" type="button" title="Click to rename this project">'+
+                 esc(p.name)+'<span class="name-pen" aria-hidden="true">✎</span>'+
+               '</button>'+
+             '</div>'))+
+        '<button class="pbtn done vw-edit" id="detailsDone" type="button">✓ Done</button></div>'+
+      '<div class="pd-row"><div class="pd-lbl">Kind of project</div><div class="selchips">'+kindChips+'</div></div>'+
+      '<div class="pd-row"><div class="pd-lbl">Status</div><div class="selchips">'+statusChips+'</div></div>'+
+      (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Kit code</div>'+
+        '<input class="codeinput" id="kitCode" type="text" maxlength="60" placeholder="e.g. DP-4471, seller’s article nr…" value="'+esc(p.code||'')+'"></div>'):'')+
+      '<div class="pd-row"><div class="pd-lbl">Size (cm)'+listEditBtn('size',state.sizes.length)+'</div><div class="selchips">'+sizeChips+'</div></div>'+
+      '<div class="pd-row"><div class="pd-lbl">Rating (0–10)</div>'+
+        '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" placeholder="'+
+          (autoRating(p)===null?'—':String(autoRating(p)))+'" value="'+(p.ratingOwn&&p.rating!==null?p.rating:'')+'">'+
+          '<span id="ratingBadge">'+ratingBadge(p)+'</span>'+
+          (autoRating(p)!==null?'<button class="pbtn" id="ratingAuto" type="button"'+(p.ratingOwn?'':' hidden')+'>↺ Use the tag score</button>':'')+
+        '</div>'+
+        '<div class="fb-hint" id="ratingWhy">'+ratingWhy(p)+'</div></div>'+
+      '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input class="prog-range" id="progRange" type="range" min="0" max="100" step="5" aria-label="Progress percent" value="'+(p.progress||0)+'" style="flex:1;--fill:'+(p.progress||0)+'%;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
+      (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Price</div><input class="codeinput" id="priceInput" type="text" maxlength="20" placeholder="e.g. €25 or 25" value="'+esc(p.price||'')+'"></div>'):'')+
+      '<div class="pd-row"><div class="pd-lbl">Dates</div><div class="selchips" style="gap:10px;">'+dateInputs+'</div></div>'+
+      (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Seller'+listEditBtn('seller',state.sellers.length)+'</div><div class="selchips">'+sellerChips+'</div></div>'):'')+
+      (usesMedia(p)?('<div class="pd-row"><div class="pd-lbl">Media &amp; tools'+listEditBtn('media',state.media.length)+'</div><div class="selchips">'+mediaChips+'</div></div>'):'')+
+      '<div class="pd-row"><div class="pd-lbl">Tags'+listEditBtn('tag',state.tags.length)+'</div><div class="selchips">'+tagChips+'</div></div>'+
+      notesRow+
+      '<div class="ed-bottom" style="border-top:none;padding-top:2px;"><button class="pbtn done" id="detailsDone2" type="button">✓ Done</button></div>';
+  }
+  /* the colours, read: the kit's own colours as a compact list, and the special diamonds */
+  function coloursReadHtml(p){
+    var kd=kindOf(p), h='';
+    if(isDiamond(p)){
+      var sel=DMC.filter(function(r){return p.colors[r[0]];});
+      h+='<div class="section-lbl sec-hd">Colours ('+sel.length+')<button class="chipbtn" id="colorsEdit" type="button" title="Tap the kit’s colours in the catalogue, paste its list, or read its chart">✎ Edit colours</button></div>'+
+        (sel.length
+          ? '<div class="grid compact">'+sel.map(function(r){
+              return '<div class="card ro"><div class="drill" style="background-color:'+r[2]+'"></div>'+
+                '<div class="ctext"><div class="code">'+r[0]+'</div><div class="cname">'+esc(r[1])+'</div></div></div>';
+            }).join('')+'</div>'
+          : '<div class="vw-empty">No colours marked yet — tap ✎ Edit colours to tick them in the catalogue, paste the kit’s list, or read it off a photo of the chart.</div>');
+      FINISHES.forEach(function(f){
+        if(!(f.id in p.spec))return;
+        var chosen=(state.specials[f.id]||[]).filter(function(en){return p.spec[f.id][en.id];});
+        if(!chosen.length)return;
+        h+='<div class="section-lbl" style="color:'+f.fg+'">'+f.label+' diamonds ('+chosen.length+')</div>'+
+          '<div class="grid compact">'+chosen.map(function(en){return '<div class="card ro">'+specCardHtml(f.id,en,'')+'</div>';}).join('')+'</div>';
+      });
+    } else if(kd==='pbn'){
+      var pal=p.palette||[];
+      h+='<div class="section-lbl sec-hd">Colours in this kit ('+pal.length+')<button class="chipbtn" id="colorsEdit" type="button">✎ Edit palette</button></div>'+
+        (pal.length
+          ? '<div class="grid compact">'+pal.map(function(en,i){
+              return '<div class="card ro"><div class="drill" style="background-color:'+esc(en.color||'#cccccc')+'"></div>'+
+                '<div class="ctext"><div class="code">'+esc(en.label||('Colour '+(i+1)))+'</div><div class="cname">'+esc(en.color||'')+'</div></div></div>';
+            }).join('')+'</div>'
+          : '<div class="vw-empty">No colours yet — tap ✎ Edit palette to match the pots by eye, or 🎯 Which colour on a photo of the kit.</div>');
+    }
+    return h;
+  }
+  /* the colours, being edited: the catalogue with its search, the paste panel,
+     the diamond type and the special diamonds — or the paint-by-number palette */
+  function coloursEditorHtml(p){
+    var kd=kindOf(p), h='';
     if(kd==='pbn'){
       var sw=(p.palette||[]).map(function(en,i){
         return '<div class="card ro" style="padding:6px;">'+
@@ -5785,39 +5675,24 @@ try{
           '<div class="cname">'+esc(en.color||'')+'</div></div>'+
           '<div class="delx" data-palx="'+i+'" role="button" tabindex="0" title="Remove this colour" aria-label="Remove this colour">✕</div></div>';
       }).join('');
-      paletteHtml='<div class="finbox">'+
-        '<div class="fb-top"><span class="fb-lbl">Colours in this kit'+((p.palette||[]).length?(' ('+p.palette.length+')'):'')+'</span></div>'+
+      return '<div class="section-lbl sec-hd">Colours in this kit<button class="pbtn done" id="colorsDone" type="button">✓ Done</button></div>'+
+        '<div class="finbox">'+
         (sw?'<div class="fb-chips">'+sw+'</div>':'')+
         '<div class="fb-addrow">'+
           '<input type="text" id="palLabel" maxlength="40" placeholder="e.g. 7 — dark green">'+
           '<input type="color" id="palColor" value="#7BAC94" title="Pick the colour by eye" style="width:40px;height:38px;flex:0 0 auto;padding:2px;border:1.5px solid var(--line);border-radius:9px;background:var(--panel);cursor:pointer;">'+
           '<button class="pbtn" id="palAdd" type="button">Add</button>'+
         '</div>'+
-        '<div class="fb-hint">Paint-by-number pots have no standard colour code, so match the colour by eye and label it however the kit numbers them. This palette belongs to this project only.</div>'+
+        '<div class="fb-hint">Paint-by-number pots have no standard colour code, so match the colour by eye and label it however the kit numbers them — or open a photo of the kit and use 🎯 Which colour. This palette belongs to this project only.</div>'+
         '</div>';
     }
-
-    var notesRow='<div class="pd-row"><div class="pd-lbl">Notes</div>'+
-      '<textarea id="notesInput" rows="2" placeholder="Anything worth remembering…" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;background:var(--panel);color:var(--ink);outline:none;resize:vertical;">'+esc(p.notes||'')+'</textarea></div>';
-
-    /* status chips */
-    var statusChips='';
-    STATUSES.forEach(function(s){
-      var on=(p.status===s.id);
-      statusChips+='<button class="selchip'+(on?' on':'')+'" data-status="'+s.id+'" type="button" style="'+(on?('background:'+s.fg+';border-color:'+s.fg+';color:#fff;'):('color:'+s.fg+';'))+'">'+s.label+'</button>';
-    });
-    var dateInputs='<label class="datefield">Started <input id="startedDate" type="date" value="'+esc(p.started||'')+'"></label>'+
-      '<label class="datefield">Finished <input id="finishedDate" type="date" value="'+esc(p.finished||'')+'"></label>';
-
-    /* finish chips */
+    if(!isDiamond(p))return '';
     var finChips='';
     FINISHES.forEach(function(f){
       var on=(f.id in p.spec);
       finChips+='<button class="fbtn" data-f="'+f.id+'" type="button" style="'+
         (on?('background:'+f.fg+';border-color:'+f.fg+';color:#fff;'):('color:'+f.fg+';'))+'">'+f.label+'</button>';
     });
-
-    /* finish boxes: shared library chips + add input */
     var finBoxes='';
     FINISHES.forEach(function(f){
       if(!(f.id in p.spec))return;
@@ -5841,145 +5716,164 @@ try{
         (p.finishes[f.id]?' Old note: “'+esc(p.finishes[f.id])+'”':'')+'</div>'+
         '</div>';
     });
+    var n=Object.keys(p.colors||{}).filter(function(c){return p.colors[c];}).length;
+    return '<div class="section-lbl sec-hd">Colours ('+n+')<button class="pbtn done" id="colorsDone" type="button">✓ Done</button></div>'+
+      '<div class="toolbar">'+
+        '<label class="search">🔎<input id="q" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(query)+'"></label>'+
+        '<button class="chipbtn'+(state.onlySel?' on':'')+'" id="onlySel" type="button">Selected only</button>'+
+        '<button class="chipbtn'+(showPaste?' on':'')+'" id="pasteList" type="button">＋ Paste list / read a chart</button>'+
+        '<button class="chipbtn" id="copyColors" type="button">⧉ Copy colours</button>'+
+      '</div>'+
+      '<div class="typerow"><span class="lbl">Diamond type:</span>'+
+        '<button class="tbtn sq'+(p.type==='square'?' on':'')+'" data-t="square" type="button">■ Square</button>'+
+        '<button class="tbtn rd'+(p.type==='round'?' on':'')+'" data-t="round" type="button">● Round</button>'+
+        '<button class="tbtn od'+(p.type==='odd'?' on':'')+'" data-t="odd" type="button">✦ Odd</button>'+
+      '</div>'+
+      '<div class="finrow"><span class="lbl">Special diamonds:</span>'+finChips+'</div>'+
+      finBoxes+
+      (showPaste?'<div class="backup" id="pasteBox"></div>':'')+
+      '<div class="ovsort" style="margin-top:2px;"><span class="pd-lbl" style="margin:0">Colours:</span>'+
+        '<button class="chipbtn'+(colorFamily===''?' on':'')+'" data-fam="" type="button">All</button>'+
+        COLOR_FAMILIES.map(function(fm){return '<button class="chipbtn'+(colorFamily===fm?' on':'')+'" data-fam="'+fm+'" type="button">'+fm+'</button>';}).join('')+
+      '</div>'+
+      '<div class="pins" id="pins"></div>'+
+      '<div class="meta"><span id="count"></span><span id="hint"></span></div>'+
+      '<div class="grid" id="grid"></div>'+
+      '<div class="empty" id="emptyMsg" style="display:none"></div>';
+  }
+  function renderPainting(){
+    var p=active();
+    /* belt and braces: a record arriving from an old backup or an older device
+       mustn't be able to blank the page on a missing field */
+    if(!p.media)p.media={};
+    if(!p.palette)p.palette=[];
+    var pg=$('page');
+    var kd=kindOf(p), isDraw=(kd==='drawing');
+    var frame='frame-'+(p.frame||'landscape');
+    /* the first two photos are anchored: Sold on the left, Result on the right.
+       Everything from the third on floats freely once arranged (see buildArrLayer).
+       Every picture carries a small ✎ that opens the photo sheet; the picture
+       itself opens big. */
+    function editBadge(i){return '<button class="ph-edit" data-edit-i="'+i+'" type="button" title="Edit this photo" aria-label="Edit this photo">✎</button>';}
+    function sideHtml(i,label){
+      var photo=p.photos[i]; if(!photo)return '';
+      return '<div class="vw-side '+frame+(photo.z>1.001?' zoomed':'')+'"><span class="pg-lbl">'+label+'</span>'+
+        '<img data-i="'+i+'" src="'+shown(photo)+'" alt="'+esc(label)+' picture" style="'+photoStyle(photo)+'">'+editBadge(i)+'</div>';
+    }
+    /* the big picture for a drawing, with every other photo in a gallery below */
+    function heroStyle(photo){
+      var fit=photo.fit||'contain';
+      var px=(photo.posX==null?50:photo.posX),py=(photo.posY==null?50:photo.posY);
+      return 'object-fit:'+fit+';object-position:'+px+'% '+py+'%;'+(photo.flip?'transform:scaleX(-1);':'');
+    }
+    var heroHtml=(isDraw&&p.photos[0])
+      ? '<div class="vw-hero" style="position:relative;"><img data-i="0" src="'+shown(p.photos[0])+'" alt="" style="'+heroStyle(p.photos[0])+'">'+editBadge(0)+'</div>' : '';
+    /* Photos beyond the covers, at the size each was given. A project you have
+       arranged keeps its free layout instead, and while you are arranging they
+       are up on the page in your hands, so the section stands down rather than
+       showing each one twice. */
+    var galleryFrom=isDraw?1:(p.noSold?1:2);
+    var showGallery=isDraw||(!p.arranged&&!arrangeMode);
+    var galleryHtml='';
+    if(p.photos.length>galleryFrom&&showGallery){
+      galleryHtml='<div class="section-lbl">Photos ('+(p.photos.length-galleryFrom)+')</div><div class="vw-gallery">'+
+        p.photos.slice(galleryFrom).map(function(ph,i){
+          var idx=i+galleryFrom, badge=photoBadge(p,idx);
+          return '<span class="vw-gitem vw-g'+(ph.s==null?1:ph.s)+(ph.z>1.001?' zoomed':'')+'">'+
+            (badge?'<span class="pg-lbl">'+esc(badge)+'</span>':'')+
+            '<img data-i="'+idx+'" src="'+shown(ph)+'" alt="'+esc(ph.c||('Photo '+(idx+1)))+'" style="'+photoStyle(ph)+'">'+
+            (ph.c?'<span class="vw-gcap">'+esc(ph.c)+'</span>':'')+editBadge(idx)+
+          '</span>';
+        }).join('')+'</div>';
+    }
+    var canArrange=!isDraw&&p.photos.length>(p.noSold?1:2);
+    var photosRow='<div class="photo-btns" style="margin:2px 0 4px;">'+
+      '<button class="pbtn" id="phAdd" type="button">＋ Add photo</button>'+
+      /* a camera button only where there is a camera to point: a phone or a tablet */
+      (navigator.maxTouchPoints>0?'<button class="pbtn" id="phCam" type="button">📷 Take a photo</button>':'')+
+      (p.photos.length>1?'<button class="pbtn" id="cmpBtn" type="button" title="See both pictures enlarged, side by side">⇔ Compare</button>':'')+
+      (canArrange?('<button class="pbtn'+(arrangeMode?' on':'')+'" id="arrEnter2" type="button">'+(arrangeMode?'✓ Done':'⇱ Move images')+'</button>'):'')+
+      '<button class="pbtn" id="phCheck" type="button" title="Why did a photo come out black or refuse to load?">🩺 Photo check</button></div>'+
+      '<div class="photo-hint" style="margin-bottom:8px;">'+(p.photos.length
+        ? ('Tap a photo to see it big, or its <b>✎</b> to edit it — the frame, crop, cut-out, which cover it is, its caption. '+
+           (galleryHtml?'Drag a gallery photo to change the order'+(navigator.maxTouchPoints>0?' (hold it still for a moment first)':'')+'. ':'')+
+           'Drop a picture file anywhere on this page, or paste one with Ctrl+V.')
+        : 'Add photos — drop a picture file anywhere on this page, or paste one with Ctrl+V.'+(isDraw
+             ? ' The first becomes the big picture, the rest a gallery.'
+             : ' The first two become the “Sold” and “Result” pictures on cards.'))+'</div>';
+    var projectRow='<div class="toolbar" style="margin-top:16px;">'+
+      '<span class="pd-lbl" style="margin:0;align-self:center;">This project:</span>'+
+      '<button class="chipbtn" id="dupe" type="button">Duplicate</button>'+
+      '<button class="chipbtn" id="moveUp" type="button" title="Move earlier in the list" aria-label="Move earlier in the list">↑</button>'+
+      '<button class="chipbtn" id="moveDown" type="button" title="Move later in the list" aria-label="Move later in the list">↓</button>'+
+      '<button class="chipbtn danger" id="del" type="button">Delete</button>'+
+    '</div>';
 
     pg.innerHTML=
       '<div class="paint-sticky">'+
         '<div class="paint-head">'+
           '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
           '<span id="headName" style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
-          '<button class="chipbtn" id="modeToggle" type="button" title="Switch to view mode">👁 View</button>'+
+          '<button class="chipbtn" id="shareBtn" type="button" title="Turn this project into one picture to share">📤 Share</button>'+
           '<button class="chipbtn" id="undoBtn2" type="button" title="Undo" aria-label="Undo">↶</button>'+
           '<button class="chipbtn" id="redoBtn2" type="button" title="Redo" aria-label="Redo">↷</button>'+
         '</div>'+
-        toolsHtml+
       '</div>'+
       '<div id="pageBody">'+
-      '<div class="phead">'+
-        '<div class="photos">'+ph+'</div>'+
-        '<div class="pdetails">'+
-          (renaming
-            ? ('<div class="pd-name editing">'+
-                 '<input class="name-input" id="renameInput" type="text" maxlength="60" placeholder="Project name" aria-label="Project name">'+
-                 '<button class="name-ok" id="renameSave" type="button" title="Save the name">✓</button>'+
-               '</div>')
-            : ('<div class="pd-name">'+
-                 '<button class="name-btn" id="nameBtn" type="button" title="Click to rename this project">'+
-                   esc(p.name)+'<span class="name-pen" aria-hidden="true">✎</span>'+
-                 '</button>'+
-               '</div>'))+
-          '<div class="pd-row"><div class="pd-lbl">Kind of project</div><div class="selchips">'+kindChips+'</div></div>'+
-          '<div class="pd-row"><div class="pd-lbl">Status</div><div class="selchips">'+statusChips+'</div></div>'+
-          (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Kit code</div>'+
-            '<input class="codeinput" id="kitCode" type="text" maxlength="60" placeholder="e.g. DP-4471, seller\u2019s article nr\u2026" value="'+esc(p.code||'')+'"></div>'):'')+
-          '<div class="pd-row"><div class="pd-lbl">Size (cm)'+listEditBtn('size',state.sizes.length)+'</div><div class="selchips">'+sizeChips+'</div></div>'+
-          '<div class="pd-row"><div class="pd-lbl">Rating (0–10)</div>'+
-            '<div class="rating-row"><input id="rating" type="number" min="0" max="10" step="0.1" inputmode="decimal" placeholder="'+
-              (autoRating(p)===null?'—':String(autoRating(p)))+'" value="'+(p.ratingOwn&&p.rating!==null?p.rating:'')+'">'+
-              '<span id="ratingBadge">'+ratingBadge(p)+'</span>'+
-              (autoRating(p)!==null?'<button class="pbtn" id="ratingAuto" type="button"'+(p.ratingOwn?'':' hidden')+'>↺ Use the tag score</button>':'')+
-            '</div>'+
-            '<div class="fb-hint" id="ratingWhy">'+ratingWhy(p)+'</div></div>'+
-          '<div class="pd-row"><div class="pd-lbl">Progress</div><div class="rating-row" style="gap:10px;"><input class="prog-range" id="progRange" type="range" min="0" max="100" step="5" aria-label="Progress percent" value="'+(p.progress||0)+'" style="flex:1;--fill:'+(p.progress||0)+'%;"><span id="progVal" style="font-weight:800;min-width:44px;">'+(p.progress||0)+'%</span></div></div>'+
-          (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Price</div><input class="codeinput" id="priceInput" type="text" maxlength="20" placeholder="e.g. €25 or 25" value="'+esc(p.price||'')+'"></div>'):'')+
-          '<div class="pd-row"><div class="pd-lbl">Dates</div><div class="selchips" style="gap:10px;">'+dateInputs+'</div></div>'+
-          (kd!=='drawing'?('<div class="pd-row"><div class="pd-lbl">Seller'+listEditBtn('seller',state.sellers.length)+'</div><div class="selchips">'+sellerChips+'</div></div>'):'')+
-          (usesMedia(p)?('<div class="pd-row"><div class="pd-lbl">Media &amp; tools'+listEditBtn('media',state.media.length)+'</div><div class="selchips">'+mediaChips+'</div></div>'):'')+
-          '<div class="pd-row"><div class="pd-lbl">Tags'+listEditBtn('tag',state.tags.length)+'</div><div class="selchips">'+tagChips+'</div></div>'+
-          notesRow+
+        '<div class="vw-stage">'+
+          (isDraw?heroHtml:(p.noSold?'':sideHtml(0,'Sold')))+
+          '<div class="vw-card'+(detailsOpen?' editing':'')+'" id="detailsCard">'+(detailsOpen?detailsFormHtml(p):detailsReadHtml(p))+'</div>'+
+          (isDraw?'':sideHtml(p.noSold?0:1,'Result'))+
         '</div>'+
+        photosRow+galleryHtml+
+        (colorsOpen?coloursEditorHtml(p):coloursReadHtml(p))+
+        projectRow+
       '</div>'+
-      '<div class="toolbar">'+
-        '<label class="search">🔎<input id="q" type="text" inputmode="search" placeholder="Search number or name…" value="'+esc(query)+'"></label>'+
-        (isDiamond(p)?('<button class="chipbtn'+(state.onlySel?' on':'')+'" id="onlySel" type="button">Selected only</button>'+
-        '<button class="chipbtn" id="pasteList" type="button">＋ Paste list</button>'+
-        '<button class="chipbtn" id="copyColors" type="button">⧉ Copy colours</button>'):'')+
-        '<button class="chipbtn" id="dupe" type="button">Duplicate</button>'+
-        '<button class="chipbtn" id="shareBtn" type="button" title="Turn this project into one picture to share">📤 Share</button>'+
-        '<button class="chipbtn" id="moveUp" type="button" title="Move earlier in the list" aria-label="Move earlier in the list">↑</button>'+
-        '<button class="chipbtn" id="moveDown" type="button" title="Move later in the list" aria-label="Move later in the list">↓</button>'+
-        '<button class="chipbtn danger" id="del" type="button">Delete</button>'+
-      '</div>'+
-      paletteHtml+
-      (isDiamond(p)?(
-        '<div class="typerow"><span class="lbl">Diamond type:</span>'+
-          '<button class="tbtn sq'+(p.type==='square'?' on':'')+'" data-t="square" type="button">■ Square</button>'+
-          '<button class="tbtn rd'+(p.type==='round'?' on':'')+'" data-t="round" type="button">● Round</button>'+
-          '<button class="tbtn od'+(p.type==='odd'?' on':'')+'" data-t="odd" type="button">✦ Odd</button>'+
-        '</div>'+
-        '<div class="finrow"><span class="lbl">Special diamonds:</span>'+finChips+'</div>'+
-        finBoxes+
-        (showPaste?'<div class="backup" id="pasteBox"></div>':'')+
-        '<div class="ovsort" style="margin-top:2px;"><span class="pd-lbl" style="margin:0">Colours:</span>'+
-          '<button class="chipbtn'+(colorFamily===''?' on':'')+'" data-fam="" type="button">All</button>'+
-          COLOR_FAMILIES.map(function(fm){return '<button class="chipbtn'+(colorFamily===fm?' on':'')+'" data-fam="'+fm+'" type="button">'+fm+'</button>';}).join('')+
-        '</div>'+
-        '<div class="pins" id="pins"></div>'+
-        '<div class="meta"><span id="count"></span><span id="hint"></span></div>'+
-        '<div class="grid" id="grid"></div>'+
-        '<div class="empty" id="emptyMsg" style="display:none"></div>'
-      ):'')+
-      '</div>';
+      /* the arrange bar is position:fixed, so keeping it outside #pageBody means
+         the page flow is byte-for-byte identical whether arranging or not */
+      (arrangeMode?arrangeUiHtml(p):'');
 
+    /* ---- always there ---- */
     $('backPaints').addEventListener('click',function(){navTo('paintings');});
-    if($('undoBtn2'))$('undoBtn2').addEventListener('click',doUndo);
-    if($('redoBtn2'))$('redoBtn2').addEventListener('click',doRedo);
+    $('undoBtn2').addEventListener('click',doUndo);
+    $('redoBtn2').addEventListener('click',doRedo);
     refreshUndoBtns();
-
-    /* card frame shape */
-    pg.querySelectorAll('[data-frame]').forEach(function(b){
-      b.addEventListener('click',function(){p.frame=b.getAttribute('data-frame');renderPainting();saveEdit();});
-    });
-
-    /* progress + price */
-    if($('progRange'))$('progRange').addEventListener('input',function(e){
-      p.progress=parseInt(e.target.value,10)||0;
-      var pv=$('progVal');if(pv)pv.textContent=p.progress+'%';
-      e.target.style.setProperty('--fill',p.progress+'%');
-      achCheckDone(p);
-      saveEdit();
-    });
-    if($('priceInput'))$('priceInput').addEventListener('input',function(e){p.price=e.target.value;saveEdit();});
-    /* reorder in list */
-    if($('moveUp'))$('moveUp').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i>0){state.paintings.splice(i,1);state.paintings.splice(i-1,0,p);save();pushHistory();toast('Moved earlier ✓',900);}else toast('Already first',900);});
-    if($('moveDown'))$('moveDown').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i<state.paintings.length-1){state.paintings.splice(i,1);state.paintings.splice(i+1,0,p);save();pushHistory();toast('Moved later ✓',900);}else toast('Already last',900);});
-    /* copy colours */
-    if($('copyColors'))$('copyColors').addEventListener('click',function(){
-      var lines=DMC.filter(function(r){return p.colors[r[0]];}).map(function(r){return r[0]+' '+r[1];});
-      if(!lines.length){toast('No colours selected',1200);return;}
-      var txt=lines.join('\n');
-      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(function(){toast('Copied '+lines.length+' colours ✓',1400);},function(){toast('Copy blocked here',1600);});
-      else toast('Copy not supported here',1600);
-    });
-    /* paste a list of DMC numbers */
-    if($('pasteList'))$('pasteList').addEventListener('click',function(){
-      showPaste=!showPaste;
-      if(!showPaste){pasteReview=null;pasteTextVal='';chartImg=null;}
-      renderPainting();
-    });
-    /* colour family filter */
-    pg.querySelectorAll('[data-fam]').forEach(function(b){
-      b.addEventListener('click',function(){
-        colorFamily=b.getAttribute('data-fam');
-        pg.querySelectorAll('[data-fam]').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-fam')===colorFamily);});
-        renderGrid();
+    $('shareBtn').addEventListener('click',function(){openShareCard(p);});
+    if($('cmpBtn'))$('cmpBtn').addEventListener('click',function(){openCompare(p);});
+    if($('arrEnter2'))$('arrEnter2').addEventListener('click',function(){if(arrangeMode)exitArrange(); else enterArrange();});
+    $('phAdd').addEventListener('click',function(){plog('opened the photo picker','');$('fileInput').click();});
+    if($('phCam'))$('phCam').addEventListener('click',function(){plog('opened the camera','');$('camInput').click();});
+    $('phCheck').addEventListener('click',openPhotoCheck);
+    function viewerOpts(){
+      return {photos:p.photos.map(function(q){return {src:shown(q),cap:q.c||''};}),onEdit:function(i){openPhotoSheet(i);}};
+    }
+    pg.querySelectorAll('.vw-side img,.vw-hero img,.vw-gallery img').forEach(function(im){
+      im.addEventListener('click',function(){
+        if(Date.now()-reorderDroppedAt<400)return;   /* the tap that ended a drag is not a tap */
+        var i=parseInt(im.getAttribute('data-i'),10), o=viewerOpts(); o.index=i>=0?i:0;
+        openLightbox(im.src,'',o);
       });
     });
-
-    /* status */
-    pg.querySelectorAll('[data-status]').forEach(function(b){
-      b.addEventListener('click',function(){
-        var id=b.getAttribute('data-status');
-        p.status=(p.status===id)?null:id;
-        if(p.status==='progress'&&!p.started)p.started=todayStr();
-        if(p.status==='done'){if(!p.finished)p.finished=todayStr();p.progress=100;}
-        achCheckDone(p);
-        renderPainting(); saveEdit();
-      });
+    pg.querySelectorAll('[data-edit-i]').forEach(function(b){
+      b.addEventListener('click',function(e){e.stopPropagation();openPhotoSheet(parseInt(b.getAttribute('data-edit-i'),10));});
     });
-    /* started / finished dates */
-    $('startedDate').addEventListener('change',function(e){p.started=e.target.value;saveEdit();});
-    $('finishedDate').addEventListener('change',function(e){p.finished=e.target.value;saveEdit();});
-    /* duplicate painting */
+    /* drag a gallery photo to a new place in the order (the covers are chosen
+       with ★ in the photo sheet, not by dragging) */
+    wireReorder(pg.querySelector('.vw-gallery'),'.vw-gitem',function(from,to){
+      var a=p.photos.splice(from+galleryFrom,1)[0]; p.photos.splice(to+galleryFrom,0,a);
+      renderPainting(); savePhotos(p.id); saveEdit(); toast('Photo moved ✓',900);
+    });
+    /* the card: tap anywhere on it to edit, ✓ Done to read it again */
+    if($('detailsEdit'))$('detailsEdit').addEventListener('click',function(e){e.stopPropagation();detailsOpen=true;renderPainting();});
+    if(!detailsOpen)$('detailsCard').addEventListener('click',function(){detailsOpen=true;renderPainting();});
+    ['detailsDone','detailsDone2'].forEach(function(id){
+      if($(id))$(id).addEventListener('click',function(){detailsOpen=false;renaming=false;renderPainting();});
+    });
+    if($('colorsEdit'))$('colorsEdit').addEventListener('click',function(){colorsOpen=true;renderPainting();});
+    if($('colorsDone'))$('colorsDone').addEventListener('click',function(){colorsOpen=false;showPaste=false;pasteReview=null;pasteTextVal='';chartImg=null;renderPainting();});
+    /* this project: duplicate, move in the list, delete */
+    $('moveUp').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i>0){state.paintings.splice(i,1);state.paintings.splice(i-1,0,p);save();pushHistory();toast('Moved earlier ✓',900);}else toast('Already first',900);});
+    $('moveDown').addEventListener('click',function(){var i=state.paintings.indexOf(p);if(i<state.paintings.length-1){state.paintings.splice(i,1);state.paintings.splice(i+1,0,p);save();pushHistory();toast('Moved later ✓',900);}else toast('Already last',900);});
     $('dupe').addEventListener('click',function(){
       var src=active();
       var copy=JSON.parse(JSON.stringify(src));
@@ -5990,42 +5884,45 @@ try{
       render(); save(); if(copy.photos&&copy.photos.length)savePhotos(copy.id);
       pushHistory(); toast('Duplicated ✓',1200);
     });
-    if($('shareBtn'))$('shareBtn').addEventListener('click',function(){openShareCard(p);});
-
-    /* photos events */
-    if($('phAdd'))$('phAdd').addEventListener('click',function(){plog('opened the photo picker','');$('fileInput').click();});
-    if($('phCam'))$('phCam').addEventListener('click',function(){plog('opened the camera','');$('camInput').click();});
-    if($('phCheck'))$('phCheck').addEventListener('click',openPhotoCheck);
-    if($('cmpBtn'))$('cmpBtn').addEventListener('click',function(){openCompare(p);});
-    if($('modeToggle'))$('modeToggle').addEventListener('click',function(){
-      if(arrangeMode)arrangeMode=false;
-      p.edit=false; renderPainting(); save();
+    $('del').addEventListener('click',function(){
+      if(!twoTap('delpaint',$('del'),'Tap again to delete'))return;
+      var doomed=active();
+      var doomedIdx=state.paintings.indexOf(doomed);
+      deletePhotosKey(doomed.id); deletePaintKey(doomed.id);
+      state.paintings=state.paintings.filter(function(x){return x.id!==doomed.id;});
+      if(!state.paintings.length)state.paintings=[newPainting('Project 1')];
+      state.active=state.paintings[0].id; state.view='paintings';
+      resetTransient(); render(); save(); pushHistory(); replaceNav();
+      trash.unshift({p:doomed,idx:doomedIdx}); if(trash.length>20)trash.pop();
+      showUndo(doomed, doomedIdx);
     });
-    if(arrangeMode){ /* the draggable layer + its toolbar are wired in buildArrLayer() */ } else {
-    pg.querySelectorAll('.photo-grid img[data-i]').forEach(function(im){
-      im.addEventListener('click',function(){
-        if(Date.now()-reorderDroppedAt<400)return;   /* the tap that ended a drag is not a tap */
-        openPhotoSheet(parseInt(im.getAttribute('data-i'),10));
+
+    if(detailsOpen)wireDetailsForm(p,pg);
+    if(colorsOpen)wireColoursEditor(p,pg);
+    buildArrLayer(p);
+  }
+  /* the form's handlers: every field writes straight into the project and saves */
+  function wireDetailsForm(p,pg){
+    if($('progRange'))$('progRange').addEventListener('input',function(e){
+      p.progress=parseInt(e.target.value,10)||0;
+      var pv=$('progVal');if(pv)pv.textContent=p.progress+'%';
+      e.target.style.setProperty('--fill',p.progress+'%');
+      achCheckDone(p);
+      saveEdit();
+    });
+    if($('priceInput'))$('priceInput').addEventListener('input',function(e){p.price=e.target.value;saveEdit();});
+    pg.querySelectorAll('[data-status]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var id=b.getAttribute('data-status');
+        p.status=(p.status===id)?null:id;
+        if(p.status==='progress'&&!p.started)p.started=todayStr();
+        if(p.status==='done'){if(!p.finished)p.finished=todayStr();p.progress=100;}
+        achCheckDone(p);
+        renderPainting(); saveEdit();
       });
     });
-    pg.querySelectorAll('[data-photox]').forEach(function(x){
-      x.addEventListener('click',function(e){
-        e.stopPropagation();
-        var i=parseInt(x.getAttribute('data-photox'),10);
-        if(!twoTap('photox'+i,x,'✕?'))return;
-        var removed=p.photos.splice(i,1)[0];
-        if(selPhoto===i)selPhoto=-1; else if(selPhoto>i)selPhoto--;
-        renderPainting(); savePhotos(p.id);
-        showPhotoUndo(p.id,removed,i,'Photo removed');
-      });
-    });
-    /* drag a thumbnail to a new place in the order */
-    wireReorder(pg.querySelector('.photo-grid'),'.pg-item',function(from,to){
-      var a=p.photos.splice(from,1)[0]; p.photos.splice(to,0,a);
-      renderPainting(); savePhotos(p.id); saveEdit(); toast('Photo moved ✓',900);
-    });
-    }
-
+    $('startedDate').addEventListener('change',function(e){p.started=e.target.value;saveEdit();});
+    $('finishedDate').addEventListener('change',function(e){p.finished=e.target.value;saveEdit();});
     /* rating */
     $('rating').addEventListener('input',function(e){
       var v=e.target.value;
@@ -6052,23 +5949,19 @@ try{
       p.ratingOwn=false; p.rating=null; renderPainting(); saveEdit();
       toast('Rating back to the tag score ✓',1500);
     });
-
-    /* kit code */
     if($('kitCode'))$('kitCode').addEventListener('input',function(e){p.code=e.target.value;saveEdit();});
     if($('notesInput'))$('notesInput').addEventListener('input',function(e){p.notes=e.target.value;saveEdit();});
-
     /* kind of project — hides sections, never deletes their contents */
     pg.querySelectorAll('[data-setkind]').forEach(function(b){
       b.addEventListener('click',function(){
         var k=b.getAttribute('data-setkind');
         if(kindOf(p)===k)return;
         p.kind=k; state.lastKind=k;
-        resetTransient();
+        resetTransient(); detailsOpen=true;
         renderPainting(); renderTabs(); saveEdit();
         toast(KINDMAP[k].sym+' Now a '+KINDMAP[k].label.toLowerCase()+' — nothing was deleted',1900);
       });
     });
-
     /* media & tools */
     pg.querySelectorAll('[data-media]').forEach(function(b){
       b.addEventListener('click',function(){
@@ -6091,26 +5984,7 @@ try{
       p.media[v]=1; renderPainting(); saveEdit();
     });
     if($('newMedia'))$('newMedia').addEventListener('keydown',function(e){if(e.key==='Enter')$('addMedia').click();});
-
-    /* paint-by-number palette */
-    if($('palAdd'))$('palAdd').addEventListener('click',function(){
-      var lbl=($('palLabel').value||'').trim();
-      var col=$('palColor').value||'#cccccc';
-      if(!p.palette)p.palette=[];
-      p.palette.push({id:uid('c'),color:col,label:lbl});
-      renderPainting(); saveEdit();
-    });
-    if($('palLabel'))$('palLabel').addEventListener('keydown',function(e){if(e.key==='Enter')$('palAdd').click();});
-    pg.querySelectorAll('[data-palx]').forEach(function(x){
-      x.addEventListener('click',function(e){
-        e.stopPropagation();
-        var i=parseInt(x.getAttribute('data-palx'),10);
-        if(!twoTap('palx'+i,null)){toast('Tap ✕ again to remove this colour',1500);return;}
-        p.palette.splice(i,1); renderPainting(); saveEdit();
-      });
-    });
-
-    /* edit-list toggles for sizes / sellers / tags */
+    /* edit-list toggles for sizes / sellers / tags / media */
     pg.querySelectorAll('[data-editlist]').forEach(function(b){
       b.addEventListener('click',function(){
         var k=b.getAttribute('data-editlist');
@@ -6140,7 +6014,6 @@ try{
       p.size=v; renderPainting(); saveEdit();
     });
     $('newSize').addEventListener('keydown',function(e){if(e.key==='Enter')$('addSize').click();});
-
     /* sellers */
     pg.querySelectorAll('[data-seller]').forEach(function(b){
       b.addEventListener('click',function(){
@@ -6163,7 +6036,6 @@ try{
       p.seller=v; renderPainting(); saveEdit();
     });
     if($('newSeller'))$('newSeller').addEventListener('keydown',function(e){if(e.key==='Enter')$('addSeller').click();});
-
     /* tags */
     pg.querySelectorAll('[data-tag]').forEach(function(b){
       b.addEventListener('click',function(e){
@@ -6197,10 +6069,7 @@ try{
       p.tags[v]=1; renderPainting(); saveEdit();
     });
     $('newTag').addEventListener('keydown',function(e){if(e.key==='Enter')$('addTag').click();});
-
-    /* base controls */
-    $('q').addEventListener('input',function(e){query=e.target.value;renderGrid();});
-    if($('onlySel'))$('onlySel').addEventListener('click',function(){state.onlySel=!state.onlySel;renderPainting();save();});
+    /* the name */
     if($('nameBtn'))$('nameBtn').addEventListener('click',function(){
       renaming=true; renameOrig=p.name; renameFocus=true;
       renderPainting();
@@ -6238,12 +6107,37 @@ try{
       });
       $('renameInput').addEventListener('keydown',function(e){
         if(e.key==='Enter')commitRename();
-        if(e.key==='Escape')cancelRename();
+        if(e.key==='Escape'){e.stopPropagation();cancelRename();}
       });
       /* clicking away is a finish, not an abandonment — the box has no Cancel of
          its own any more, so leaving it must keep what's on screen */
       $('renameInput').addEventListener('blur',commitRename);
     }
+  }
+  /* the colour editor's handlers: the catalogue, the paste panel, the diamond
+     type, the special diamonds, and the paint-by-number palette */
+  function wireColoursEditor(p,pg){
+    if($('copyColors'))$('copyColors').addEventListener('click',function(){
+      var lines=DMC.filter(function(r){return p.colors[r[0]];}).map(function(r){return r[0]+' '+r[1];});
+      if(!lines.length){toast('No colours selected',1200);return;}
+      var txt=lines.join('\n');
+      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(function(){toast('Copied '+lines.length+' colours ✓',1400);},function(){toast('Copy blocked here',1600);});
+      else toast('Copy not supported here',1600);
+    });
+    if($('pasteList'))$('pasteList').addEventListener('click',function(){
+      showPaste=!showPaste;
+      if(!showPaste){pasteReview=null;pasteTextVal='';chartImg=null;}
+      renderPainting();
+    });
+    pg.querySelectorAll('[data-fam]').forEach(function(b){
+      b.addEventListener('click',function(){
+        colorFamily=b.getAttribute('data-fam');
+        pg.querySelectorAll('[data-fam]').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-fam')===colorFamily);});
+        renderGrid();
+      });
+    });
+    if($('q'))$('q').addEventListener('input',function(e){query=e.target.value;renderGrid();});
+    if($('onlySel'))$('onlySel').addEventListener('click',function(){state.onlySel=!state.onlySel;renderPainting();save();});
     pg.querySelectorAll('.tbtn').forEach(function(b){
       b.addEventListener('click',function(){
         var t=b.getAttribute('data-t');
@@ -6251,7 +6145,6 @@ try{
         render(); saveEdit();
       });
     });
-
     /* finish category toggles */
     pg.querySelectorAll('.fbtn').forEach(function(b){
       b.addEventListener('click',function(){
@@ -6266,7 +6159,6 @@ try{
         renderPainting(); saveEdit();
       });
     });
-
     /* library entry select / add / edit / delete */
     pg.querySelectorAll('[data-spec]').forEach(function(c){
       c.addEventListener('click',function(e){
@@ -6324,23 +6216,27 @@ try{
         if(colInp&&DMCMAP[code])colInp.value=DMCMAP[code][2];
       });
     });
-
-    /* delete painting */
-    $('del').addEventListener('click',function(){
-      if(!twoTap('delpaint',$('del'),'Tap again to delete'))return;
-      var doomed=active();
-      var doomedIdx=state.paintings.indexOf(doomed);
-      deletePhotosKey(doomed.id); deletePaintKey(doomed.id);
-      state.paintings=state.paintings.filter(function(x){return x.id!==doomed.id;});
-      if(!state.paintings.length)state.paintings=[newPainting('Project 1')];
-      state.active=state.paintings[0].id; state.view='paintings';
-      resetTransient(); render(); save(); pushHistory(); replaceNav();
-      trash.unshift({p:doomed,idx:doomedIdx}); if(trash.length>20)trash.pop();
-      showUndo(doomed, doomedIdx);
+    /* paint-by-number palette */
+    if($('palAdd'))$('palAdd').addEventListener('click',function(){
+      var lbl=($('palLabel').value||'').trim();
+      var col=$('palColor').value||'#cccccc';
+      if(!p.palette)p.palette=[];
+      p.palette.push({id:uid('c'),color:col,label:lbl});
+      renderPainting(); saveEdit();
     });
-    renderGrid();
-    if(showPaste)fillPasteBox();
-    buildArrLayer(p);
+    if($('palLabel'))$('palLabel').addEventListener('keydown',function(e){if(e.key==='Enter')$('palAdd').click();});
+    pg.querySelectorAll('[data-palx]').forEach(function(x){
+      x.addEventListener('click',function(e){
+        e.stopPropagation();
+        var i=parseInt(x.getAttribute('data-palx'),10);
+        if(!twoTap('palx'+i,null)){toast('Tap ✕ again to remove this colour',1500);return;}
+        p.palette.splice(i,1); renderPainting(); saveEdit();
+      });
+    });
+    if(isDiamond(p)){
+      renderGrid();
+      if(showPaste)fillPasteBox();
+    }
   }
   function renderTabsOnly(){renderTabs();}
 
@@ -7218,8 +7114,12 @@ try{
       if(e.key==='Delete'){e.preventDefault();arrApi.del();}
       return;
     }
-    /* on a project page with nothing open over it, Escape is ← All — the
-       overlays (photo sheet, big photo, Compare, Photo check) all catch it first */
+    /* on a project page, Escape closes the form or the colour editor if one is
+       open, and otherwise is ← All — the overlays (photo sheet, big photo,
+       Compare, Photo check) all catch it first */
+    if(e.key==='Escape'&&state.view==='paint'&&!document.querySelector('.lightbox')&&(detailsOpen||colorsOpen)){
+      e.preventDefault(); detailsOpen=false; colorsOpen=false; renaming=false; renderPainting(); return;
+    }
     if(e.key==='Escape'&&state.view==='paint'&&!renaming&&!document.querySelector('.lightbox')){
       e.preventDefault(); navTo('paintings');
     }
