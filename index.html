@@ -849,8 +849,32 @@ try{
     {id:'result',sym:'📸', label:'Result pictures',what:'projects given a Result picture',
       steps:[1,3,5, 10,15,20, 30,40,50, 65,80,100]},
     {id:'done',  sym:'🏁', label:'Finisher',       what:'paintings finished 100%',
-      steps:[1,2,3, 5,8,12, 16,20,25, 35,50,75]}
+      steps:[1,2,3, 5,8,12, 16,20,25, 35,50,75]},
+    {id:'area',  sym:'📐', label:'Big picture',    what:'cm² of picture finished',
+      steps:[500,1500,3000, 6000,10000,15000, 22000,30000,40000, 55000,75000,100000]},
+    {id:'diary', sym:'📓', label:'Diarist',        what:'photos labelled “progress”',
+      steps:[1,3,5, 10,15,20, 30,45,60, 80,100,150]}
   ];
+  /* level titles: one ladder over every award's stages together. The names walk
+     the craft itself — sorting drills, reading symbols, taming the confetti
+     section — so the title says how far the hands have come, not just a number. */
+  var ACH_RANKS=[[0,'Beginner'],[7,'Drill Sorter'],[14,'Tray Tapper'],[21,'Symbol Reader'],
+    [28,'Row Runner'],[35,'Confetti Tamer'],[42,'Corner Keeper'],[49,'Wax Master'],
+    [56,'Shine Checker'],[63,'Full-Drill Hero'],[70,'Sparkle Sage'],[77,'Diamond Legend']];
+  function rankOf(lvl){
+    var n=ACH_RANKS[0][1];
+    for(var i=0;i<ACH_RANKS.length;i++)if(lvl>=ACH_RANKS[i][0])n=ACH_RANKS[i][1];
+    return n;
+  }
+  function levelNow(){var t=0;ACH.forEach(function(a){t+=achStageIndex(a.id);});return t;}
+  /* "30×40" → 1200. Takes ×, x or *, comma decimals, ignores units; anything
+     unparseable (or absurd — a mm entry) counts nothing rather than nonsense. */
+  function sizeArea(sz){
+    var m=String(sz||'').replace(',','.').match(/(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)/);
+    if(!m)return 0;
+    var a=parseFloat(m[1])*parseFloat(m[2]);
+    return (a>0&&a<100000)?Math.round(a):0;
+  }
   var ACHMAP={}; ACH.forEach(function(a){ACHMAP[a.id]=a;});
   function achCount(id){return (state.achv&&state.achv.c&&state.achv.c[id])||0;}
   /* how many of the twelve stages this count has climbed past */
@@ -871,6 +895,12 @@ try{
     if(after>before){
       var a=ACHMAP[id];
       toast('🏆 Achievement! '+a.sym+' '+a.label+' — '+achStageName(after)+' ✓',3400);
+      var t=ACH_TIERS[Math.floor((after-1)/3)];
+      fxBurst([t.fg,t.bg,(ACCENTMAP[state.accent]||ACCENTMAP.violet||{}).accent||'#5B3FA8']);
+      /* a stage can also be the one that tips the level into a new title */
+      var lv=levelNow();
+      if(rankOf(lv)!==rankOf(lv-(after-before)))
+        setTimeout(function(){toast('👑 New title: '+rankOf(lv)+' — level '+lv,3800);},3500);
     }
     save();
   }
@@ -882,14 +912,28 @@ try{
       if(!p.ach)p.ach={};
       p.ach.done=1;
       achAdd('done',1);
+      achCheckArea(p);
+      fxBurst(fxProjectHexes(p));   /* the moment of the app: rain its own colours */
     }
+  }
+  /* a finished painting's area counts once — whether the size was there when it
+     finished or was filled in afterwards (the size buttons call this too) */
+  function achCheckArea(p){
+    if(!p||!p.ach||!p.ach.done||p.ach.area)return;
+    var a=sizeArea(p.size);
+    if(a>0){p.ach.area=1;achAdd('area',a);}
+  }
+  /* a photo newly labelled "progress" counts once, forever (the label can come
+     and go; the count is lifetime like every other award) */
+  function achPhotoLabel(ph){
+    if(ph&&ph.lbl==='progress'&&!ph.achD){ph.achD=1;achAdd('diary',1);}
   }
   /* First run with achievements (and restores of old backups): everything
      already made counts, so forty finished paintings never start at zero.
      Runs only when photos are loaded — a Sold picture can't be counted
      before it exists in memory. */
   function achSeed(){
-    if(state.achv)return;
+    if(state.achv){achSeed2();return;}
     var c={add:0,colors:0,sold:0,result:0,done:0};
     state.paintings.forEach(function(p){
       var meaningful=Object.keys(p.colors||{}).length||(p.photos&&p.photos.length)||p.status||p.code||p.notes;
@@ -906,7 +950,88 @@ try{
       if(p.status==='done'||(p.progress||0)>=100){c.done++;p.ach.done=1;}
     });
     state.achv={c:c};
+    achSeed2();
     save();
+  }
+  /* The awards added after the first five, seeded the same way: what was
+     already made counts from the start. Runs once (v2), silently — forty
+     finished paintings must not ring forty bells on one boot. */
+  function achSeed2(){
+    if(!state.achv||state.achv.v2)return;
+    if(!state.achv.c)state.achv.c={};
+    var area=0, diary=0;
+    state.paintings.forEach(function(p){
+      if(!p.ach)p.ach={};
+      if((p.status==='done'||(p.progress||0)>=100)&&!p.ach.area){
+        var a=sizeArea(p.size);
+        if(a>0){p.ach.area=1;area+=a;}
+      }
+      (p.photos||[]).forEach(function(q){if(q&&q.lbl==='progress'&&!q.achD){q.achD=1;diary++;}});
+    });
+    state.achv.c.area=(state.achv.c.area||0)+area;
+    state.achv.c.diary=(state.achv.c.diary||0)+diary;
+    state.achv.v2=1;
+    save();
+  }
+
+  /* ---------- a rain of diamonds ----------
+     Fired when a painting reaches 100% (in its own colours) and when an award
+     climbs a stage (in the tier's colours). One canvas over everything for a
+     couple of seconds, then gone without a trace. A second burst while one is
+     falling joins it rather than starting over. Honours the device's
+     reduced-motion setting and the ✨ Celebrations switch on ⌂ Overview. */
+  var fxCanvas=null, fxParts=[], fxRaf=0;
+  function fxOn(){
+    if(state.fx==='off')return false;
+    return !(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function fxProjectHexes(p){
+    var out=[];
+    Object.keys((p&&p.colors)||{}).forEach(function(c){var r=DMCMAP[c];if(r)out.push(r[2]);});
+    ((p&&p.palette)||[]).forEach(function(x){if(x&&x.color)out.push(x.color);});
+    return out.slice(0,60);
+  }
+  function fxBurst(hexes){
+    if(!fxOn())return;
+    if(!hexes||!hexes.length)hexes=['#8f6fe0','#5B3FA8','#2E6FBF','#E0B65F'];
+    var W=window.innerWidth, H=window.innerHeight;
+    if(W<40||H<40)return;   /* a hidden or collapsed window has nothing to rain through */
+    if(!fxCanvas){
+      fxCanvas=document.createElement('canvas');
+      fxCanvas.style.cssText='position:fixed;inset:0;z-index:130;pointer-events:none;';
+      document.body.appendChild(fxCanvas);
+      fxParts=[];
+    }
+    fxCanvas.width=W; fxCanvas.height=H;
+    for(var i=0;i<90;i++){
+      fxParts.push({born:Date.now(), x:Math.random()*W, y:-14-Math.random()*H*0.5, s:4+Math.random()*7,
+        vy:H*(0.008+Math.random()*0.009), vx:(Math.random()-0.5)*1.4,
+        r:Math.random()*Math.PI, vr:(Math.random()-0.5)*0.22,
+        c:hexes[(Math.random()*hexes.length)|0], tw:Math.random()*Math.PI*2});
+    }
+    if(!fxRaf)fxRaf=requestAnimationFrame(fxTick);
+  }
+  function fxTick(){
+    if(!fxCanvas){fxRaf=0;return;}
+    var ctx=fxCanvas.getContext('2d'), W=fxCanvas.width, H=fxCanvas.height, now=Date.now();
+    ctx.clearRect(0,0,W,H);
+    fxParts=fxParts.filter(function(p){
+      p.y+=p.vy; p.x+=p.vx+Math.sin(p.y/36+p.tw)*0.8; p.r+=p.vr;
+      /* a hard stop at six seconds: a backgrounded page pauses the animation,
+         and a diamond must never be found still falling minutes later */
+      if(p.y>H+24||(now-p.born)>6000)return false;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+      ctx.globalAlpha=0.65+0.35*Math.sin(p.y/14+p.tw*3);   /* the twinkle */
+      ctx.fillStyle=p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s);
+      /* a facet of light across one corner, the way the .drill swatches shine */
+      ctx.fillStyle='rgba(255,255,255,.55)';
+      ctx.beginPath(); ctx.moveTo(-p.s/2,-p.s/2); ctx.lineTo(p.s/2,-p.s/2); ctx.lineTo(-p.s/2,p.s/2);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+      return true;
+    });
+    if(fxParts.length){fxRaf=requestAnimationFrame(fxTick);}
+    else {fxRaf=0; fxCanvas.remove(); fxCanvas=null;}
   }
   function achievementsHtml(){
     var earned=0, total=ACH.length*12, rows='';
@@ -936,9 +1061,13 @@ try{
       '</div>';
     });
     var lvlPct=total?Math.round(earned/total*100):0;
+    var nxtRank=null;
+    for(var ri=0;ri<ACH_RANKS.length;ri++)if(ACH_RANKS[ri][0]>earned){nxtRank=ACH_RANKS[ri];break;}
     return '<div class="section-lbl">Achievements</div><div class="backup">'+
-      '<div class="sm-lbl ach-lvl"><span style="font-size:15px;">🏆 <b>Level '+earned+'</b></span><span>'+earned+' of '+total+' stages</span></div>'+
+      '<div class="sm-lbl ach-lvl"><span style="font-size:15px;">🏆 <b>Level '+earned+'</b> · '+rankOf(earned)+'</span><span>'+earned+' of '+total+' stages</span></div>'+
       '<div class="sm-bar"><div class="sm-fill" style="width:'+lvlPct+'%;background:var(--accent)"></div></div>'+
+      '<div class="bk-note" style="margin-top:4px;">'+
+        (nxtRank?('Next title: <b>'+nxtRank[1]+'</b> at level '+nxtRank[0]):'The top title — every rank climbed.')+'</div>'+
       '<div class="bk-note" style="margin:6px 0 10px;">Each award climbs Bronze → Silver → Gold → Diamond, three stages per tier, and every stage earned is a level. These count everything you have ever done — deleting a project never takes one back.</div>'+
       rows+'</div>';
   }
@@ -948,6 +1077,12 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-10-09 · a little ceremony',items:[
+      '🎉 Finishing a painting rains its own diamond colours down the screen for a moment, and an award climbing a stage sparkles in that tier’s colours. The ✨ Celebrations switch sits next to dark mode; a device set to reduce motion never sees them.',
+      '📐 A new award, <b>Big picture</b>: every finished painting with a size adds its area — a 30×40 counts 1200 cm². Everything already finished is counted in, and a size filled in later still counts.',
+      '📓 A new award, <b>Diarist</b>: photos labelled “progress”, including the ones already labelled.',
+      '👑 Levels carry titles now — Beginner, Drill Sorter, Tray Tapper, on up to Diamond Legend at level 77. The Achievements panel names yours and the next one.',
+    ]},
     {when:'2026-09-04 · photos, in and out and edited',items:[
       '📄 A project is one page now. It looks the way the read-only view did; tap the details card (or ✎ Edit details) and it turns into the form, tap ✎ Edit colours and the catalogue opens under the colours. Every photo has a small ✎ that opens its tools. The edit/view switch is gone.',
       '🖼 Tap a photo and it opens full screen with every tool for it: drag and zoom inside the card frame, a crop box with handles that keeps the card’s shape, straighten, turn, flip, and a cut-out with a sensitivity slider you watch working. Nothing rewrites the picture any more — the original is kept and every edit can be changed again later.',
@@ -2110,6 +2245,7 @@ try{
       '<div class="backup">'+
         '<div class="bk-btns">'+
           '<button class="chipbtn'+(state.dark?' on':'')+'" id="darkToggle" type="button">🌙 Dark mode: '+(state.dark?'On':'Off')+'</button>'+
+          '<button class="chipbtn'+(state.fx!=='off'?' on':'')+'" id="fxToggle" type="button" title="The rain of diamonds when a painting finishes or an award climbs">✨ Celebrations: '+(state.fx!=='off'?'On':'Off')+'</button>'+
         '</div>'+
         '<div class="sm-row" style="margin-top:10px;">'+
           '<div class="sm-lbl"><span>How a project looks in the list</span><span></span></div>'+
@@ -2307,6 +2443,10 @@ try{
     if($('fsRange'))$('fsRange').addEventListener('input',function(e){setFontScale(parseInt(e.target.value,10)||100);});
     if($('fsReset'))$('fsReset').addEventListener('click',function(){setFontScale(100);renderSizeCtl();});
     if($('darkToggle'))$('darkToggle').addEventListener('click',function(){state.dark=!state.dark;applyTheme();applyBackground();renderOverview();save();});
+    if($('fxToggle'))$('fxToggle').addEventListener('click',function(){
+      state.fx=(state.fx==='off')?'on':'off'; renderOverview(); save();
+      if(state.fx!=='off')fxBurst();   /* switching it on shows what it does */
+    });
     pg.querySelectorAll('[data-card]').forEach(function(b){b.addEventListener('click',function(){
       state.cardStyle=b.getAttribute('data-card'); renderOverview(); save();
       toast('Card style: '+(CARD_STYLES.filter(function(c){return c.id===state.cardStyle;})[0]||{}).label+' — see 🖼 Projects',1800);
@@ -3028,13 +3168,13 @@ try{
           state.paintings.forEach(function(pp){(pp.photos||[]).forEach(function(q){if(q.lbl===L)delete q.lbl;});});
           moved(); toast('Label removed from every photo',1600); return;
         }
-        if(ph.lbl===L)delete ph.lbl; else ph.lbl=L;   /* tapping it again clears it */
+        if(ph.lbl===L)delete ph.lbl; else {ph.lbl=L;achPhotoLabel(ph);}   /* tapping it again clears it */
         moved();
       });});
       $('shAddLabel').addEventListener('click',function(){
         var v=($('shNewLabel').value||'').trim().toLowerCase(); if(!v)return;
         if(state.photoLabels.indexOf(v)===-1)state.photoLabels.push(v);
-        ph.lbl=v; moved();
+        ph.lbl=v; achPhotoLabel(ph); moved();
       });
       $('shNewLabel').addEventListener('keydown',function(ev){if(ev.key==='Enter')$('shAddLabel').click();});
       /* applied as it's typed, no redraw — a redraw here would snatch the keyboard */
@@ -6077,6 +6217,7 @@ try{
           return;
         }
         p.size=(p.size===sz)?null:sz;
+        achCheckArea(p);   /* a size given to an already-finished painting still counts */
         renderPainting(); saveEdit();
       });
     });
@@ -6084,7 +6225,7 @@ try{
       var v=$('newSize').value.trim();
       if(!v)return;
       if(state.sizes.indexOf(v)===-1)state.sizes.push(v);
-      p.size=v; renderPainting(); saveEdit();
+      p.size=v; achCheckArea(p); renderPainting(); saveEdit();
     });
     $('newSize').addEventListener('keydown',function(e){if(e.key==='Enter')$('addSize').click();});
     /* sellers */
