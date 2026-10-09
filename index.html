@@ -703,6 +703,19 @@ try{
   }
   @keyframes pgfade{from{opacity:0}to{opacity:1}}
   @keyframes barfill{from{width:0}}
+  /* the drill odometer: one big number with its words around it */
+  .odo{display:flex;align-items:baseline;gap:7px;margin-top:12px;font-size:13px;color:var(--muted);flex-wrap:wrap;}
+  .odo b{font-size:22px;font-weight:800;color:var(--accent-ink);font-variant-numeric:tabular-nums;letter-spacing:.3px;}
+  /* the colour passport: a square per DMC colour, lit when it has been used.
+     The faded ones keep a whisper of their colour, so the map still reads as
+     the catalogue and not as noise. */
+  .pp-grid{display:flex;flex-wrap:wrap;gap:3px;margin:10px 0 8px;}
+  .pp-c{width:16px;height:16px;border-radius:4px;flex:0 0 auto;cursor:pointer;
+    opacity:.16;filter:saturate(.45);border:1px solid rgba(0,0,0,.12);
+    background-image:linear-gradient(135deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 48%,rgba(0,0,0,.14) 100%);}
+  .pp-c.on{opacity:1;filter:none;}
+  .dp-app.dark .pp-c{border-color:rgba(255,255,255,.08);opacity:.2;}
+  .dp-app.dark .pp-c.on{opacity:1;}
 
 </style>
 
@@ -1071,12 +1084,39 @@ try{
       '<div class="bk-note" style="margin:6px 0 10px;">Each award climbs Bronze → Silver → Gold → Diamond, three stages per tier, and every stage earned is a level. These count everything you have ever done — deleting a project never takes one back.</div>'+
       rows+'</div>';
   }
+  /* ---------- the colour passport ----------
+     The whole DMC catalogue as one little map: a square per colour, lit when
+     the colour is in any project or in the leftovers, faded when it has never
+     been used. Half a collection, half a shopping excuse. */
+  function passportHtml(){
+    var used={};
+    state.paintings.forEach(function(p){
+      Object.keys(p.colors||{}).forEach(function(c){used[c]=1;});
+    });
+    Object.keys(state.stash||{}).forEach(function(c){used[c]=1;});
+    var n=0, cells='';
+    DMC.forEach(function(r){
+      var u=used[r[0]]; if(u)n++;
+      cells+='<span class="pp-c'+(u?' on':'')+'" data-pp="'+r[0]+'" style="background-color:'+r[2]+'" title="'+esc(r[0]+' '+r[1])+'"></span>';
+    });
+    return '<div class="section-lbl">Colour passport</div>'+
+      '<div class="backup">'+
+        '<div class="sm-lbl"><span>Every DMC colour that has been in your projects or leftovers</span><span><b>'+n+'</b> of '+DMC.length+'</span></div>'+
+        '<div class="sm-bar"><div class="sm-fill" style="width:'+(DMC.length?Math.round(n/DMC.length*100):0)+'%;background:var(--accent)"></div></div>'+
+        '<div class="pp-grid" id="ppGrid" aria-label="'+n+' of '+DMC.length+' DMC colours used">'+cells+'</div>'+
+        '<div class="bk-note">The lit squares have been in your hands; the faded ones never yet. Tap a square to name it.</div>'+
+      '</div>';
+  }
 
   /* ---------- what's new ----------
      Shown on ⌂ Overview so an update explains itself instead of arriving as a
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-10-09 · your numbers as toys',items:[
+      '💎 The Summary guesses how many diamonds you have placed — from the size and drill shape of every finished painting — and the number counts up when the page opens.',
+      '🎨 A <b>Colour passport</b> under Achievements: the whole DMC catalogue as one little map, the colours in your projects or leftovers lit, the ones you have never used faded. Tap a square to name it.',
+    ]},
     {when:'2026-10-09 · a little ceremony',items:[
       '🎉 Finishing a painting rains its own diamond colours down the screen for a moment, and an award climbing a stage sparkles in that tier’s colours. The ✨ Celebrations switch sits next to dark mode; a device set to reduce motion never sees them.',
       '📐 A new award, <b>Big picture</b>: every finished painting with a size adds its area — a 30×40 counts 1200 cm². Everything already finished is counted in, and a size filled in later still counts.',
@@ -2215,8 +2255,10 @@ try{
   var newsOlderOpen=false;
   function newsSeen(){try{return localStorage.getItem('dpNewsSeen')||'';}catch(e){return '';}}
   function newsItemsHtml(items){
+    /* the items are written in this file and carry their own <b> and <em> —
+       escaping them printed the tags as text on the page */
     return '<ul style="margin:6px 0 0;padding-left:18px;">'+
-      items.map(function(it){return '<li class="bk-note" style="margin-top:4px;">'+esc(it)+'</li>';}).join('')+'</ul>';
+      items.map(function(it){return '<li class="bk-note" style="margin-top:4px;">'+it+'</li>';}).join('')+'</ul>';
   }
   function newsSectionHtml(){
     if(!APP_NEWS.length)return '';
@@ -2240,6 +2282,7 @@ try{
     var html='<div class="ovsub" style="margin:2px 2px 12px;">Your projects live in the <b>🖼 Projects</b> tab. This page holds your summary, how the app looks, what is using the space, and backups you make yourself. Cloud sync and backups that happen on their own are in <b>⚙ Settings</b>.</div>';
     html+='<div class="section-lbl">Summary</div>'+statsHtml();
     html+=achievementsHtml();
+    html+=passportHtml();
     html+=newsSectionHtml();
     html+='<div class="section-lbl">Display</div>'+
       '<div class="backup">'+
@@ -2303,6 +2346,31 @@ try{
     if($('toSettings'))$('toSettings').addEventListener('click',function(){navTo('settings');});
     wireSaveNow();
     if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
+    /* the odometer counts up from zero when the page opens — unless the device
+       asked for reduced motion, in which case the number simply stands there */
+    (function(){
+      var el=$('drillOdo'); if(!el)return;
+      var n=+el.getAttribute('data-n')||0, b=el.querySelector('b');
+      var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(!n||reduce){b.textContent=fmtInt(n);return;}
+      var t0=performance.now(), T=900;
+      (function tick(now){
+        if(!b.isConnected)return;   /* the page moved on mid-count */
+        var k=Math.min(1,(now-t0)/T); k=1-Math.pow(1-k,3);
+        b.textContent=fmtInt(Math.round(n*k));
+        if(k<1)requestAnimationFrame(tick);
+      })(t0);
+      /* a backgrounded page gets no animation frames — the full number must
+         stand there anyway when the page is next looked at */
+      setTimeout(function(){if(b.isConnected)b.textContent=fmtInt(n);},T+250);
+    })();
+    if($('ppGrid'))$('ppGrid').addEventListener('click',function(e){
+      var c=e.target.closest('[data-pp]'); if(!c)return;
+      var code=c.getAttribute('data-pp'), r=DMCMAP[code]; if(!r)return;
+      var k=0; state.paintings.forEach(function(p){if((p.colors||{})[code])k++;});
+      var inStash=!!(state.stash&&state.stash[code]!==undefined);
+      toast(code+' '+r[1]+(k?(' — in '+k+' project'+(k===1?'':'s')):(inStash?' — in your leftovers':' — never used yet')),2200);
+    });
     wireDisplay(pg);
     renderStorageMeter();
   }
@@ -2588,8 +2656,32 @@ try{
         KINDS.map(function(k){return k.sym+' '+k.label+' '+byKind[k.id];}).join(' · ')+
       '</div>'+
       '<div class="bk-note" style="margin-top:4px;">Avg rating '+avg+' · diamond types: ■ '+byType.square+'  ● '+byType.round+'  ✦ '+byType.odd+' · '+colors+' colours selected in total'+(spendN?(' · total spend '+spendStr):'')+(wishN?(' · wishlist would cost '+wish.toFixed(2)):'')+'</div>'+
+      drillOdoHtml()+
       '<div class="bk-btns" style="margin-top:10px;"><button class="chipbtn" id="csvExport" type="button" title="One row per project — opens in Excel or Google Sheets">⬇ Export list as CSV (Excel)</button></div>'+
       '</div>';
+  }
+  /* ---------- the drill odometer ----------
+     A guess at how many diamonds have been placed, from the size and drill
+     shape of every finished painting: a 2.5mm square drill is 16 to the cm²,
+     a 2.8mm round about 14, shape unknown splits the difference. Rounded to
+     the nearest hundred — the exact figure would be a lie of precision. */
+  var DRILLS_PER_CM2={square:16,round:14.2,odd:15};
+  function drillEstimate(){
+    var total=0;
+    state.paintings.forEach(function(p){
+      if(kindOf(p)!=='diamond')return;
+      if(!(p.status==='done'||(p.progress||0)>=100))return;
+      var a=sizeArea(p.size); if(!a)return;
+      total+=a*(DRILLS_PER_CM2[p.type]||15);
+    });
+    return Math.round(total/100)*100;
+  }
+  function fmtInt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+  function drillOdoHtml(){
+    var est=drillEstimate();
+    if(!est)return '';
+    return '<div class="odo" id="drillOdo" data-n="'+est+'" title="Estimated from the size and drill shape of every finished diamond painting">'+
+      '<span>💎 about</span><b>0</b><span>diamonds placed, one by one</span></div>';
   }
   /* one row per project, semicolon-separated with a UTF-8 marker, which is what
      Excel in European locales opens straight into columns */
