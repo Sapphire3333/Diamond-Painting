@@ -48,8 +48,24 @@ try{
     --unk:#8A8494; --unk-soft:#EEEDF1;
     --star:#B98A2F; --star-soft:#F8EFDC;
     --bad:#A8324B; --bad-soft:#F8E6EA;
+    /* Depth. In the light theme a panel has no visible edge of its own — it
+       stands off the page on a shadow — so --edge is transparent there and the
+       page's line colour in the dark theme, where a shadow on a dark ground
+       barely reads and the edge has to do the work. */
+    --edge:transparent;
+    --sh-panel:0 1px 2px rgba(38,34,46,.07),0 6px 20px rgba(38,34,46,.09);
+    --sh-card:0 1px 2px rgba(38,34,46,.08),0 3px 10px rgba(38,34,46,.07);
+    --sh-btn:0 1px 2px rgba(38,34,46,.10),0 2px 6px rgba(38,34,46,.08);
+    --sh-photo:0 10px 30px rgba(38,34,46,.28);
+    --sh-lift:0 6px 16px rgba(38,34,46,.14);
   }
   .dp-app.dark,.sheet-ov.dark{
+    --edge:var(--line);
+    --sh-panel:0 1px 2px rgba(0,0,0,.25),0 6px 20px rgba(0,0,0,.30);
+    --sh-card:0 1px 2px rgba(0,0,0,.25),0 3px 10px rgba(0,0,0,.22);
+    --sh-btn:0 1px 2px rgba(0,0,0,.30),0 2px 6px rgba(0,0,0,.22);
+    --sh-photo:0 10px 30px rgba(0,0,0,.55);
+    --sh-lift:0 6px 16px rgba(0,0,0,.45);
     --bg:#16141B; --panel:#221F2A; --ink:#ECE9F2; --muted:#9E98AC;
     --line:#332F3D; --accent:#5B3FA8; --accent-soft:#2E2646; --accent-ink:#B49BF2;
     --sq:#6FA8E6; --sq-soft:#1E2A3A;
@@ -631,6 +647,63 @@ try{
   /* edit mode: photo strip gets the full width instead of a 42% column, so
      both covers are visible side by side rather than squeezed into a sliver */
 
+  /* ---- depth, headings, the accent as a thread, and a little motion ----
+     Everything here is a second pass over rules declared above: the same
+     single-class selectors, later in the sheet, so a state rule like .card.sel
+     or .tab.active still wins on specificity and nothing has to be repeated.
+     Panels and buttons lose their grey line and sit on a shadow instead
+     (--edge, --sh-*; see :root). Photos lose their line too. */
+  .backup,.ovcard,.vw-card,.toolpanel,.fbanner{border-color:var(--edge);box-shadow:var(--sh-panel);}
+  .fbanner{border-color:var(--accent-ink);}
+  .card,.pin,.bk-row{border-color:var(--edge);box-shadow:var(--sh-card);}
+  .chipbtn,.tab,.tbtn,.fbtn,.pbtn,.selchip,.jbtn,.phsz,.szbtn{border-color:var(--edge);box-shadow:var(--sh-btn);}
+  .tab.add{border-color:var(--line);box-shadow:none;}
+  .pbtn.done,.tab.active,.name-ok{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 35%,transparent);}
+  .vw-side img,.vw-hero img{border-color:var(--edge);box-shadow:var(--sh-photo);}
+  .bk-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1.5px solid var(--edge);border-radius:10px;padding:8px 10px;margin-top:6px;}
+  /* the page behind: a faint tint of the accent, drawn on the same fixed layer
+     the other backgrounds use (see applyBackground) */
+  #bgArt.bg-tint{opacity:.07;}
+  .dp-app.dark #bgArt.bg-tint,#bgArt.bg-tint.dark{opacity:.12;}
+  /* the project page's sticky bar sits on a page that is no longer one flat
+     colour, so it goes slightly see-through and blurs what scrolls under it */
+  .paint-sticky{background:color-mix(in srgb,var(--bg) 86%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);}
+  /* section names are headings, not labels: the loudest thing after the title.
+     A small gem in the accent marks each; the folding headings keep their own
+     ▸/▾ mark instead. */
+  .dp-title{font-size:22px;margin-bottom:12px;}
+  .section-lbl{font-size:17px;font-weight:800;color:var(--ink);margin:20px 2px 9px;letter-spacing:-.1px;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .section-lbl:not(.fsec-hd):not(.grp-hd)::before{content:"";width:9px;height:9px;border-radius:2px;transform:rotate(45deg);
+    background:linear-gradient(135deg,var(--accent-ink),var(--accent));flex:0 0 auto;margin:0 2px 0 1px;}
+  .section-lbl .fsec-n{font-size:13px;}
+  .section-lbl+.backup,.section-lbl+.ovlist,.section-lbl+.ovgrid,.section-lbl+.grid{margin-top:0;}
+  /* the accent as a thread through the overview: the big numbers, a rule
+     under them, and the level row drawn as the achievements panel's own top */
+  .stats-row{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1.5px solid var(--accent-soft);}
+  .ach-lvl{background:var(--accent-soft);margin:-12px -12px 8px;padding:10px 12px;border-radius:14px 14px 0 0;}
+  .ach-lvl b{color:var(--accent-ink);}
+  .sm-fill{background-image:linear-gradient(90deg,var(--accent-ink),var(--accent));}
+  /* motion: a page fades in and its bars fill when a tab is switched (.pg-in
+     is put on #page by render() for a second), and anything tappable lifts
+     under the pointer and gives under the finger. All of it is skipped when
+     the device asks for reduced motion. */
+  @media (prefers-reduced-motion: no-preference){
+    #page.pg-in{animation:pgfade .22s ease both;}
+    #page.pg-in .sm-fill,#page.pg-in .ovpct-bar>i,#page.pg-in .strow-bar>i{animation:barfill .9s cubic-bezier(.2,.8,.2,1) both;}
+    .card,.ovcard,.chipbtn,.tab,.tbtn,.fbtn,.pbtn,.selchip,.jbtn,.phsz,.szbtn,.bk-row,.vw-side img,.vw-hero img{
+      transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease,border-color .18s ease;}
+    .chipbtn:active,.tab:active,.tbtn:active,.fbtn:active,.pbtn:active,.selchip:active,.jbtn:active,.phsz:active,.szbtn:active{transform:scale(.96);transition-duration:.06s;}
+    .card:active,.ovcard:active{transition-duration:.06s;}
+  }
+  @media (hover:hover) and (prefers-reduced-motion: no-preference){
+    .card:not(.sel):not(.ro):hover,.ovcard:not(.picked):hover{transform:translateY(-2px);box-shadow:var(--sh-lift);border-color:var(--accent-ink);}
+    .chipbtn:hover,.tab:not(.active):hover,.tbtn:hover,.fbtn:hover,.pbtn:hover,.selchip:hover,.jbtn:hover,.phsz:hover,.szbtn:hover{transform:translateY(-1px);box-shadow:var(--sh-lift);}
+    .vw-side img:hover,.vw-hero img:hover{transform:translateY(-3px);}
+  }
+  @keyframes pgfade{from{opacity:0}to{opacity:1}}
+  @keyframes barfill{from{width:0}}
+
 </style>
 
 <div class="dp-app" id="app">
@@ -864,7 +937,7 @@ try{
     });
     var lvlPct=total?Math.round(earned/total*100):0;
     return '<div class="section-lbl">Achievements</div><div class="backup">'+
-      '<div class="sm-lbl"><span style="font-size:15px;">🏆 <b>Level '+earned+'</b></span><span>'+earned+' of '+total+' stages</span></div>'+
+      '<div class="sm-lbl ach-lvl"><span style="font-size:15px;">🏆 <b>Level '+earned+'</b></span><span>'+earned+' of '+total+' stages</span></div>'+
       '<div class="sm-bar"><div class="sm-fill" style="width:'+lvlPct+'%;background:var(--accent)"></div></div>'+
       '<div class="bk-note" style="margin:6px 0 10px;">Each award climbs Bronze → Silver → Gold → Diamond, three stages per tier, and every stage earned is a level. These count everything you have ever done — deleting a project never takes one back.</div>'+
       rows+'</div>';
@@ -2368,7 +2441,7 @@ try{
     var spendStr=spendN?spend.toFixed(2):'—';
     function stat(num,label){return '<div style="text-align:center;min-width:60px;flex:1 1 60px;"><div style="font-size:22px;font-weight:800;color:var(--accent-ink);">'+num+'</div><div style="font-size:11px;color:var(--muted);">'+label+'</div></div>';}
     return '<div class="backup">'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
+      '<div class="stats-row">'+
         stat(n,'projects')+stat(byStatus.done,'finished')+stat(byStatus.progress,'in progress')+stat(byStatus.wishlist,'wishlist')+
       '</div>'+
       '<div class="bk-note" style="margin-top:8px;">'+
@@ -2419,7 +2492,7 @@ try{
       if(!arr.length){el.innerHTML='<div class="bk-note" style="margin-top:6px;">No saved backups yet.</div>';return;}
       var html='';
       arr.forEach(function(e){
-        html+='<div class="bk-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px;">'+
+        html+='<div class="bk-row">'+
           '<div style="margin-right:auto;min-width:0;">'+
             '<div style="font-weight:700;font-size:13px;">'+fmtDate(e.ts)+(e.auto?' <span style="color:var(--muted);font-weight:600;font-size:11px;">(auto)</span>':(e.safety?' <span style="color:var(--muted);font-weight:600;font-size:11px;">(saved just before a restore)</span>':''))+'</div>'+
             '<div style="font-size:11.5px;color:var(--muted);">'+(e.count||0)+' project'+((e.count===1)?'':'s')+' · '+fmtBytes(e.size||0)+(e.photos?' · 📷 photos':' · no photos')+'</div>'+
@@ -3901,7 +3974,7 @@ try{
       return h;
     }
     h+='<div class="backup">'+
-      '<div class="sm-lbl" style="font-weight:700;">✓ Signed in as '+esc(AUTH.email||'your account')+'</div>'+
+      '<div class="sm-lbl" style="font-weight:700;color:var(--rd);">✓ Signed in as '+esc(AUTH.email||'your account')+'</div>'+
       '<div class="bk-btns" style="margin-top:8px;align-items:center;">'+
         '<button class="chipbtn" id="syPull" type="button" style="color:var(--accent-ink);border-color:var(--accent-ink);">Sync now</button>'+
         '<button class="chipbtn danger" id="syOff" type="button">Log out</button>'+
@@ -5813,7 +5886,7 @@ try{
       '<div class="paint-sticky">'+
         '<div class="paint-head">'+
           '<button class="chipbtn" id="backPaints" type="button" style="font-weight:700;">← All</button>'+
-          '<span id="headName" style="font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
+          '<span id="headName" style="font-weight:800;font-size:15px;color:var(--accent-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;">'+esc(p.name)+'</span>'+
           '<button class="chipbtn" id="shareBtn" type="button" title="Turn this project into one picture to share">📤 Share</button>'+
           '<button class="chipbtn" id="undoBtn2" type="button" title="Undo" aria-label="Undo">↶</button>'+
           '<button class="chipbtn" id="redoBtn2" type="button" title="Redo" aria-label="Redo">↷</button>'+
@@ -6881,7 +6954,7 @@ try{
      it show. Cards stay solid: a background you can read words through is a
      background that makes the words harder to read. */
   var BACKGROUNDS=[
-    {id:'none',  label:'Plain',       hint:'Just the page colour.'},
+    {id:'none',  label:'Plain',       hint:'The page colour with a breath of your accent in one corner.'},
     {id:'drills',label:'Drills',      hint:'A field of tiny drills, the colour of your accent.'},
     {id:'wash',  label:'Soft wash',   hint:'A quiet gradient from your accent colour.'},
     {id:'photo', label:'Your picture',hint:'One of your own photos, blurred right back so it can’t compete with the page.'}
@@ -6913,11 +6986,6 @@ try{
     var mode=bgMode();
     var el=document.getElementById('bgArt');
     var app=$('app');
-    if(mode==='none'){
-      if(el)el.remove();
-      if(app)app.style.background='';
-      return;
-    }
     if(!el){
       el=document.createElement('div'); el.id='bgArt';
       document.body.insertBefore(el,document.body.firstChild);
@@ -6925,9 +6993,17 @@ try{
     /* the app's own fill would sit on top of the layer and hide it */
     if(app)app.style.background='transparent';
     var acc=(ACCENTMAP[state.accent]||ACCENTMAP.violet).accent;
-    el.className='bg-'+mode;
+    el.className='bg-'+(mode==='none'?'tint':mode)+(state.dark?' dark':'');
     el.style.backgroundImage='';
-    if(mode==='drills'){
+    if(mode==='none'){
+      /* the plain page: the accent breathed over the top-left corner and a cool
+         blue over the bottom-right, at 7% (.bg-tint), so the panels have
+         something to stand off rather than one flat grey */
+      el.style.backgroundImage='linear-gradient(165deg,'+acc+' 0%, transparent 42%), '+
+        'radial-gradient(circle at 92% 95%, #2E6FBF 0%, transparent 45%)';
+      el.style.backgroundSize='';
+      el.style.backgroundColor='';
+    } else if(mode==='drills'){
       var dot=state.dark?'rgba(255,255,255,.10)':'rgba(0,0,0,.07)';
       el.style.backgroundImage='radial-gradient('+dot+' 1.6px, transparent 1.7px)';
       el.style.backgroundSize='18px 18px';
@@ -6979,7 +7055,16 @@ try{
     else if(state.view==='settings')renderSettings();
     else renderPainting();
     syncScrollNav();
+    /* a page that was switched to fades in and fills its bars (.pg-in in the
+       stylesheet). Only on a change of view: a render of the same page, after
+       a setting is toggled say, must not make the page blink. */
+    if(pgEl&&lastRenderedView!==state.view){
+      pgEl.classList.remove('pg-in'); void pgEl.offsetWidth; pgEl.classList.add('pg-in');
+      clearTimeout(pgInTimer); pgInTimer=setTimeout(function(){pgEl.classList.remove('pg-in');},1000);
+    }
+    lastRenderedView=state.view;
   }
+  var lastRenderedView=null, pgInTimer=0;
 
   /* ---------- jump to the top or the bottom ----------
      Long pages here are genuinely long — a kit's colour list runs to hundreds of
