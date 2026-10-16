@@ -370,7 +370,7 @@ try{
   /* a heading you can fold, and the bar that jumps to one */
   .fsec-hd{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;}
   .fsec-n{color:var(--muted);font-weight:800;opacity:.75;}
-  .fsec-hd.flash{background:var(--accent-soft);border-radius:8px;padding:3px 7px;margin-left:-5px;}
+  .fsec-hd.flash,.section-lbl.flash{background:var(--accent-soft);border-radius:8px;padding:3px 7px;margin-left:-5px;}
   .jumpbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:2px 2px 10px;}
   .jbtn{border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;
     padding:4px 11px;font-size:12.5px;font-weight:700;cursor:pointer;}
@@ -528,6 +528,22 @@ try{
   .ach-pips{margin-top:4px;line-height:1;}
   .ach-pip{display:inline-block;width:15px;height:8px;border-radius:3px;margin-right:3px;}
   .ach-pip:nth-child(3n){margin-right:8px;}
+  /* the awards as a grid of medals: tier, bar and next goal in one small card
+     each, so the whole panel fits in a look. The tapped medal opens its ladder
+     in a row of its own — grid-column 1/-1, the colour catalogue's expander
+     trick — so the grid never reflows around it. */
+  .medals{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px;margin-top:10px;}
+  .medal{border:1.5px solid var(--line);border-radius:12px;padding:9px 10px;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;user-select:none;}
+  .medal.open{border-color:var(--accent-ink);box-shadow:0 0 0 1.5px var(--accent-ink) inset;}
+  .m-top{display:flex;align-items:baseline;gap:6px;font-size:13px;font-weight:800;}
+  .m-top .m-n{margin-left:auto;color:var(--muted);font-weight:700;font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .medal .badge{margin-top:6px;}
+  .medal .sm-bar{margin-top:7px;}
+  .m-next{font-size:10.5px;color:var(--muted);margin-top:5px;}
+  .medal-exp{grid-column:1/-1;border:1.5px solid var(--accent-ink);border-radius:12px;padding:10px;}
+  .m-steps{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+  .m-step{border-radius:999px;padding:2px 9px;font-size:11px;font-weight:800;background:var(--unk-soft);color:var(--muted);}
   /* the storage breakdown: one row per project, biggest first */
   .stlist{display:flex;flex-direction:column;gap:2px;margin:4px 0 8px;}
   .strow{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;cursor:pointer;
@@ -709,7 +725,7 @@ try{
   @media (prefers-reduced-motion: no-preference){
     #page.pg-in{animation:pgfade .22s ease both;}
     #page.pg-in .sm-fill,#page.pg-in .ovpct-bar>i,#page.pg-in .strow-bar>i{animation:barfill .9s cubic-bezier(.2,.8,.2,1) both;}
-    .card,.ovcard,.chipbtn,.tab,.tbtn,.fbtn,.pbtn,.selchip,.jbtn,.phsz,.szbtn,.bk-row,.vw-side img,.vw-hero img{
+    .card,.ovcard,.chipbtn,.tab,.tbtn,.fbtn,.pbtn,.selchip,.jbtn,.phsz,.szbtn,.bk-row,.medal,.vw-side img,.vw-hero img{
       transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease,border-color .18s ease;}
     .chipbtn:active,.tab:active,.tbtn:active,.fbtn:active,.pbtn:active,.selchip:active,.jbtn:active,.phsz:active,.szbtn:active{transform:scale(.96);transition-duration:.06s;}
     .card:active,.ovcard:active{transition-duration:.06s;}
@@ -717,6 +733,7 @@ try{
   @media (hover:hover) and (prefers-reduced-motion: no-preference){
     .card:not(.sel):not(.ro):hover,.ovcard:not(.picked):hover{transform:translateY(-2px);box-shadow:var(--sh-lift);border-color:var(--accent-ink);}
     .chipbtn:hover,.tab:not(.active):hover,.tbtn:hover,.fbtn:hover,.pbtn:hover,.selchip:hover,.jbtn:hover,.phsz:hover,.szbtn:hover{transform:translateY(-1px);box-shadow:var(--sh-lift);}
+    .medal:not(.open):hover{transform:translateY(-1px);box-shadow:var(--sh-lift);border-color:var(--accent-ink);}
     .vw-side img:hover,.vw-hero img:hover{transform:translateY(-3px);}
   }
   @keyframes pgfade{from{opacity:0}to{opacity:1}}
@@ -1083,31 +1100,42 @@ try{
         var t=ACH_TIERS[Math.floor((idx-1)/3)];
         chip='<span class="badge" style="background:'+t.bg+';color:'+t.fg+'">'+achStageName(idx)+'</span>';
       } else chip='<span class="badge unk">not yet</span>';
-      var pips='';
-      for(var i=0;i<12;i++){
-        var tt=ACH_TIERS[Math.floor(i/3)];
-        pips+='<span class="ach-pip" style="background:'+(i<idx?tt.fg:'var(--unk-soft)')+
-          '" title="'+tt.label+' '+['I','II','III'][i%3]+' — '+a.steps[i]+' '+esc(a.what)+'"></span>';
-      }
       var pct=next?Math.min(100,Math.round(n/next*100)):100;
-      rows+='<div class="sm-row">'+
-        '<div class="sm-lbl"><span>'+a.sym+' <b>'+esc(a.label)+'</b> '+chip+'</span>'+
-          '<span>'+n+(next?(' / '+next):' · every stage ✓')+'</span></div>'+
+      var open=(expandedAch===a.id);
+      rows+='<div class="medal'+(open?' open':'')+'" data-ach="'+a.id+'" role="button" tabindex="0" aria-expanded="'+(open?'true':'false')+'">'+
+        '<div class="m-top">'+a.sym+' '+esc(a.label)+'<span class="m-n">'+n+(next?(' / '+next):'')+'</span></div>'+
+        '<div>'+chip+'</div>'+
         '<div class="sm-bar"><div class="sm-fill" style="width:'+pct+'%;background:'+(next?'var(--accent)':'#1F7A8C')+'"></div></div>'+
-        '<div class="ach-pips">'+pips+'</div>'+
-        '<div class="bk-note" style="margin-top:2px;">'+esc(a.what)+
-          (next?(' — next: '+achStageName(idx+1)+' at '+next):'')+'</div>'+
+        '<div class="m-next">'+(next?('next: '+achStageName(idx+1)+' at '+next):'every stage ✓')+'</div>'+
       '</div>';
+      /* the tapped medal's ladder, laid out full-width under its row */
+      if(open){
+        var pips='', steps='';
+        for(var i=0;i<12;i++){
+          var tt=ACH_TIERS[Math.floor(i/3)], sn=tt.label+' '+['I','II','III'][i%3];
+          pips+='<span class="ach-pip" style="background:'+(i<idx?tt.fg:'var(--unk-soft)')+
+            '" title="'+sn+' — '+a.steps[i]+' '+esc(a.what)+'"></span>';
+          steps+='<span class="m-step"'+(i<idx?(' style="background:'+tt.bg+';color:'+tt.fg+'"'):'')+'>'+
+            sn+' · '+a.steps[i]+(i<idx?' ✓':'')+'</span>';
+        }
+        rows+='<div class="medal-exp">'+
+          '<div class="sm-lbl"><span>'+a.sym+' <b>'+esc(a.label)+'</b> — '+esc(a.what)+'</span>'+
+            '<span>'+n+(next?(' / '+next):' · every stage ✓')+'</span></div>'+
+          '<div class="ach-pips">'+pips+'</div>'+
+          '<div class="m-steps">'+steps+'</div>'+
+        '</div>';
+      }
     });
+    rows='<div class="medals" id="achMedals">'+rows+'</div>';
     var lvlPct=total?Math.round(earned/total*100):0;
     var nxtRank=null;
     for(var ri=0;ri<ACH_RANKS.length;ri++)if(ACH_RANKS[ri][0]>earned){nxtRank=ACH_RANKS[ri];break;}
-    return '<div class="section-lbl">Achievements</div><div class="backup">'+
+    return '<div class="section-lbl" data-osec="ach">Achievements</div><div class="backup">'+
       '<div class="sm-lbl ach-lvl"><span style="font-size:15px;">🏆 <b>Level '+earned+'</b> · '+rankOf(earned)+'</span><span>'+earned+' of '+total+' stages</span></div>'+
       '<div class="sm-bar"><div class="sm-fill" style="width:'+lvlPct+'%;background:var(--accent)"></div></div>'+
       '<div class="bk-note" style="margin-top:4px;">'+
         (nxtRank?('Next title: <b>'+nxtRank[1]+'</b> at level '+nxtRank[0]):'The top title — every rank climbed.')+'</div>'+
-      '<div class="bk-note" style="margin:6px 0 10px;">Each award climbs Bronze → Silver → Gold → Diamond, three stages per tier, and every stage earned is a level. These count everything you have ever done — deleting a project never takes one back.</div>'+
+      '<div class="bk-note" style="margin:6px 0 0;">Each award climbs Bronze → Silver → Gold → Diamond, three stages per tier, and every stage earned is a level. They count everything you have ever done — deleting a project never takes one back. Tap a medal to see its whole ladder.</div>'+
       rows+'</div>';
   }
   /* ---------- the colour passport ----------
@@ -1125,7 +1153,7 @@ try{
       var u=used[r[0]]; if(u)n++;
       cells+='<span class="pp-c'+(u?' on':'')+'" data-pp="'+r[0]+'" style="background-color:'+r[2]+'" title="'+esc(r[0]+' '+r[1])+'"></span>';
     });
-    return '<div class="section-lbl">Colour passport</div>'+
+    return '<div class="section-lbl" data-osec="pass">Colour passport</div>'+
       '<div class="backup">'+
         '<div class="sm-lbl"><span>Every DMC colour that has been in your projects or leftovers</span><span><b>'+n+'</b> of '+DMC.length+'</span></div>'+
         '<div class="sm-bar"><div class="sm-fill" style="width:'+(DMC.length?Math.round(n/DMC.length*100):0)+'%;background:var(--accent)"></div></div>'+
@@ -1139,6 +1167,10 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-10-16 · the Overview in one look',items:[
+      '🏅 The awards are a grid of medals now — each one a small card with its tier, its bar and the next goal, so the whole panel fits in a look. Tap a medal and its full ladder opens, all twelve stages.',
+      '🧭 A <b>Jump to</b> bar at the top of ⌂ Overview takes you straight to any section, the way the 🔎 Find page already does.',
+    ]},
     {when:'2026-10-16 · dates you can read',items:[
       '📅 Dates are written out wherever you read them: a finished card says <b>2 Nov 2025 → 18 Jan 2026</b> instead of ▶ 2025-11-02 · ✓ 2026-01-18, one date alone says which end it is (<em>started 30 Aug 2026</em>), and the project page and the 📤 Share picture speak the same way. Tiles now name the start date on part-done projects too. The date boxes in the form keep their usual shape.',
     ]},
@@ -1235,7 +1267,7 @@ try{
      each other forever if they travelled through cloud sync like the rest of the
      settings do. So they live in this browser's own small storage instead. */
   var SIZE={scale:null,layout:'auto'};
-  var query='', findQuery='', findType='any', findStash=false, pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null, expandedMedia=null, expandedTag=null;
+  var query='', findQuery='', findType='any', findStash=false, pQuery='', expandedColor=null, expandedSpec=null, expandedSize=null, expandedMedia=null, expandedTag=null, expandedAch=null;
   var storageWarned=false, renaming=false, selPhoto=-1, editFin={}, editLists={}, armed={};
   /* the name as it stood when the box was opened (so Cancel has something to put
      back), and a one-shot flag so the box is focused when it opens and never
@@ -2307,7 +2339,7 @@ try{
     if(!APP_NEWS.length)return '';
     var latest=APP_NEWS[0];
     var unseen=newsSeen()!==latest.when;
-    var h='<div class="section-lbl">What’s new</div><div class="backup">'+
+    var h='<div class="section-lbl" data-osec="news">What’s new</div><div class="backup">'+
       '<div class="sm-lbl"><span>Updated '+esc(latest.when)+(unseen?' <span class="badge star">new</span>':'')+'</span>'+
         '<span>build '+esc(window.APP_VERSION||'')+'</span></div>'+
       newsItemsHtml(latest.items);
@@ -2323,11 +2355,19 @@ try{
   function renderOverview(){
     var pg=$('page');
     var html='<div class="ovsub" style="margin:2px 2px 12px;">Your projects live in the <b>🖼 Projects</b> tab. This page holds your summary, how the app looks, what is using the space, and backups you make yourself. Cloud sync and backups that happen on their own are in <b>⚙ Settings</b>.</div>';
-    html+='<div class="section-lbl">Summary</div>'+statsHtml();
+    /* the page is five screens tall — the same jump bar the Find page has.
+       Every section always exists here, so the list is simply written out. */
+    html+='<div class="jumpbar">'+
+      '<span class="pd-lbl" style="margin:0">Jump to:</span>'+
+      [['sum','Summary'],['ach','Achievements'],['pass','Colour passport'],['news','What’s new'],
+       ['disp','Display'],['stor','Storage'],['bk','Backup']].map(function(s){
+        return '<button class="jbtn" data-ojump="'+s[0]+'" type="button">'+s[1]+'</button>';
+      }).join('')+'</div>';
+    html+='<div class="section-lbl" data-osec="sum">Summary</div>'+statsHtml();
     html+=achievementsHtml();
     html+=passportHtml();
     html+=newsSectionHtml();
-    html+='<div class="section-lbl">Display</div>'+
+    html+='<div class="section-lbl" data-osec="disp">Display</div>'+
       '<div class="backup">'+
         '<div class="bk-btns">'+
           '<button class="chipbtn'+(state.dark?' on':'')+'" id="darkToggle" type="button">🌙 Dark mode: '+(state.dark?'On':'Off')+'</button>'+
@@ -2368,11 +2408,11 @@ try{
           (bgMode()==='photo'?bgPickerHtml():'')+
         '</div>'+
       '</div>';
-    html+='<div class="section-lbl">Storage</div><div class="backup" id="storMeter"></div>';
+    html+='<div class="section-lbl" data-osec="stor">Storage</div><div class="backup" id="storMeter"></div>';
     /* the one backup action worth having to hand while you're looking at your
        collection: take a snapshot before you change something. Everything else
        about backups — the code, the file, the list, restoring — is a Settings job. */
-    html+='<div class="section-lbl">Backup</div>'+
+    html+='<div class="section-lbl" data-osec="bk">Backup</div>'+
       '<div class="backup">'+
         '<div class="bk-btns">'+
           '<button class="chipbtn" id="bkSave" type="button" style="color:#fff;background:var(--accent);border-color:var(--accent);">Save a backup now</button>'+
@@ -2386,6 +2426,34 @@ try{
     /* the "new" badge shows once — being seen is what spends it */
     if(APP_NEWS.length){try{localStorage.setItem('dpNewsSeen',APP_NEWS[0].when);}catch(e){}}
     if($('newsOlder'))$('newsOlder').addEventListener('click',function(){newsOlderOpen=!newsOlderOpen;renderOverview();});
+    /* the jump bar: a plain jump with a lit heading, exactly as on Find */
+    pg.querySelectorAll('[data-ojump]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var hd=pg.querySelector('.section-lbl[data-osec="'+b.getAttribute('data-ojump')+'"]');
+        if(!hd)return;
+        hd.scrollIntoView({block:'start'});
+        hd.classList.add('flash');
+        setTimeout(function(){hd.classList.remove('flash');},1100);
+      });
+    });
+    /* a medal opens (or closes) its ladder; Enter and Space work because the
+       medal is a div, not a button */
+    (function(){
+      var g=$('achMedals'); if(!g)return;
+      function flip(e){
+        var m=e.target.closest('[data-ach]'); if(!m)return;
+        var id=m.getAttribute('data-ach');
+        expandedAch=(expandedAch===id)?null:id;
+        renderOverview();
+        var back=$('achMedals')&&$('achMedals').querySelector('[data-ach="'+id+'"]');
+        if(back)try{back.focus({preventScroll:true});}catch(err){back.focus();}
+      }
+      g.addEventListener('click',flip);
+      g.addEventListener('keydown',function(e){
+        if(e.key!=='Enter'&&e.key!==' ')return;
+        e.preventDefault(); flip(e);
+      });
+    })();
     if($('toSettings'))$('toSettings').addEventListener('click',function(){navTo('settings');});
     wireSaveNow();
     if($('csvExport'))$('csvExport').addEventListener('click',exportCsv);
