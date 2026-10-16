@@ -4,7 +4,8 @@
    gets a fresh cache and the old one is deleted on activate — stale files
    can't outlive the build they belonged to. */
 var CACHE = 'dp-colors-' + (new URL(self.location.href).searchParams.get('v') || 'v3');
-var ASSETS = ['./', './index.html', './dmc.js', './version.js', './manifest.webmanifest', './icon.svg', './apple-touch-icon.png'];
+var ASSETS = ['./', './index.html', './dmc.js', './version.js', './manifest.webmanifest', './icon.svg', './apple-touch-icon.png',
+  './fraunces-latin.woff2', './fraunces-latin-ext.woff2'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
