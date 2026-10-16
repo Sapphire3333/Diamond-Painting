@@ -1139,6 +1139,9 @@ try{
      quiet mystery. Newest first; when the app changes in a way the user can
      see, add a {when, items} block at the TOP of this list. */
   var APP_NEWS=[
+    {when:'2026-10-16 · dates you can read',items:[
+      '📅 Dates are written out wherever you read them: a finished card says <b>2 Nov 2025 → 18 Jan 2026</b> instead of ▶ 2025-11-02 · ✓ 2026-01-18, one date alone says which end it is (<em>started 30 Aug 2026</em>), and the project page and the 📤 Share picture speak the same way. Tiles now name the start date on part-done projects too. The date boxes in the form keep their usual shape.',
+    ]},
     {when:'2026-10-16 · a face for the page',items:[
       '✒️ The headings — the title, section names and project names — have their own lettering now: <b>Fraunces</b>, a warm old-style serif. It ships with the app and works offline; all the small text stays as it was.',
       '🖥 On a PC the page uses more of the screen — the column grew from 900 to 1140 pixels, so cards are roomier and the tiles fit an extra column. A phone is unchanged.',
@@ -1530,6 +1533,16 @@ try{
   }
   function nowTs(){try{return Date.now();}catch(e){return 0;}}
   function todayStr(){try{var d=new Date();function p2(n){return (n<10?'0':'')+n;}return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}catch(e){return '';}}
+  /* '2026-01-18' → '18 Jan 2026'. The ISO shape stays in storage, backups, the
+     CSV and the date inputs; this is only for lines a person reads. Split, not
+     fed to Date, so no timezone can shift the day — and anything that isn't
+     the ISO shape is shown exactly as it is. */
+  var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function niceDate(s){
+    var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||''));
+    if(!m)return String(s||'');
+    return (+m[3])+' '+MONTHS[+m[2]-1]+' '+(+m[1]);
+  }
   /* prices arrive in many shapes — €25, 25.99, 25,99 (European decimal comma),
      1,299 — so a lone comma followed by 1–2 digits is a decimal point and any
      other comma is a thousands separator to drop */
@@ -3418,12 +3431,19 @@ try{
     if(p.size)sub+=' · '+esc(p.size);
     /* a tile is narrow — it gets the two facts that identify a project and stops,
        rather than pushing its own picture off the top of the screen */
-    if(short)return sub+(p.finished?(' · ✓ '+esc(p.finished)):'');
+    if(short){
+      if(p.finished)return sub+' · finished '+esc(niceDate(p.finished));
+      if(p.started)return sub+' · started '+esc(niceDate(p.started));
+      return sub;
+    }
     if(p.seller)sub+=' · '+esc(p.seller);
     if(p.code)sub+=' · '+esc(p.code);
     if(p.price)sub+=' · '+esc(p.price);
-    if(p.started)sub+=' · ▶ '+esc(p.started);
-    if(p.finished)sub+=' · ✓ '+esc(p.finished);
+    /* the dates in words, not codes: ▶ and ✓ were marks you had to know. Both
+       dates together read as a span; one alone says which end it is. */
+    if(p.started&&p.finished)sub+=' · '+esc(niceDate(p.started))+' → '+esc(niceDate(p.finished));
+    else if(p.started)sub+=' · started '+esc(niceDate(p.started));
+    else if(p.finished)sub+=' · finished '+esc(niceDate(p.finished));
     if(state.ovSort==='edited'&&p.updatedAt)sub+=' · 🕒 '+fmtDate(p.updatedAt);
     return sub;
   }
@@ -3881,7 +3901,7 @@ try{
       ctx.strokeStyle='rgba(0,0,0,.15)'; ctx.lineWidth=1; ctx.stroke();
     });
     ctx.fillStyle='#7A7486'; ctx.font='600 24px '+SH_FONT; ctx.textBaseline='alphabetic';
-    var foot=p.finished?('Finished '+p.finished):(p.started?('Started '+p.started):'');
+    var foot=p.finished?('Finished '+niceDate(p.finished)):(p.started?('Started '+niceDate(p.started)):'');
     ctx.fillText((foot?foot+'  ·  ':'')+'Diamond Painting Colors',SH_PAD,yFoot+24);
     return cv;
   }
@@ -5858,8 +5878,8 @@ try{
       viewRow('Size',p.size?(esc(p.size)+' cm'):'')+
       (kd!=='drawing'?viewRow('Price',esc(p.price||'')):'')+
       (kd!=='drawing'?viewRow('Seller',esc(p.seller||'')):'')+
-      viewRow('Started',esc(p.started||''))+
-      viewRow('Finished',esc(p.finished||''));
+      viewRow('Started',esc(niceDate(p.started||'')))+
+      viewRow('Finished',esc(niceDate(p.finished||'')));
     var med=Object.keys(p.media||{});
     var mediaHtml=(usesMedia(p)&&med.length)
       ? '<div class="ovtags">'+med.map(function(m){return '<span class="ovtag">'+esc(capFirst(m))+'</span>';}).join('')+'</div>' : '';
